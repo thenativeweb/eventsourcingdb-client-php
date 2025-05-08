@@ -17,5 +17,15 @@
   "minimum-stability": "stable",
   "require": {
     "guzzlehttp/guzzle": "7.9.3"
+  },
+  "require-dev": {
+    "symplify/easy-coding-standard": "12.5.16",
+    "phpunit/phpunit": "12.1.4"
+  },
+  "scripts": {
+    "analyze": "vendor/bin/ecs check",
+    "format": "vendor/bin/ecs check --fix",
+    "qa": [ "composer analyze", "composer test" ],
+    "test": "vendor/bin/phpunit"
   }
 }

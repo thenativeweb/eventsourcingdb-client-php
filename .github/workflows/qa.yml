@@ -16,12 +16,12 @@ jobs:
       with:
         php-version: '8.4'
         tools: composer
-    # - name: Install dependencies
-    #   run: |
-    #     npm ci
-    # - name: Run QA
-    #   run: |
-    #     npm run qa
+    - name: Install dependencies
+      run: |
+        composer install
+    - name: Run QA
+      run: |
+        composer qa
     # - name: Run build
     #   run: |
     #     npm run build

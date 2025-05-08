@@ -1,5 +1,6 @@
 # PHP specific files and folders
 /vendor
+.phpunit.result.cache
 
 # OS generated files and folders
 .DS_Store
