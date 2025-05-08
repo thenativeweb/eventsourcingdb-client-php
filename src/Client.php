@@ -16,7 +16,7 @@ class Client
         $this->apiToken = $apiToken;
         $this->httpClient = new HttpClient([
             'base_uri' => rtrim($url, '/'),
-            'http_errors' => false,
+            'http_errors' => false
         ]);
     }
 

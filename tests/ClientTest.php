@@ -2,13 +2,35 @@
 
 use PHPUnit\Framework\TestCase;
 use Thenativeweb\Eventsourcingdb\Client;
+use Thenativeweb\Eventsourcingdb\Container;
 
 class ClientTest extends TestCase
 {
-    public function testPingReturnsSuccessfully(): void
+    public function testPingSucceedsWhenServerIsReachable(): void
     {
-        $client = new Client('http://localhost:3000', 'secret');
+        $container = new Container();
+        $container->start();
+        try {
+            $client = $container->getClient();
+            $client->ping();
+            $this->expectNotToPerformAssertions();
+        } finally {
+            $container->stop();
+        }
+    }
 
-        $this->expectNotToPerformAssertions();
+    public function testPingFailsWhenServerIsUnreachable(): void
+    {
+        $container = new Container();
+        $container->start();
+        try {
+            $port = $container->getMappedPort();
+            $client = new Client("http://non-existent-host:{$port}", $container->getApiToken());
+
+            $this->expectException(Throwable::class);
+            $client->ping();
+        } finally {
+            $container->stop();
+        }
     }
 }
