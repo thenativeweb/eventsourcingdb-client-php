@@ -37,5 +37,5 @@ $client->ping();
 If you want to verify the API token, call `verifyApiToken`. If the token is invalid, the function will throw an error:
 
 ```php
-$client->verifyAPIToken();
+$client->verifyApiToken();
 ```
