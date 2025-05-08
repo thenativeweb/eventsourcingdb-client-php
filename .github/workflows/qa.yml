@@ -22,6 +22,3 @@ jobs:
     - name: Run QA
       run: |
         composer qa
-    # - name: Run build
-    #   run: |
-    #     npm run build
