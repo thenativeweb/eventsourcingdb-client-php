@@ -1,2 +1,5 @@
+# PHP specific files and folders
+/vendor
+
 # OS generated files and folders
 .DS_Store

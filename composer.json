@@ -1,0 +1,21 @@
+{
+  "name": "thenativeweb/eventsourcingdb",
+  "description": "The official PHP client SDK for EventSourcingDB.",
+  "type": "library",
+  "license": "MIT",
+  "autoload": {
+    "psr-4": {
+      "Thenativeweb\\Eventsourcingdb\\": "src/"
+    }
+  },
+  "authors": [
+    {
+      "name": "the native web GmbH",
+      "email": "hello@thenativeweb.io"
+    }
+  ],
+  "minimum-stability": "stable",
+  "require": {
+    "guzzlehttp/guzzle": "7.9.3"
+  }
+}
