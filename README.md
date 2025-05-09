@@ -2,7 +2,7 @@
 
 The official PHP client SDK for [EventSourcingDB](https://www.eventsourcingdb.io) – a purpose-built database for event sourcing.
 
-EventSourcingDB enables you to build and operate event-driven applications with native support for writing, reading, and observing events. This client SDK provides convenient access to its capabilities in Go.
+EventSourcingDB enables you to build and operate event-driven applications with native support for writing, reading, and observing events. This client SDK provides convenient access to its capabilities in PHP.
 
 For more information on EventSourcingDB, see its [official documentation](https://docs.eventsourcingdb.io/).
 
