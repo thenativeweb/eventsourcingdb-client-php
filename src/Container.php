@@ -2,11 +2,10 @@
 
 namespace Thenativeweb\Eventsourcingdb;
 
-use Symfony\Component\Process\Process;
+use GuzzleHttp\Client as HttpClient;
+use GuzzleHttp\Exception\GuzzleException;
 use Testcontainers\Container\GenericContainer;
-use Testcontainers\DockerClient\DockerClient;
-use Testcontainers\DockerClient\DockerClientFactory;
-use Testcontainers\Wait\WaitForHttp;
+use Testcontainers\Container\StartedGenericContainer;
 
 class Container
 {
@@ -14,11 +13,15 @@ class Container
     private string $imageTag;
     private int $internalPort = 3000;
     private string $apiToken = 'secret';
-    private ?GenericContainer $container = null;
+    private ?StartedGenericContainer $container = null;
+    private HttpClient $httpClient;
 
     public function __construct()
     {
         $this->imageTag = $this->getImageVersionFromDockerfile();
+        $this->httpClient = new HttpClient([
+            'http_errors' => false
+        ]);
     }
 
     public function withImageTag(string $tag): self
@@ -41,24 +44,35 @@ class Container
 
     public function start(): void
     {
-        $this->container = new GenericContainer("{$this->imageName}:{$this->imageTag}");
+        $container =
+            new GenericContainer("{$this->imageName}:{$this->imageTag}")
+                ->withExposedPorts($this->internalPort)
+                ->withCommand([
+                    'run',
+                    '--api-token', $this->apiToken,
+                    '--data-directory-temporary',
+                    '--http-enabled',
+                    '--https-enabled=false'
+                ]);
 
-        $this->container
-            ->withExposedPorts($this->internalPort)
-            ->withCommand([
-                'run',
-                '--api-token', $this->apiToken,
-                '--data-directory-temporary',
-                '--http-enabled',
-                '--https-enabled=false'
-            ])
-            ->withWait(
-                new WaitForHttp($this->internalPort)
-                    ->withMethod('GET')
-                    ->withPath('/api/v1/ping')
-            );
+        $this->container = $container->start();
 
-        $this->container->start();
+        $baseUrl = rtrim($this->getBaseUrl());
+        $pingUrl = $baseUrl . '/api/v1/ping';
+
+        while (true) {
+            try {
+                $response = $this->httpClient->get($pingUrl);
+            } catch (GuzzleException $e) {
+                usleep(100_000);
+                continue;
+            }
+            $status = $response->getStatusCode();
+
+            if ($status === 200) {
+                break;
+            }
+        }
     }
 
     public function getHost(): string

@@ -26,7 +26,10 @@
   "scripts": {
     "analyze": "vendor/bin/ecs check",
     "format": "vendor/bin/ecs check --fix",
-    "qa": [ "composer analyze", "composer test" ],
+    "qa": [
+      "composer analyze",
+      "composer test"
+    ],
     "test": "vendor/bin/phpunit"
   },
   "config": {
