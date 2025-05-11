@@ -10,7 +10,7 @@ use Testcontainers\Container\StartedGenericContainer;
 class Container
 {
     private string $imageName = 'thenativeweb/eventsourcingdb';
-    private string $imageTag;
+    private string $imageTag = 'latest';
     private int $internalPort = 3000;
     private string $apiToken = 'secret';
     private ?StartedGenericContainer $container = null;
@@ -18,7 +18,6 @@ class Container
 
     public function __construct()
     {
-        $this->imageTag = $this->getImageVersionFromDockerfile();
         $this->httpClient = new HttpClient([
             'http_errors' => false
         ]);
@@ -123,21 +122,5 @@ class Container
         if ($this->container === null) {
             throw new \RuntimeException('Container must be running');
         }
-    }
-
-    private function getImageVersionFromDockerfile(): string
-    {
-        $dockerfile = __DIR__ . '/../docker/Dockerfile';
-
-        if (!file_exists($dockerfile)) {
-            throw new \RuntimeException('Dockerfile not found at ' . $dockerfile);
-        }
-
-        $content = file_get_contents($dockerfile);
-        if (!preg_match('/^FROM\s+thenativeweb\/eventsourcingdb:(.+)$/m', $content, $matches)) {
-            throw new \RuntimeException('Failed to extract image version from Dockerfile');
-        }
-
-        return trim($matches[1]);
     }
 }
