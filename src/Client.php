@@ -39,4 +39,31 @@ class Client
             throw new RuntimeException('Failed to ping');
         }
     }
+
+    public function verifyApiToken(): void
+    {
+        $response = $this->httpClient->post(
+            '/api/v1/verify-api-token',
+            [
+                'headers' => [
+                    'Authorization' => 'Bearer ' . $this->apiToken,
+                ],
+            ],
+        );
+        $status = $response->getStatusCode();
+
+        if ($status !== 200) {
+            throw new RuntimeException(sprintf(
+                "Failed to verify API token, got HTTP status code '%d', expected '200'",
+                $status
+            ));
+        }
+
+        $body = (string) $response->getBody();
+        $data = json_decode($body, true);
+
+        if (!isset($data['type']) || $data['type'] !== 'io.eventsourcingdb.api.api-token-verified') {
+            throw new RuntimeException('Failed to verify API token');
+        }
+    }
 }
