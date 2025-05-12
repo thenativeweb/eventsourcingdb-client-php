@@ -1,5 +1,7 @@
 <?php
 
+namespace Thenativeweb\Eventsourcingdb\Tests;
+
 use PHPUnit\Framework\TestCase;
 use Thenativeweb\Eventsourcingdb\Client;
 use Thenativeweb\Eventsourcingdb\Container;
@@ -29,7 +31,7 @@ class ClientTest extends TestCase
             $port = $container->getMappedPort();
             $client = new Client("http://non-existent-host:{$port}", $container->getApiToken());
 
-            $this->expectException(Throwable::class);
+            $this->expectException(\Throwable::class);
             $client->ping();
         } finally {
             $container->stop();
@@ -59,7 +61,7 @@ class ClientTest extends TestCase
             $baseUrl = $container->getBaseUrl();
             $apiToken = $container->getApiToken() . '-invalid';
             $client = new Client($baseUrl, $apiToken);
-            $this->expectException(Throwable::class);
+            $this->expectException(\Throwable::class);
             $client->verifyApiToken();
         } finally {
             $container->stop();

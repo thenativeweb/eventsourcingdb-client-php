@@ -7,17 +7,22 @@ use GuzzleHttp\Exception\GuzzleException;
 use Testcontainers\Container\GenericContainer;
 use Testcontainers\Container\StartedGenericContainer;
 
-class Container
+final class Container
 {
-    private string $imageName = 'thenativeweb/eventsourcingdb';
-    private string $imageTag = 'latest';
-    private int $internalPort = 3000;
-    private string $apiToken = 'secret';
-    private ?StartedGenericContainer $container = null;
+    private string $imageName;
+    private string $imageTag;
+    private int $internalPort;
+    private string $apiToken;
+    private ?StartedGenericContainer $container;
     private HttpClient $httpClient;
 
     public function __construct()
     {
+        $this->imageName = 'thenativeweb/eventsourcingdb';
+        $this->imageTag = 'latest';
+        $this->internalPort = 3000;
+        $this->apiToken = 'secret';
+        $this->container = null;
         $this->httpClient = new HttpClient([
             'http_errors' => false
         ]);

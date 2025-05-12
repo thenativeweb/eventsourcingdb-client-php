@@ -6,7 +6,7 @@ use GuzzleHttp\Client as HttpClient;
 use GuzzleHttp\Exception\GuzzleException;
 use RuntimeException;
 
-class Client
+final readonly class Client
 {
     private string $apiToken;
     private HttpClient $httpClient;
