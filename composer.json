@@ -8,6 +8,11 @@
       "Thenativeweb\\Eventsourcingdb\\": "src/"
     }
   },
+  "autoload-dev": {
+    "psr-4": {
+      "Thenativeweb\\Eventsourcingdb\\Tests\\": "tests/"
+    }
+  },
   "authors": [
     {
       "name": "the native web GmbH",
