@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Thenativeweb\Eventsourcingdb\Tests;
 
 use PHPUnit\Framework\TestCase;
