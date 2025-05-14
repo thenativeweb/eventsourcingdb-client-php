@@ -13,17 +13,21 @@ use Thenativeweb\Eventsourcingdb\IsSubjectPristine;
 
 class ClientTest extends TestCase
 {
+    use ClientTestTrait;
+
     private Container $container;
     private Client $client;
-
 
     protected function setUp(): void
     {
         parent::setUp();
-        $imageVersion = getImageVersionFromDockerfile();
-        $this->container = (new Container())->withImageTag($imageVersion);
-        $this->container->start();
+        $this->container = $this->startContainer();
         $this->client = $this->container->getClient();
+    }
+    protected function tearDown(): void
+    {
+        $this->container->stop();
+        parent::tearDown();
     }
 
 
@@ -42,11 +46,6 @@ class ClientTest extends TestCase
         $client->ping();
     }
 
-    protected function tearDown(): void
-    {
-        $this->container->stop();
-        parent::tearDown();
-    }
 
 
     public function testVerifyApiTokenDoesNotThrowAnErrorIfTheTokenIsValid(): void
