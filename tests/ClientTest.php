@@ -13,6 +13,8 @@ use Thenativeweb\Eventsourcingdb\IsSubjectPristine;
 
 class ClientTest extends TestCase
 {
+    use ClientTestTrait;
+
     private Container $container;
     private Client $client;
 
@@ -20,9 +22,7 @@ class ClientTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $imageVersion = getImageVersionFromDockerfile();
-        $this->container = (new Container())->withImageTag($imageVersion);
-        $this->container->start();
+        $this->container = $this->bootContainer();
         $this->client = $this->container->getClient();
     }
 
