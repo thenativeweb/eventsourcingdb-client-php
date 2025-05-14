@@ -51,7 +51,7 @@ final class Container
     public function start(): void
     {
         $container =
-            new GenericContainer("{$this->imageName}:{$this->imageTag}")
+            (new GenericContainer("{$this->imageName}:{$this->imageTag}"))
                 ->withExposedPorts($this->internalPort)
                 ->withCommand([
                     'run',
