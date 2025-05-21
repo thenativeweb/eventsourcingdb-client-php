@@ -13,213 +13,170 @@ use Thenativeweb\Eventsourcingdb\IsSubjectPristine;
 
 class ClientTest extends TestCase
 {
+    use ClientTestTrait;
+
+    private Container $container;
+    private Client $client;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->container = $this->startContainer();
+        $this->client = $this->container->getClient();
+    }
+    protected function tearDown(): void
+    {
+        $this->container->stop();
+        parent::tearDown();
+    }
+
+
     public function testPingSucceedsWhenServerIsReachable(): void
     {
-        $imageVersion = getImageVersionFromDockerfile();
-        $container = new Container()->withImageTag($imageVersion);
-        $container->start();
-        try {
-            $client = $container->getClient();
-            $client->ping();
-            $this->expectNotToPerformAssertions();
-        } finally {
-            $container->stop();
-        }
+        $this->client->ping();
+        $this->expectNotToPerformAssertions();
     }
 
     public function testPingFailsWhenServerIsUnreachable(): void
     {
-        $imageVersion = getImageVersionFromDockerfile();
-        $container = new Container()->withImageTag($imageVersion);
-        $container->start();
-        try {
-            $port = $container->getMappedPort();
-            $client = new Client("http://non-existent-host:{$port}", $container->getApiToken());
+        $port = $this->container->getMappedPort();
+        $client = new Client("http://non-existent-host:{$port}", $this->container->getApiToken());
 
-            $this->expectException(\Throwable::class);
-            $client->ping();
-        } finally {
-            $container->stop();
-        }
+        $this->expectException(\Throwable::class);
+        $client->ping();
     }
+
+
 
     public function testVerifyApiTokenDoesNotThrowAnErrorIfTheTokenIsValid(): void
     {
-        $imageVersion = getImageVersionFromDockerfile();
-        $container = new Container()->withImageTag($imageVersion);
-        $container->start();
-        try {
-            $client = $container->getClient();
-            $client->verifyApiToken();
-            $this->expectNotToPerformAssertions();
-        } finally {
-            $container->stop();
-        }
+        $client = $this->container->getClient();
+        $client->verifyApiToken();
+        $this->expectNotToPerformAssertions();
     }
 
     public function testVerifyApiTokenThrowsAnErrorIfTheTokenIsInvalid(): void
     {
-        $imageVersion = getImageVersionFromDockerfile();
-        $container = new Container()->withImageTag($imageVersion);
-        $container->start();
-        try {
-            $baseUrl = $container->getBaseUrl();
-            $apiToken = $container->getApiToken() . '-invalid';
-            $client = new Client($baseUrl, $apiToken);
-            $this->expectException(\Throwable::class);
-            $client->verifyApiToken();
-        } finally {
-            $container->stop();
-        }
+        $baseUrl = $this->container->getBaseUrl();
+        $apiToken = $this->container->getApiToken() . '-invalid';
+        $client = new Client($baseUrl, $apiToken);
+        $this->expectException(\Throwable::class);
+        $client->verifyApiToken();
     }
 
     public function testWriteEventsWritesASingleEvent(): void
     {
-        $imageVersion = getImageVersionFromDockerfile();
-        $container = new Container()->withImageTag($imageVersion);
-        $container->start();
-        try {
-            $client = $container->getClient();
-            $event = new EventCandidate(
-                'https://www.eventsourcingdb.io',
-                '/test',
-                'io.eventsourcingdb.test',
-                [
-                    'value' => 42,
-                ],
-            );
+        $event = new EventCandidate(
+            'https://www.eventsourcingdb.io',
+            '/test',
+            'io.eventsourcingdb.test',
+            [
+                'value' => 42,
+            ],
+        );
 
-            $writtenEvents = $client->writeEvents([
-                $event,
-            ]);
+        $writtenEvents = $this->client->writeEvents([
+            $event,
+        ]);
 
-            $this->assertCount(1, $writtenEvents);
-            $this->assertSame('0', $writtenEvents[0]->id);
-        } finally {
-            $container->stop();
-        }
+        $this->assertCount(1, $writtenEvents);
+        $this->assertSame('0', $writtenEvents[0]->id);
     }
 
     public function testWriteEventsWritesMultipleEvents(): void
     {
-        $imageVersion = getImageVersionFromDockerfile();
-        $container = new Container()->withImageTag($imageVersion);
-        $container->start();
-        try {
-            $client = $container->getClient();
+        $firstEvent = new EventCandidate(
+            'https://www.eventsourcingdb.io',
+            '/test',
+            'io.eventsourcingdb.test',
+            [
+                'value' => 23,
+            ],
+        );
 
-            $firstEvent = new EventCandidate(
-                'https://www.eventsourcingdb.io',
-                '/test',
-                'io.eventsourcingdb.test',
-                [
-                    'value' => 23,
-                ],
-            );
+        $secondEvent = new EventCandidate(
+            'https://www.eventsourcingdb.io',
+            '/test',
+            'io.eventsourcingdb.test',
+            [
+                'value' => 42,
+            ],
+        );
 
-            $secondEvent = new EventCandidate(
-                'https://www.eventsourcingdb.io',
-                '/test',
-                'io.eventsourcingdb.test',
-                [
-                    'value' => 42,
-                ],
-            );
+        $writtenEvents = $this->client->writeEvents([
+            $firstEvent,
+            $secondEvent,
+        ]);
 
-            $writtenEvents = $client->writeEvents([
-                $firstEvent,
-                $secondEvent,
-            ]);
-
-            $this->assertCount(2, $writtenEvents);
-            $this->assertSame('0', $writtenEvents[0]->id);
-            $this->assertSame(23, $writtenEvents[0]->data['value']);
-            $this->assertSame('1', $writtenEvents[1]->id);
-            $this->assertSame(42, $writtenEvents[1]->data['value']);
-        } finally {
-            $container->stop();
-        }
+        $this->assertCount(2, $writtenEvents);
+        $this->assertSame('0', $writtenEvents[0]->id);
+        $this->assertSame(23, $writtenEvents[0]->data['value']);
+        $this->assertSame('1', $writtenEvents[1]->id);
+        $this->assertSame(42, $writtenEvents[1]->data['value']);
     }
 
     public function testWriteEventsSupportsTheIsSubjectPristinePrecondition(): void
     {
-        $imageVersion = getImageVersionFromDockerfile();
-        $container = new Container()->withImageTag($imageVersion);
-        $container->start();
-        try {
-            $client = $container->getClient();
+        $firstEvent = new EventCandidate(
+            'https://www.eventsourcingdb.io',
+            '/test',
+            'io.eventsourcingdb.test',
+            [
+                'value' => 23,
+            ],
+        );
 
-            $firstEvent = new EventCandidate(
-                'https://www.eventsourcingdb.io',
-                '/test',
-                'io.eventsourcingdb.test',
-                [
-                    'value' => 23,
-                ],
-            );
+        $this->client->writeEvents([
+            $firstEvent,
+        ]);
 
-            $client->writeEvents([
-                $firstEvent,
-            ]);
+        $secondEvent = new EventCandidate(
+            'https://www.eventsourcingdb.io',
+            '/test',
+            'io.eventsourcingdb.test',
+            [
+                'value' => 42,
+            ],
+        );
 
-            $secondEvent = new EventCandidate(
-                'https://www.eventsourcingdb.io',
-                '/test',
-                'io.eventsourcingdb.test',
-                [
-                    'value' => 42,
-                ],
-            );
+        $this->expectExceptionMessage("Failed to write events, got HTTP status code '409', expected '200'");
 
-            $this->expectExceptionMessage("Failed to write events, got HTTP status code '409', expected '200'");
-            $client->writeEvents([
-                $secondEvent,
-            ], [
-                new IsSubjectPristine('/test')
-            ]);
-        } finally {
-            $container->stop();
-        }
+        $this->client->writeEvents([
+            $secondEvent,
+        ], [
+            new IsSubjectPristine('/test')
+        ]);
     }
 
     public function testWriteEventsSupportsTheIsSubjectOnEventIdPrecondition(): void
     {
-        $imageVersion = getImageVersionFromDockerfile();
-        $container = new Container()->withImageTag($imageVersion);
-        $container->start();
-        try {
-            $client = $container->getClient();
+        $firstEvent = new EventCandidate(
+            'https://www.eventsourcingdb.io',
+            '/test',
+            'io.eventsourcingdb.test',
+            [
+                'value' => 23,
+            ],
+        );
 
-            $firstEvent = new EventCandidate(
-                'https://www.eventsourcingdb.io',
-                '/test',
-                'io.eventsourcingdb.test',
-                [
-                    'value' => 23,
-                ],
-            );
+        $this->client->writeEvents([
+            $firstEvent,
+        ]);
 
-            $client->writeEvents([
-                $firstEvent,
-            ]);
+        $secondEvent = new EventCandidate(
+            'https://www.eventsourcingdb.io',
+            '/test',
+            'io.eventsourcingdb.test',
+            [
+                'value' => 42,
+            ],
+        );
 
-            $secondEvent = new EventCandidate(
-                'https://www.eventsourcingdb.io',
-                '/test',
-                'io.eventsourcingdb.test',
-                [
-                    'value' => 42,
-                ],
-            );
-
-            $this->expectExceptionMessage("Failed to write events, got HTTP status code '409', expected '200'");
-            $client->writeEvents([
-                $secondEvent,
-            ], [
-                new IsSubjectOnEventId('/test', '1')
-            ]);
-        } finally {
-            $container->stop();
-        }
+        $this->expectExceptionMessage("Failed to write events, got HTTP status code '409', expected '200'");
+        $this->client->writeEvents([
+            $secondEvent,
+        ], [
+            new IsSubjectOnEventId('/test', '1')
+        ]);
     }
 }
