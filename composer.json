@@ -24,16 +24,17 @@
   ],
   "minimum-stability": "stable",
   "require": {
+    "php": ">=8.2",
     "guzzlehttp/guzzle": "7.9.3"
   },
   "require-dev": {
-    "phpunit/phpunit": "^11.5.2",
     "symplify/easy-coding-standard": "12.5.16",
     "testcontainers/testcontainers": "1.0.2",
-    "phpstan/phpstan": "^2.1"
+    "phpstan/phpstan": "2.1.16",
+    "phpunit/phpunit": "11.5.21"
   },
   "scripts": {
-    "analyze": "vendor/bin/ecs check",
+    "analyze": "vendor/bin/ecs check && composer stan",
     "format": "vendor/bin/ecs check --fix",
     "stan": " vendor/bin/phpstan analyze -l 5 src tests",
     "qa": [
