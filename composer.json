@@ -24,6 +24,7 @@
   ],
   "minimum-stability": "stable",
   "require": {
+    "php": ">=8.2",
     "guzzlehttp/guzzle": "7.9.3"
   },
   "require-dev": {
