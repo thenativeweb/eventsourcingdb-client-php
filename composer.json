@@ -44,9 +44,9 @@
     "test": "vendor/bin/phpunit"
   },
   "config": {
-    "sort-packages": true,
     "allow-plugins": {
       "php-http/discovery": true
-    }
+    },
+    "sort-packages": true
   }
 }
