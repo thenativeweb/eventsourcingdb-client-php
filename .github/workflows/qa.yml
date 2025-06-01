@@ -4,12 +4,13 @@ on: pull_request
 
 jobs:
   qa:
-    strategy:
-      matrix:
-        version: [ '8.2', '8.3', '8.4', 'latest' ]
     name: QA
     runs-on: ubuntu-latest
     timeout-minutes: 15
+
+    strategy:
+      matrix:
+        version: [ '8.2', '8.3', '8.4', 'latest' ]
 
     steps:
     - name: Clone repository
