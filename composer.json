@@ -31,7 +31,7 @@
     "phpstan/phpstan": "2.1.17",
     "phpunit/phpunit": "11.5.21",
     "symplify/easy-coding-standard": "12.5.16",
-    "testcontainers/testcontainers": "1.0.2"
+    "testcontainers/testcontainers": "1.0.3"
   },
   "scripts": {
     "analyze": "vendor/bin/ecs check && composer stan",
