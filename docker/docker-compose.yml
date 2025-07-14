@@ -1,16 +1,24 @@
 services:
-  php-thenativeweb:
+  php:
     build:
       dockerfile: ./php.Dockerfile
       args:
         PHP_VERSION: "8.2"
-    container_name: "php-thenativeweb"
+    container_name: "php"
     privileged: true
     command: sleep infinity
     environment:
-      - APP_ENV=test-docker
+      - TEST_HOST=docker
+      - DOCKER_HOST=tcp://docker:2375
     volumes:
       - ./../:/thenativeweb
-      - /var/run/docker.sock:/var/run/docker.sock
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+    depends_on:
+      - docker
+
+  docker:
+    image: docker:dind
+    container_name: "docker"
+    privileged: true
+    environment:
+      - DOCKER_TLS_CERTDIR=
+    command: ["--host=tcp://0.0.0.0:2375", "--host=unix:///var/run/docker.sock"]
