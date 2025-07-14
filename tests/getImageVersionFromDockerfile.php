@@ -8,7 +8,7 @@ use RuntimeException;
 
 function getImageVersionFromDockerfile(): string
 {
-    $dockerfile = __DIR__ . '/../docker/Dockerfile';
+    $dockerfile = __DIR__ . '/../docker/esdb.Dockerfile';
 
     if (!file_exists($dockerfile)) {
         throw new RuntimeException('Dockerfile not found at ' . $dockerfile);

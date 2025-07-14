@@ -84,6 +84,11 @@ final class Container
     public function getHost(): string
     {
         $this->ensureRunning();
+
+        if ($_ENV['APP_ENV'] === 'test-docker') {
+            return 'host.docker.internal';
+        }
+
         return $this->container->getHost();
     }
 

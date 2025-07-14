@@ -1,0 +1,14 @@
+services:
+  php-thenativeweb:
+    build:
+      dockerfile: ./php.Dockerfile
+      args:
+        PHP_VERSION: "8.2"
+    container_name: "php-thenativeweb"
+    privileged: true
+    command: sleep infinity
+    volumes:
+      - ./../:/thenativeweb
+      - /var/run/docker.sock:/var/run/docker.sock
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
