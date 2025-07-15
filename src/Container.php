@@ -85,7 +85,11 @@ final class Container
     {
         $this->ensureRunning();
 
-        return $_ENV['TEST_HOST'] ?? $this->container->getHost();
+        if ($_ENV['APP_ENV'] === 'test-docker') {
+            return 'host.docker.internal';
+        }
+
+        return $this->container->getHost();
     }
 
     public function getMappedPort(): int
