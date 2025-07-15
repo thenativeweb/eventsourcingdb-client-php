@@ -7,8 +7,6 @@ services:
     container_name: "php-thenativeweb"
     privileged: true
     command: sleep infinity
-    environment:
-      - APP_ENV=test-docker
     volumes:
       - ./../:/thenativeweb
       - /var/run/docker.sock:/var/run/docker.sock
