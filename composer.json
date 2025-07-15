@@ -41,8 +41,7 @@
       "composer analyze",
       "composer test"
     ],
-    "test": "vendor/bin/phpunit",
-    "test-docker": "APP_ENV=test-docker vendor/bin/phpunit"
+    "test": "vendor/bin/phpunit"
   },
   "config": {
     "allow-plugins": {
