@@ -6,7 +6,6 @@ namespace Thenativeweb\Eventsourcingdb;
 
 use DateTimeImmutable;
 use GuzzleHttp\Client as HttpClient;
-use GuzzleHttp\Exception\GuzzleException;
 use RuntimeException;
 
 final readonly class Client
@@ -19,7 +18,7 @@ final readonly class Client
         $this->apiToken = $apiToken;
         $this->httpClient = new HttpClient([
             'base_uri' => rtrim($url, '/'),
-            'http_errors' => false
+            'http_errors' => false,
         ]);
     }
 
@@ -75,7 +74,7 @@ final readonly class Client
         $requestBody = [
             'events' => $events,
         ];
-        if (!empty($preconditions)) {
+        if ($preconditions !== []) {
             $requestBody['preconditions'] = $preconditions;
         }
 
@@ -101,7 +100,7 @@ final readonly class Client
         $body = (string) $response->getBody();
         $data = json_decode($body, true);
 
-        $writtenEvents = array_map(fn ($item) => new CloudEvent(
+        return array_map(fn ($item): CloudEvent => new CloudEvent(
             $item['specversion'],
             $item['id'],
             new DateTimeImmutable($item['time']),
@@ -115,7 +114,5 @@ final readonly class Client
             $item['traceparent'] ?? null,
             $item['tracestate'] ?? null,
         ), $data);
-
-        return $writtenEvents;
     }
 }

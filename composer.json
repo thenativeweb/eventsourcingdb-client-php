@@ -25,21 +25,29 @@
   "minimum-stability": "stable",
   "require": {
     "php": ">=8.2",
-    "guzzlehttp/guzzle": "7.9.3"
+    "guzzlehttp/guzzle": "^7.5"
   },
   "require-dev": {
     "phpstan/phpstan": "2.1.17",
     "phpunit/phpunit": "11.5.21",
+    "rector/rector": "2.1.1",
     "symplify/easy-coding-standard": "12.5.20",
     "testcontainers/testcontainers": "1.0.3"
   },
   "scripts": {
-    "analyze": "vendor/bin/ecs check && composer stan",
-    "format": "vendor/bin/ecs check --fix",
-    "stan": " vendor/bin/phpstan analyze -l 5 src tests",
+    "analyze": [
+      "vendor/bin/rector process --dry-run --ansi",
+      "vendor/bin/ecs check",
+      "@stan"
+    ],
+    "format": [
+      "vendor/bin/rector process",
+      "vendor/bin/ecs check --fix"
+    ],
+    "stan": "vendor/bin/phpstan analyze",
     "qa": [
-      "composer analyze",
-      "composer test"
+      "@analyze",
+      "@test"
     ],
     "test": "vendor/bin/phpunit"
   },

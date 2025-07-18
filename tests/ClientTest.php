@@ -11,11 +11,12 @@ use Thenativeweb\Eventsourcingdb\EventCandidate;
 use Thenativeweb\Eventsourcingdb\IsSubjectOnEventId;
 use Thenativeweb\Eventsourcingdb\IsSubjectPristine;
 
-class ClientTest extends TestCase
+final class ClientTest extends TestCase
 {
     use ClientTestTrait;
 
     private Container $container;
+
     private Client $client;
 
     protected function setUp(): void
@@ -24,12 +25,12 @@ class ClientTest extends TestCase
         $this->container = $this->startContainer();
         $this->client = $this->container->getClient();
     }
+
     protected function tearDown(): void
     {
         $this->container->stop();
         parent::tearDown();
     }
-
 
     public function testPingSucceedsWhenServerIsReachable(): void
     {
@@ -45,8 +46,6 @@ class ClientTest extends TestCase
         $this->expectException(\Throwable::class);
         $client->ping();
     }
-
-
 
     public function testVerifyApiTokenDoesNotThrowAnErrorIfTheTokenIsValid(): void
     {
@@ -66,7 +65,7 @@ class ClientTest extends TestCase
 
     public function testWriteEventsWritesASingleEvent(): void
     {
-        $event = new EventCandidate(
+        $eventCandidate = new EventCandidate(
             'https://www.eventsourcingdb.io',
             '/test',
             'io.eventsourcingdb.test',
@@ -76,7 +75,7 @@ class ClientTest extends TestCase
         );
 
         $writtenEvents = $this->client->writeEvents([
-            $event,
+            $eventCandidate,
         ]);
 
         $this->assertCount(1, $writtenEvents);
@@ -144,7 +143,7 @@ class ClientTest extends TestCase
         $this->client->writeEvents([
             $secondEvent,
         ], [
-            new IsSubjectPristine('/test')
+            new IsSubjectPristine('/test'),
         ]);
     }
 
@@ -176,7 +175,7 @@ class ClientTest extends TestCase
         $this->client->writeEvents([
             $secondEvent,
         ], [
-            new IsSubjectOnEventId('/test', '1')
+            new IsSubjectOnEventId('/test', '1'),
         ]);
     }
 }

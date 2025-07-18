@@ -1,0 +1,5 @@
+parameters:
+    level: 5
+    checkMissingCallableSignature: true
+    paths:
+        - src
