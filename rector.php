@@ -9,7 +9,6 @@ use Rector\Config\RectorConfig;
 use Rector\ValueObject\PhpVersion;
 
 return RectorConfig::configure()
-    // ->withCache('cache/rector')
     ->withPhpVersion(PhpVersion::PHP_82)
     ->withPhpstanConfigs([
         __DIR__ . '/phpstan.neon',
