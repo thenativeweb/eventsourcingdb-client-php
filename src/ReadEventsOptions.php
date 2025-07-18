@@ -50,12 +50,26 @@ class ReadEventsOptions implements JsonSerializable
 
     public function jsonSerialize(): mixed
     {
-        return array_filter([
+        $result = [
             'recursive' => $this->recursive,
-            'order' => $this->order?->value,
-            'lowerBound' => $this->lowerBound?->jsonSerialize(),
-            'upperBound' => $this->upperBound?->jsonSerialize(),
-            'fromLatestEvent' => $this->fromLatestEvent?->jsonSerialize(),
-        ], fn ($v): bool => $v !== null);
+        ];
+
+        if ($this->order instanceof Order) {
+            $result['order'] = $this->order->value;
+        }
+
+        if ($this->lowerBound instanceof Bound) {
+            $result['lowerBound'] = $this->lowerBound->jsonSerialize();
+        }
+
+        if ($this->upperBound instanceof Bound) {
+            $result['upperBound'] = $this->upperBound->jsonSerialize();
+        }
+
+        if ($this->fromLatestEvent instanceof ReadFromLatestEvent) {
+            $result['fromLatestEvent'] = $this->fromLatestEvent->jsonSerialize();
+        }
+
+        return $result;
     }
 }
