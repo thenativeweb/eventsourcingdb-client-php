@@ -100,7 +100,7 @@ final readonly class Client
         $body = (string) $response->getBody();
         $data = json_decode($body, true);
 
-        return array_map(fn ($item): CloudEvent => new CloudEvent(
+        $writtenEvents = array_map(fn ($item): CloudEvent => new CloudEvent(
             $item['specversion'],
             $item['id'],
             new DateTimeImmutable($item['time']),
@@ -114,5 +114,7 @@ final readonly class Client
             $item['traceparent'] ?? null,
             $item['tracestate'] ?? null,
         ), $data);
+
+        return $writtenEvents;
     }
 }
