@@ -76,7 +76,7 @@ final class WriteEventsTest extends TestCase
             ],
         );
 
-        iterator_to_array($this->client->writeEvents([
+        iterator_count($this->client->writeEvents([
             $firstEvent,
         ]));
 
@@ -112,7 +112,7 @@ final class WriteEventsTest extends TestCase
             ],
         );
 
-        iterator_to_array($this->client->writeEvents([
+        iterator_count($this->client->writeEvents([
             $firstEvent,
         ]));
 

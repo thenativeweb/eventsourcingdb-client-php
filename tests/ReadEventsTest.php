@@ -48,7 +48,7 @@ final class ReadEventsTest extends TestCase
             ],
         );
 
-        iterator_to_array($this->client->writeEvents([
+        iterator_count($this->client->writeEvents([
             $firstEvent,
             $secondEvent,
         ]));
@@ -83,7 +83,7 @@ final class ReadEventsTest extends TestCase
             ],
         );
 
-        iterator_to_array($this->client->writeEvents([
+        iterator_count($this->client->writeEvents([
             $firstEvent,
             $secondEvent,
         ]));
@@ -118,7 +118,7 @@ final class ReadEventsTest extends TestCase
             ],
         );
 
-        iterator_to_array($this->client->writeEvents([
+        iterator_count($this->client->writeEvents([
             $firstEvent,
             $secondEvent,
         ]));
@@ -160,7 +160,7 @@ final class ReadEventsTest extends TestCase
             ],
         );
 
-        iterator_to_array($this->client->writeEvents([
+        iterator_count($this->client->writeEvents([
             $firstEvent,
             $secondEvent,
         ]));
@@ -202,7 +202,7 @@ final class ReadEventsTest extends TestCase
             ],
         );
 
-        iterator_to_array($this->client->writeEvents([
+        iterator_count($this->client->writeEvents([
             $firstEvent,
             $secondEvent,
         ]));
@@ -242,7 +242,7 @@ final class ReadEventsTest extends TestCase
             ],
         );
 
-        iterator_to_array($this->client->writeEvents([
+        iterator_count($this->client->writeEvents([
             $firstEvent,
             $secondEvent,
         ]));
@@ -282,7 +282,7 @@ final class ReadEventsTest extends TestCase
             ],
         );
 
-        iterator_to_array($this->client->writeEvents([
+        iterator_count($this->client->writeEvents([
             $firstEvent,
             $secondEvent,
         ]));
