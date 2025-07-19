@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Thenativeweb\Eventsourcingdb;
 
 use JsonSerializable;
-use RuntimeException;
 
 final readonly class EventCandidate implements JsonSerializable
 {
@@ -31,6 +30,7 @@ final readonly class EventCandidate implements JsonSerializable
         if ($this->traceParent !== null) {
             $result['traceParent'] = $this->traceParent;
         }
+
         if ($this->traceState !== null) {
             $result['traceState'] = $this->traceState;
         }

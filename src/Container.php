@@ -6,27 +6,23 @@ namespace Thenativeweb\Eventsourcingdb;
 
 use GuzzleHttp\Client as HttpClient;
 use GuzzleHttp\Exception\GuzzleException;
+use RuntimeException;
 use Testcontainers\Container\GenericContainer;
 use Testcontainers\Container\StartedGenericContainer;
 
 final class Container
 {
-    private string $imageName;
-    private string $imageTag;
-    private int $internalPort;
-    private string $apiToken;
-    private ?StartedGenericContainer $container;
+    private string $imageName = 'thenativeweb/eventsourcingdb';
+    private string $imageTag = 'latest';
+    private int $internalPort = 3000;
+    private string $apiToken = 'secret';
+    private ?StartedGenericContainer $container = null;
     private HttpClient $httpClient;
 
     public function __construct()
     {
-        $this->imageName = 'thenativeweb/eventsourcingdb';
-        $this->imageTag = 'latest';
-        $this->internalPort = 3000;
-        $this->apiToken = 'secret';
-        $this->container = null;
         $this->httpClient = new HttpClient([
-            'http_errors' => false
+            'http_errors' => false,
         ]);
     }
 
@@ -58,7 +54,7 @@ final class Container
                     '--api-token', $this->apiToken,
                     '--data-directory-temporary',
                     '--http-enabled',
-                    '--https-enabled=false'
+                    '--https-enabled=false',
                 ]);
 
         $this->container = $container->start();
@@ -73,6 +69,7 @@ final class Container
                 usleep(100_000);
                 continue;
             }
+
             $status = $response->getStatusCode();
 
             if ($status === 200) {
@@ -107,27 +104,27 @@ final class Container
 
     public function isRunning(): bool
     {
-        return $this->container !== null;
+        return $this->container instanceof StartedGenericContainer;
     }
 
     public function stop(): void
     {
-        if ($this->container !== null) {
+        if ($this->container instanceof StartedGenericContainer) {
             $this->container->stop();
             $this->container = null;
         }
     }
 
-    public function getClient(): \Thenativeweb\Eventsourcingdb\Client
+    public function getClient(): Client
     {
         $baseUrl = $this->getBaseUrl();
-        return new \Thenativeweb\Eventsourcingdb\Client($baseUrl, $this->apiToken);
+        return new Client($baseUrl, $this->apiToken);
     }
 
     private function ensureRunning(): void
     {
-        if ($this->container === null) {
-            throw new \RuntimeException('Container must be running');
+        if (!$this->container instanceof StartedGenericContainer) {
+            throw new RuntimeException('Container must be running');
         }
     }
 }
