@@ -9,53 +9,6 @@ use RuntimeException;
 
 final readonly class Utils
 {
-    // $blueprint = [
-    //     'type' => 'string',
-    //     'payload' => [
-    //         'error' => 'string',
-    //     ],
-    // ];
-    //
-    // $blueprint = [
-    //     'type' => 'string',
-    //     'payload' => [
-    //         'specversion' => 'string',
-    //         'id' => 'string',
-    //         'time' => 'string',
-    //         'source' => 'string',
-    //         'subject' => 'string',
-    //         'type' => 'string',
-    //         'datacontenttype' => 'string',
-    //         'data' => 'array',
-    //         'hash' => 'string',
-    //         'predecessorhash' => 'string',
-    //     ],
-    // ];
-    // public static function hasShapeOf(array $data, array $blueprint): bool
-    // {
-    //     foreach ($blueprint as $key => $type) {
-    //         if (!array_key_exists($key, $data)) {
-    //             return false;
-    //         }
-    //
-    //         if (is_array($type)) {
-    //             if (!is_array($data[$key])) {
-    //                 return false;
-    //             }
-    //
-    //             if (!self::hasShapeOf($data[$key], $type)) {
-    //                 return false;
-    //             }
-    //         } else {
-    //             if (gettype($data[$key]) !== $type) {
-    //                 return false;
-    //             }
-    //         }
-    //     }
-    //
-    //     return true;
-    // }
-
     public static function readLine(StreamInterface $stream): string
     {
         $buffer = '';
