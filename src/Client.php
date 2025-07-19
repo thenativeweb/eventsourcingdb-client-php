@@ -8,8 +8,8 @@ use DateTimeImmutable;
 use Exception;
 use GuzzleHttp\Client as HttpClient;
 use GuzzleHttp\Exception\GuzzleException;
-use GuzzleHttp\Psr7\Utils;
 use RuntimeException;
+use Thenativeweb\Eventsourcingdb\Stream\Utils;
 
 final readonly class Client
 {
@@ -25,6 +25,9 @@ final readonly class Client
         ]);
     }
 
+    /**
+     * @throws GuzzleException
+     */
     public function ping(): void
     {
         $response = $this->httpClient->get('/api/v1/ping');
@@ -76,7 +79,7 @@ final readonly class Client
     }
 
     /**
-     * @return CloudEvent[]
+     * @return iterable<CloudEvent>
      * @throws Exception|GuzzleException
      */
     public function writeEvents(array $events, array $preconditions = []): iterable
@@ -117,8 +120,12 @@ final readonly class Client
         }
 
         $data = json_decode($body, true);
+        if (!is_array($data)) {
+            throw new RuntimeException('Failed to read events, expected an array.');
+        }
+
         foreach ($data as $item) {
-            yield new CloudEvent(
+            $cloudEvent = new CloudEvent(
                 $item['specversion'],
                 $item['id'],
                 new DateTimeImmutable($item['time']),
@@ -132,11 +139,12 @@ final readonly class Client
                 $item['traceparent'] ?? null,
                 $item['tracestate'] ?? null,
             );
+            yield $cloudEvent;
         }
     }
 
     /**
-     * @return CloudEvent[]
+     * @return iterable<CloudEvent>
      * @throws Exception|GuzzleException
      */
     public function readEvents(string $subject, ReadEventsOptions $readEventsOptions): iterable
@@ -165,38 +173,31 @@ final readonly class Client
             ));
         }
 
-        $responseStream = $response->getBody();
-        while (!$responseStream->eof()) {
-            $line = Utils::readLine($responseStream);
-            if ($line === '') {
-                continue;
+        foreach (Utils::readNdJson($response->getBody()) as $eventLine) {
+            switch ($eventLine->type) {
+                case 'event':
+                    $cloudEvent = new CloudEvent(
+                        $eventLine->payload['specversion'],
+                        $eventLine->payload['id'],
+                        new DateTimeImmutable($eventLine->payload['time']),
+                        $eventLine->payload['source'],
+                        $eventLine->payload['subject'],
+                        $eventLine->payload['type'],
+                        $eventLine->payload['datacontenttype'],
+                        $eventLine->payload['data'],
+                        $eventLine->payload['hash'],
+                        $eventLine->payload['predecessorhash'],
+                        $eventLine->payload['traceparent'] ?? null,
+                        $eventLine->payload['tracestate'] ?? null,
+                    );
+                    yield $cloudEvent;
+
+                    break;
+                case 'error':
+                    throw new RuntimeException($eventLine->payload['error'] ?? 'unknown error');
+                default:
+                    throw new RuntimeException("Failed to handle unsupported line type {$eventLine->type}");
             }
-
-            if (!json_validate($line)) {
-                throw new RuntimeException('Failed to read events.');
-            }
-
-            $item = json_decode($line, true);
-
-            $payload = $item['payload'] ?? null;
-            if ($payload === null) {
-                throw new RuntimeException('Payload is missing in the event data.');
-            }
-
-            yield new CloudEvent(
-                $payload['specversion'],
-                $payload['id'],
-                new DateTimeImmutable($payload['time']),
-                $payload['source'],
-                $payload['subject'],
-                $payload['type'],
-                $payload['datacontenttype'],
-                $payload['data'],
-                $payload['hash'],
-                $payload['predecessorhash'],
-                $payload['traceparent'] ?? null,
-                $payload['tracestate'] ?? null,
-            );
         }
     }
 }
