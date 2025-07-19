@@ -200,4 +200,48 @@ final readonly class Client
             }
         }
     }
+
+    /**
+     * @return iterable<array>
+     * @throws GuzzleException
+     */
+    public function runEventQlQuery(string $query): iterable
+    {
+        $requestBody = [
+            'query' => $query,
+        ];
+
+        $response = $this->httpClient->post(
+            '/api/v1/run-eventql-query',
+            [
+                'headers' => [
+                    'Authorization' => 'Bearer ' . $this->apiToken,
+                    'Content-Type' => 'application/json',
+                ],
+                'json' => $requestBody,
+            ],
+        );
+        $status = $response->getStatusCode();
+
+        if ($status !== 200) {
+            throw new RuntimeException(sprintf(
+                "Failed to read events, got HTTP status code '%d', expected '200'",
+                $status
+            ));
+        }
+
+        foreach (Utils::readNdJson($response->getBody()) as $eventLine) {
+            switch ($eventLine->type) {
+                case 'row':
+                    $row = $eventLine->payload;
+                    yield $row;
+
+                    break;
+                case 'error':
+                    throw new RuntimeException($eventLine->payload['error'] ?? 'unknown error');
+                default:
+                    throw new RuntimeException("Failed to handle unsupported line type {$eventLine->type}");
+            }
+        }
+    }
 }
