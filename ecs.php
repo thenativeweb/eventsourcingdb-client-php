@@ -7,11 +7,10 @@ use PhpCsFixer\Fixer\Operator\NotOperatorWithSuccessorSpaceFixer;
 use Symplify\EasyCodingStandard\Config\ECSConfig;
 
 return ECSConfig::configure()
-    // ->withCache('cache/ecs')
     ->withParallel()
     ->withPreparedSets(
         psr12: true,
-        common: false, // includes common rules arrays, comments, control structures, docblocks, namespaces, phpunit, spaces
+        common: false,
         symplify: false,
         arrays: true,
         comments: true,
