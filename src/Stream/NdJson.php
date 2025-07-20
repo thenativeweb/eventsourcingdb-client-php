@@ -7,7 +7,7 @@ namespace Thenativeweb\Eventsourcingdb\Stream;
 use Psr\Http\Message\StreamInterface;
 use RuntimeException;
 
-final readonly class Utils
+final readonly class NdJson
 {
     public static function readLine(StreamInterface $stream): string
     {
@@ -27,10 +27,7 @@ final readonly class Utils
         return $buffer;
     }
 
-    /**
-     * @return iterable<ReadEventLine>
-     */
-    public static function readNdJson(StreamInterface $stream): iterable
+    public static function readStream(StreamInterface $stream): iterable
     {
         while (!$stream->eof()) {
             $line = self::readLine($stream);

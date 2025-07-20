@@ -5,11 +5,9 @@ declare(strict_types=1);
 namespace Thenativeweb\Eventsourcingdb;
 
 use DateTimeImmutable;
-use Exception;
 use GuzzleHttp\Client as HttpClient;
-use GuzzleHttp\Exception\GuzzleException;
 use RuntimeException;
-use Thenativeweb\Eventsourcingdb\Stream\Utils;
+use Thenativeweb\Eventsourcingdb\Stream\NdJson;
 
 final readonly class Client
 {
@@ -25,9 +23,6 @@ final readonly class Client
         ]);
     }
 
-    /**
-     * @throws GuzzleException
-     */
     public function ping(): void
     {
         $response = $this->httpClient->get('/api/v1/ping');
@@ -48,9 +43,6 @@ final readonly class Client
         }
     }
 
-    /**
-     * @throws GuzzleException
-     */
     public function verifyApiToken(): void
     {
         $response = $this->httpClient->post(
@@ -78,10 +70,6 @@ final readonly class Client
         }
     }
 
-    /**
-     * @return iterable<CloudEvent>
-     * @throws Exception|GuzzleException
-     */
     public function writeEvents(array $events, array $preconditions = []): iterable
     {
         $requestBody = [
@@ -143,10 +131,6 @@ final readonly class Client
         }
     }
 
-    /**
-     * @return iterable<CloudEvent>
-     * @throws Exception|GuzzleException
-     */
     public function readEvents(string $subject, ReadEventsOptions $readEventsOptions): iterable
     {
         $requestBody = [
@@ -173,7 +157,7 @@ final readonly class Client
             ));
         }
 
-        foreach (Utils::readNdJson($response->getBody()) as $eventLine) {
+        foreach (NdJson::readStream($response->getBody()) as $eventLine) {
             switch ($eventLine->type) {
                 case 'event':
                     $cloudEvent = new CloudEvent(
