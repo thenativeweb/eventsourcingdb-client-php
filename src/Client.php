@@ -7,6 +7,7 @@ namespace Thenativeweb\Eventsourcingdb;
 use DateTimeImmutable;
 use GuzzleHttp\Client as HttpClient;
 use RuntimeException;
+use Thenativeweb\Eventsourcingdb\Stream\NdJson;
 
 final readonly class Client
 {
@@ -34,7 +35,7 @@ final readonly class Client
             ));
         }
 
-        $body = (string) $response->getBody();
+        $body = $response->getBody()->getContents();
         $data = json_decode($body, true);
 
         if (!isset($data['type']) || $data['type'] !== 'io.eventsourcingdb.api.ping-received') {
@@ -61,7 +62,7 @@ final readonly class Client
             ));
         }
 
-        $body = (string) $response->getBody();
+        $body = $response->getBody()->getContents();
         $data = json_decode($body, true);
 
         if (!isset($data['type']) || $data['type'] !== 'io.eventsourcingdb.api.api-token-verified') {
@@ -69,7 +70,7 @@ final readonly class Client
         }
     }
 
-    public function writeEvents(array $events, array $preconditions = []): array
+    public function writeEvents(array $events, array $preconditions = []): iterable
     {
         $requestBody = [
             'events' => $events,
@@ -97,24 +98,90 @@ final readonly class Client
             ));
         }
 
-        $body = (string) $response->getBody();
+        $body = $response->getBody()->getContents();
+        if ($body === '') {
+            return;
+        }
+
+        if (!json_validate($body)) {
+            throw new RuntimeException('Failed to read events.');
+        }
+
         $data = json_decode($body, true);
+        if (!is_array($data)) {
+            throw new RuntimeException('Failed to read events, expected an array.');
+        }
 
-        $writtenEvents = array_map(fn ($item): CloudEvent => new CloudEvent(
-            $item['specversion'],
-            $item['id'],
-            new DateTimeImmutable($item['time']),
-            $item['source'],
-            $item['subject'],
-            $item['type'],
-            $item['datacontenttype'],
-            $item['data'],
-            $item['hash'],
-            $item['predecessorhash'],
-            $item['traceparent'] ?? null,
-            $item['tracestate'] ?? null,
-        ), $data);
+        foreach ($data as $item) {
+            $cloudEvent = new CloudEvent(
+                $item['specversion'],
+                $item['id'],
+                new DateTimeImmutable($item['time']),
+                $item['source'],
+                $item['subject'],
+                $item['type'],
+                $item['datacontenttype'],
+                $item['data'],
+                $item['hash'],
+                $item['predecessorhash'],
+                $item['traceparent'] ?? null,
+                $item['tracestate'] ?? null,
+            );
+            yield $cloudEvent;
+        }
+    }
 
-        return $writtenEvents;
+    public function readEvents(string $subject, ReadEventsOptions $readEventsOptions): iterable
+    {
+        $requestBody = [
+            'subject' => $subject,
+            'options' => $readEventsOptions,
+        ];
+
+        $response = $this->httpClient->post(
+            '/api/v1/read-events',
+            [
+                'headers' => [
+                    'Authorization' => 'Bearer ' . $this->apiToken,
+                    'Content-Type' => 'application/json',
+                ],
+                'json' => $requestBody,
+            ],
+        );
+        $status = $response->getStatusCode();
+
+        if ($status !== 200) {
+            throw new RuntimeException(sprintf(
+                "Failed to read events, got HTTP status code '%d', expected '200'",
+                $status
+            ));
+        }
+
+        foreach (NdJson::readStream($response->getBody()) as $eventLine) {
+            switch ($eventLine->type) {
+                case 'event':
+                    $cloudEvent = new CloudEvent(
+                        $eventLine->payload['specversion'],
+                        $eventLine->payload['id'],
+                        new DateTimeImmutable($eventLine->payload['time']),
+                        $eventLine->payload['source'],
+                        $eventLine->payload['subject'],
+                        $eventLine->payload['type'],
+                        $eventLine->payload['datacontenttype'],
+                        $eventLine->payload['data'],
+                        $eventLine->payload['hash'],
+                        $eventLine->payload['predecessorhash'],
+                        $eventLine->payload['traceparent'] ?? null,
+                        $eventLine->payload['tracestate'] ?? null,
+                    );
+                    yield $cloudEvent;
+
+                    break;
+                case 'error':
+                    throw new RuntimeException($eventLine->payload['error'] ?? 'unknown error');
+                default:
+                    throw new RuntimeException("Failed to handle unsupported line type {$eventLine->type}");
+            }
+        }
     }
 }
