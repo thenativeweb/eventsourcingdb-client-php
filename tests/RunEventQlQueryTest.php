@@ -13,7 +13,6 @@ final class RunEventQlQueryTest extends TestCase
     public function testNoRowsIfTheQueryDoesNotReturnAnyRows(): void
     {
         $didReadRows = false;
-
         foreach ($this->client->runEventQlQuery('FROM e IN events PROJECT INTO e') as $event) {
             $didReadRows = true;
         }
@@ -47,8 +46,8 @@ final class RunEventQlQueryTest extends TestCase
         ]));
 
         $rowsRead = [];
-        foreach ($this->client->runEventQlQuery('FROM e IN events PROJECT INTO e') as $event) {
-            $rowsRead[] = $event;
+        foreach ($this->client->runEventQlQuery('FROM e IN events PROJECT INTO e') as $row) {
+            $rowsRead[] = $row;
         }
 
         $this->assertCount(2, $rowsRead);
