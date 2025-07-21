@@ -25,12 +25,14 @@
   "minimum-stability": "stable",
   "require": {
     "php": ">=8.2",
-    "guzzlehttp/guzzle": "^7.5"
+    "ext-curl": "*",
+    "psr/http-message": "^2.0"
   },
   "require-dev": {
     "phpstan/phpstan": "2.1.17",
     "phpunit/phpunit": "11.5.21",
     "rector/rector": "2.1.1",
+    "symfony/http-client": "^7.3",
     "symplify/easy-coding-standard": "12.5.20",
     "testcontainers/testcontainers": "1.0.3"
   },

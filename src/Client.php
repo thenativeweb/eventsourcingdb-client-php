@@ -5,22 +5,26 @@ declare(strict_types=1);
 namespace Thenativeweb\Eventsourcingdb;
 
 use DateTimeImmutable;
-use GuzzleHttp\Client as HttpClient;
 use RuntimeException;
 use Thenativeweb\Eventsourcingdb\Stream\NdJson;
+use Thenativeweb\Eventsourcingdb\HttpClient\HttpClient;
 
 final readonly class Client
 {
     private string $apiToken;
     private HttpClient $httpClient;
 
-    public function __construct(string $url, string $apiToken)
-    {
+    public function __construct(
+        string $url,
+        string $apiToken,
+    ) {
         $this->apiToken = $apiToken;
-        $this->httpClient = new HttpClient([
-            'base_uri' => rtrim($url, '/'),
-            'http_errors' => false,
-        ]);
+        $this->httpClient = new HttpClient($url);
+    }
+
+    public function abortStream(float $timeout): void
+    {
+        $this->httpClient->abortStream($timeout);
     }
 
     public function ping(): void
@@ -35,7 +39,7 @@ final readonly class Client
             ));
         }
 
-        $body = $response->getBody()->getContents();
+        $body = $response->getStream()->getContents();
         $data = json_decode($body, true);
 
         if (!isset($data['type']) || $data['type'] !== 'io.eventsourcingdb.api.ping-received') {
@@ -47,11 +51,7 @@ final readonly class Client
     {
         $response = $this->httpClient->post(
             '/api/v1/verify-api-token',
-            [
-                'headers' => [
-                    'Authorization' => 'Bearer ' . $this->apiToken,
-                ],
-            ],
+            $this->apiToken,
         );
         $status = $response->getStatusCode();
 
@@ -62,7 +62,7 @@ final readonly class Client
             ));
         }
 
-        $body = $response->getBody()->getContents();
+        $body = $response->getStream()->getContents();
         $data = json_decode($body, true);
 
         if (!isset($data['type']) || $data['type'] !== 'io.eventsourcingdb.api.api-token-verified') {
@@ -81,13 +81,8 @@ final readonly class Client
 
         $response = $this->httpClient->post(
             '/api/v1/write-events',
-            [
-                'headers' => [
-                    'Authorization' => 'Bearer ' . $this->apiToken,
-                    'Content-Type' => 'application/json',
-                ],
-                'json' => $requestBody,
-            ],
+            $this->apiToken,
+            $requestBody,
         );
         $status = $response->getStatusCode();
 
@@ -98,7 +93,7 @@ final readonly class Client
             ));
         }
 
-        $body = $response->getBody()->getContents();
+        $body = $response->getStream()->getContents();
         if ($body === '') {
             return;
         }
@@ -133,19 +128,12 @@ final readonly class Client
 
     public function readEvents(string $subject, ReadEventsOptions $readEventsOptions): iterable
     {
-        $requestBody = [
-            'subject' => $subject,
-            'options' => $readEventsOptions,
-        ];
-
         $response = $this->httpClient->post(
             '/api/v1/read-events',
+            $this->apiToken,
             [
-                'headers' => [
-                    'Authorization' => 'Bearer ' . $this->apiToken,
-                    'Content-Type' => 'application/json',
-                ],
-                'json' => $requestBody,
+                'subject' => $subject,
+                'options' => $readEventsOptions,
             ],
         );
         $status = $response->getStatusCode();
@@ -157,7 +145,7 @@ final readonly class Client
             ));
         }
 
-        foreach (NdJson::readStream($response->getBody()) as $eventLine) {
+        foreach (NdJson::readStream($response->getStream()) as $eventLine) {
             switch ($eventLine->type) {
                 case 'event':
                     $cloudEvent = new CloudEvent(
@@ -187,20 +175,14 @@ final readonly class Client
 
     public function runEventQlQuery(string $query): iterable
     {
-        $requestBody = [
-            'query' => $query,
-        ];
-
         $response = $this->httpClient->post(
             '/api/v1/run-eventql-query',
+            $this->apiToken,
             [
-                'headers' => [
-                    'Authorization' => 'Bearer ' . $this->apiToken,
-                    'Content-Type' => 'application/json',
-                ],
-                'json' => $requestBody,
+                'query' => $query,
             ],
         );
+
         $status = $response->getStatusCode();
 
         if ($status !== 200) {
@@ -210,11 +192,65 @@ final readonly class Client
             ));
         }
 
-        foreach (NdJson::readStream($response->getBody()) as $eventLine) {
+        foreach (NdJson::readStream($response->getStream()) as $eventLine) {
             switch ($eventLine->type) {
                 case 'row':
                     $row = $eventLine->payload;
                     yield $row;
+
+                    break;
+                case 'error':
+                    throw new RuntimeException($eventLine->payload['error'] ?? 'unknown error');
+                default:
+                    throw new RuntimeException("Failed to handle unsupported line type {$eventLine->type}");
+            }
+        }
+    }
+
+    public function observeEvents(string $subject, ObserveEventsOptions $observeEventsOptions): iterable
+    {
+        $response = $this->httpClient->post(
+            '/api/v1/observe-events',
+            $this->apiToken,
+            [
+                'subject' => $subject,
+                'options' => $observeEventsOptions,
+            ],
+        );
+
+        $status = $response->getStatusCode();
+        if ($status !== 200) {
+            throw new RuntimeException(sprintf(
+                "Failed to observe events, got HTTP status code '%d', expected '200'",
+                $status
+            ));
+        }
+
+        $lauf = 5;
+        foreach (NdJson::readStream($response->getStream()) as $eventLine) {
+            if (--$lauf === 0) {
+                break;
+            }
+
+            switch ($eventLine->type) {
+                case 'heartbeat':
+                    break;
+                case 'event':
+                    $cloudEvent = new CloudEvent(
+                        $eventLine->payload['specversion'],
+                        $eventLine->payload['id'],
+                        new DateTimeImmutable($eventLine->payload['time']),
+                        $eventLine->payload['source'],
+                        $eventLine->payload['subject'],
+                        $eventLine->payload['type'],
+                        $eventLine->payload['datacontenttype'],
+                        $eventLine->payload['data'],
+                        $eventLine->payload['hash'],
+                        $eventLine->payload['predecessorhash'],
+                        $eventLine->payload['traceparent'] ?? null,
+                        $eventLine->payload['tracestate'] ?? null,
+                    );
+                    yield $cloudEvent;
 
                     break;
                 case 'error':

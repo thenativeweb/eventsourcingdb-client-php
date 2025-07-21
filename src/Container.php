@@ -4,11 +4,10 @@ declare(strict_types=1);
 
 namespace Thenativeweb\Eventsourcingdb;
 
-use GuzzleHttp\Client as HttpClient;
-use GuzzleHttp\Exception\GuzzleException;
 use RuntimeException;
 use Testcontainers\Container\GenericContainer;
 use Testcontainers\Container\StartedGenericContainer;
+use Thenativeweb\Eventsourcingdb\HttpClient\HttpClient;
 
 final class Container
 {
@@ -21,9 +20,7 @@ final class Container
 
     public function __construct()
     {
-        $this->httpClient = new HttpClient([
-            'http_errors' => false,
-        ]);
+        $this->httpClient = new HttpClient();
     }
 
     public function withImageTag(string $tag): self
@@ -65,7 +62,7 @@ final class Container
         while (true) {
             try {
                 $response = $this->httpClient->get($pingUrl);
-            } catch (GuzzleException $e) {
+            } catch (\Exception $e) {
                 usleep(100_000);
                 continue;
             }
@@ -118,6 +115,7 @@ final class Container
     public function getClient(): Client
     {
         $baseUrl = $this->getBaseUrl();
+        // var_dump($baseUrl);exit();
         return new Client($baseUrl, $this->apiToken);
     }
 
