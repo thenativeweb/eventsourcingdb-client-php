@@ -12,13 +12,13 @@ class CurlMultiHandler
 {
     private ?CurlHandle $handle = null;
     private ?CurlMultiHandle $multiHandle = null;
-    private float $streamTimeout = 0.0;
+    private float $cancelStreamAfter = 0.0;
     private ?Queue $header = null;
     private ?Queue $write = null;
 
-    public function setStreamTimeout(float $timeout): void
+    public function cancelStreamAfter(float $time): void
     {
-        $this->streamTimeout = $timeout;
+        $this->cancelStreamAfter = $time;
     }
 
     public function getHeaderQueue(): Queue
@@ -97,7 +97,7 @@ class CurlMultiHandler
         $start = microtime(true);
 
         do {
-            if ($this->streamTimeout > 0 && (microtime(true) - $start) >= $this->streamTimeout) {
+            if ($this->cancelStreamAfter > 0 && (microtime(true) - $start) >= $this->cancelStreamAfter) {
                 break;
             }
 

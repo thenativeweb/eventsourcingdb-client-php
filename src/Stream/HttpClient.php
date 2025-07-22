@@ -18,9 +18,9 @@ class HttpClient
         $this->curlMultiHandler = new CurlMultiHandler();
     }
 
-    public function cancelStream(float $timeout): void
+    public function cancelStreamAfter(float $time): void
     {
-        $this->curlMultiHandler->setStreamTimeout($timeout);
+        $this->curlMultiHandler->cancelStreamAfter($time);
     }
 
     public function buildUri(string $uri): string

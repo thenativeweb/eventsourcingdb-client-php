@@ -22,7 +22,7 @@ final class ObserveEventsTest extends TestCase
             recursive: true,
         );
 
-        $this->client->cancelStream(0.1);
+        $this->client->cancelStreamAfter(0.1);
         foreach ($this->client->observeEvents('/', $observeEventsOptions) as $event) {
             $didObserveEvents = true;
         }
@@ -60,7 +60,7 @@ final class ObserveEventsTest extends TestCase
             recursive: false,
         );
 
-        $this->client->cancelStream(0.1);
+        $this->client->cancelStreamAfter(0.1);
         foreach ($this->client->observeEvents('/test', $observeEventsOptions) as $event) {
             $eventsObserved[] = $event;
         }
@@ -98,7 +98,7 @@ final class ObserveEventsTest extends TestCase
             recursive: true,
         );
 
-        $this->client->cancelStream(0.1);
+        $this->client->cancelStreamAfter(0.1);
         foreach ($this->client->observeEvents('/', $observeEventsOptions) as $event) {
             $eventsObserved[] = $event;
         }
@@ -140,7 +140,7 @@ final class ObserveEventsTest extends TestCase
             ),
         );
 
-        $this->client->cancelStream(0.1);
+        $this->client->cancelStreamAfter(0.1);
         foreach ($this->client->observeEvents('/test', $observeEventsOptions) as $event) {
             $eventsObserved[] = $event;
         }
@@ -185,7 +185,7 @@ final class ObserveEventsTest extends TestCase
             ),
         );
 
-        $this->client->cancelStream(0.1);
+        $this->client->cancelStreamAfter(0.1);
         foreach ($this->client->observeEvents('/test', $observeEventsOptions) as $event) {
             $eventsObserved[] = $event;
         }
@@ -219,11 +219,16 @@ final class ObserveEventsTest extends TestCase
             recursive: false,
         );
 
-        $this->client->cancelStream(0.1);
+        $startTime = microtime(true);
+
+        $this->client->cancelStreamAfter(0.1);
         foreach ($this->client->observeEvents('/test', $observeEventsOptions) as $event) {
             $eventsObserved[] = $event;
         }
 
+        $processTime = microtime(true) - $startTime;
+
         $this->assertCount($eventCount, $eventsObserved);
+        $this->assertLessThan(0.5, $processTime, 'Expected to observe all events in less than 0.5 second, but took ' . $processTime . ' seconds.');
     }
 }

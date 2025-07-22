@@ -39,6 +39,6 @@ class Stream implements IteratorAggregate, Stringable
 
     public function cancel(float $timeout = 0.0): void
     {
-        $this->curlMultiHandler->setStreamTimeout($timeout);
+        $this->curlMultiHandler->cancelStreamAfter($timeout);
     }
 }

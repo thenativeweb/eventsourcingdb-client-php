@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Thenativeweb\Eventsourcingdb\Tests\Stream;
+namespace Stream;
 
 use ArrayIterator;
 use PHPUnit\Framework\TestCase;
@@ -49,7 +49,7 @@ final class StreamTest extends TestCase
     {
         $mockHandler = $this->createMock(CurlMultiHandler::class);
         $mockHandler->expects($this->once())
-            ->method('setStreamTimeout')
+            ->method('cancelStreamAfter')
             ->with(5.0);
 
         $stream = new Stream($mockHandler);

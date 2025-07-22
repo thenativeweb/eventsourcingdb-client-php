@@ -22,9 +22,9 @@ final readonly class Client
         $this->httpClient = new HttpClient($url);
     }
 
-    public function cancelStream(float $timeout): void
+    public function cancelStreamAfter(float $time): void
     {
-        $this->httpClient->cancelStream($timeout);
+        $this->httpClient->cancelStreamAfter($time);
     }
 
     public function ping(): void

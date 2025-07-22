@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Thenativeweb\Eventsourcingdb\Tests\Stream;
+namespace Stream;
 
 use InvalidArgumentException;
 use PHPUnit\Framework\TestCase;
