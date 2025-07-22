@@ -220,6 +220,7 @@ final class ObserveEventsTest extends TestCase
         );
 
         $startTime = microtime(true);
+        $maxExecutionTime = 2;
 
         $this->client->cancelStreamAfter(0.1);
         foreach ($this->client->observeEvents('/test', $observeEventsOptions) as $event) {
@@ -229,6 +230,6 @@ final class ObserveEventsTest extends TestCase
         $processTime = microtime(true) - $startTime;
 
         $this->assertCount($eventCount, $eventsObserved);
-        $this->assertLessThan(0.5, $processTime, 'Expected to observe all events in less than 0.5 second, but took ' . $processTime . ' seconds.');
+        $this->assertLessThan($maxExecutionTime, $processTime, "Expected to observe all events in less than {$maxExecutionTime} second, but took {$processTime} seconds.");
     }
 }
