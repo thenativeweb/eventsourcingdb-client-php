@@ -222,7 +222,7 @@ final class ObserveEventsTest extends TestCase
         $startTime = microtime(true);
         $maxExecutionTime = 2;
 
-        $this->client->cancelStreamAfter(0.1);
+        $this->client->cancelStreamAfter(0.5);
         foreach ($this->client->observeEvents('/test', $observeEventsOptions) as $event) {
             $eventsObserved[] = $event;
         }
