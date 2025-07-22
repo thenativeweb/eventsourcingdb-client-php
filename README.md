@@ -95,6 +95,127 @@ $writtenEvents = $client->writeEvents([
 
 *Note that according to the CloudEvents standard, event IDs must be of type string.*
 
+### Reading Events
+
+To read all events of a subject, call the `readEvents` function with the subject and an options object. Set the `recursive` option to `false`. This ensures that only events of the given subject are returned, not events of nested subjects.
+
+The function returns an iterator, which you can use in a `foreach` loop:
+
+```php
+$events = $client->readEvents(
+  '/books/42',
+  new ReadEventsOptions(
+    recursive: false,
+  ),
+);
+
+foreach ($events as $event) {
+  // ...
+}
+```
+
+#### Reading From Subjects Recursively
+
+If you want to read not only all the events of a subject, but also the events of all nested subjects, set the `recursive` option to `true`:
+
+```php
+$events = $client->readEvents(
+  '/books/42',
+  new ReadEventsOptions(
+    recursive: true,
+  ),
+);
+
+foreach ($events as $event) {
+  // ...
+}
+```
+
+This also allows you to read *all* events ever written. To do so, provide `/` as the subject and set `recursive` to `true`, since all subjects are nested under the root subject.
+
+#### Reading in Anti-Chronological Order
+
+By default, events are read in chronological order. To read in anti-chronological order, provide the `order` option and set it to `Order::ANTICHRONOLOGICAL`:
+
+```php
+$events = $client->readEvents(
+  '/books/42',
+  new ReadEventsOptions(
+    recursive: false,
+    order: Order::ANTICHRONOLOGICAL,
+  ),
+);
+
+foreach ($events as $event) {
+  // ...
+}
+```
+
+*Note that you can also use `Order::CHRONOLOGICAL` to explicitly enforce the default order.*
+
+#### Specifying Bounds
+
+Sometimes you do not want to read all events, but only a range of events. For that, you can specify the `lowerBound` and `upperBound` options – either one of them or even both at the same time.
+
+Specify the ID and whether to include or exclude it, for both the lower and upper bound:
+
+```php
+$events = $client->readEvents(
+  '/books/42',
+  new ReadEventsOptions(
+    recursive: false,
+    lowerBound: new Bound('100', BoundType::INCLUSIVE),
+    upperBound: new Bound('200', BoundType::EXCLUSIVE),
+  ),
+);
+
+foreach ($events as $event) {
+  // ...
+}
+```
+
+#### Starting From the Latest Event of a Given Type
+
+To read starting from the latest event of a given type, provide the `fromLatestEvent` option and specify the subject, the type, and how to proceed if no such event exists.
+
+Possible options are `ReadIfEventIsMissing::READ_NOTHING`, which skips reading entirely, or `ReadIfEventIsMissing::READ_EVERYTHING`, which effectively behaves as if `fromLatestEvent` was not specified:
+
+```php
+$events = $client->readEvents(
+  '/books/42',
+  new ReadEventsOptions(
+    recursive: false,
+    fromLatestEvent: new ReadFromLatestEvent(
+      subject: '/books/42',
+      type: 'io.eventsourcingdb.library.book-borrowed',
+      ifEventIsMissing: ReadIfEventIsMissing::READ_EVERYTHING,
+    ),
+  ),
+);
+
+foreach ($events as $event) {
+  // ...
+}
+```
+
+*Note that `fromLatestEvent` and `lowerBound` can not be provided at the same time.*
+
+### Running EventQL Queries
+
+To run an EventQL query, call the `runEventQlQuery` function and provide the query as a string. The function returns an iterator, which you can use in a `foreach` loop:
+
+```php
+$rows = $client->runEventQlQuery(
+  'FROM e IN events PROJECT INTO e',
+);
+
+foreach ($rows as $row) {
+  // ...
+}
+```
+
+*Note that each row returned by the iterator is an associative array and matches the projection specified in your query.*
+
 ### Using Testcontainers
 
 Import the `Container` class, call the `start` function to run a test container, get a client, run your test code, and finally call the `stop` function to stop the test container:
