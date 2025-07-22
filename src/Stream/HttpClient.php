@@ -67,7 +67,8 @@ class HttpClient
     public function sendRequest(Request $request): Response
     {
         if (!in_array($request->getMethod(), self::SUPPORTED_METHODS, true)) {
-            throw new InvalidArgumentException('Internal HttpClient: Only GET and POST requests are supported.');
+            throw new InvalidArgumentException("Internal HttpClient: got Request Method '{$request->getMethod()}', expected one of: " .
+                implode(', ', self::SUPPORTED_METHODS) . '.');
         }
 
         $this->curlMultiHandler->addHandle($request);
@@ -77,9 +78,9 @@ class HttpClient
         $responseHeader = $this->parseHeaderQueue($headerQueue);
 
         if (!$this->isContentTypeSupported($responseHeader->contentType)) {
-            $supportedTypes = implode(', ', self::SUPPORTED_CONTENT_TYPES);
             throw new InvalidArgumentException(
-                "Internal HttpClient: got Content-Type '{$responseHeader->contentType}', expected '{$supportedTypes}'.",
+                "Internal HttpClient: got Content-Type '{$responseHeader->contentType}', expected one of: " .
+                implode(', ', self::SUPPORTED_CONTENT_TYPES),
             );
         }
 
