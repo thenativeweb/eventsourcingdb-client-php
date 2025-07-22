@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Stream;
+namespace Thenativeweb\Eventsourcingdb\Tests\Stream;
 
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;

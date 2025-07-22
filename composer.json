@@ -50,7 +50,10 @@
       "@analyze",
       "@test"
     ],
-    "test": "vendor/bin/phpunit"
+    "test": [
+      "vendor/bin/phpunit --testsuite \"HttpClient Tests\"",
+      "vendor/bin/phpunit --testsuite \"EsdbClient Tests\""
+    ]
   },
   "config": {
     "allow-plugins": {

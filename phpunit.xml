@@ -17,8 +17,12 @@
   stopOnFailure="true"
 >
   <testsuites>
-    <testsuite name="Tests">
+    <testsuite name="HttpClient Tests">
+      <directory>tests/Stream</directory>
+    </testsuite>
+    <testsuite name="EsdbClient Tests">
       <directory>tests</directory>
+      <exclude>tests/Stream</exclude>
     </testsuite>
   </testsuites>
 </phpunit>
