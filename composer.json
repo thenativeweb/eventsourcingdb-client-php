@@ -51,8 +51,8 @@
       "@test"
     ],
     "test": [
-      "vendor/bin/phpunit --testsuite \"HttpClient Tests\"",
-      "vendor/bin/phpunit --testsuite \"EsdbClient Tests\""
+      "vendor/bin/phpunit --testsuite \"HttpClient\"",
+      "vendor/bin/phpunit --testsuite \"EsdbClient\""
     ]
   },
   "config": {

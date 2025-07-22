@@ -40,7 +40,7 @@ class ObserveEventsOptions implements JsonSerializable
     ) {
     }
 
-    public function jsonSerialize(): mixed
+    public function jsonSerialize(): array
     {
         $return = [
             'recursive' => $this->recursive,

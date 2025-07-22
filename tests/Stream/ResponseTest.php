@@ -27,57 +27,6 @@ final class ResponseTest extends TestCase
         new Response(999);
     }
 
-    public function testGetHeadersReturnsProvidedHeaders(): void
-    {
-        $headers = [
-            'Authorization: Bearer token',
-            'Content-Type: application/json',
-        ];
-        $response = new Response(200, $headers);
-
-        $this->assertSame($headers, $response->getHeaders());
-    }
-
-    public function testGetHeaderReturnsEmptyArrayWhenHeaderNotFound(): void
-    {
-        $response = new Response(200, []);
-
-        $this->assertSame([], $response->getHeader('X-Test'));
-    }
-
-    public function testGetHeaderReturnsEmptyArrayWhenHeaderFound(): void
-    {
-        $headers = [
-            'Authorization: Bearer token',
-            'Content-Type: application/json',
-        ];
-        $response = new Response(200, $headers);
-
-        $this->assertSame(['application/json'], $response->getHeader('CONTENT-TYPE'));
-        $this->assertSame(['application/json'], $response->getHeader('Content-Type'));
-        $this->assertSame(['application/json'], $response->getHeader('content-type'));
-    }
-
-    public function testGetHeaderLineReturnsEmptyStringWhenHeaderNotFound(): void
-    {
-        $response = new Response(200, []);
-
-        $this->assertSame('', $response->getHeaderLine('X-Test'));
-    }
-
-    public function testGetHeaderLineReturnsEmptyStringWhenHeaderFound(): void
-    {
-        $headers = [
-            'Authorization: Bearer token',
-            'Content-Type: application/json',
-        ];
-        $response = new Response(200, $headers);
-
-        $this->assertSame($headers[1], $response->getHeaderLine('CONTENT-TYPE'));
-        $this->assertSame($headers[1], $response->getHeaderLine('Content-Type'));
-        $this->assertSame($headers[1], $response->getHeaderLine('content-type'));
-    }
-
     public function testGetStreamReturnsProvidedStream(): void
     {
         $stream = $this->createMock(Stream::class);

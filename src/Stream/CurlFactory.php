@@ -13,9 +13,9 @@ class CurlFactory
         int $timeout = 0,
     ): array {
         $httpVersion = match ($request->getProtocolVersion()) {
-            '2,0', '2.0', '2' => \CURL_HTTP_VERSION_2_0,
-            '1,1', '1.1' => \CURL_HTTP_VERSION_1_1,
-            default => \CURL_HTTP_VERSION_1_0,
+            '2.0', '2' => CURL_HTTP_VERSION_2_0,
+            '1.1' => CURL_HTTP_VERSION_1_1,
+            default => CURL_HTTP_VERSION_1_0,
         };
 
         $options = [
@@ -49,6 +49,10 @@ class CurlFactory
 
         if ($request->getBody() !== null) {
             $options[CURLOPT_POSTFIELDS] = $request->getBody();
+        }
+
+        if ($request->hasHeader('Accept-Encoding')) {
+            $options[CURLOPT_ENCODING] = implode(',', $request->getHeader('Accept-Encoding'));
         }
 
         if ($request->getMethod() === 'HEAD') {

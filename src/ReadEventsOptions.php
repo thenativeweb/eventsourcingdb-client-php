@@ -48,7 +48,7 @@ class ReadEventsOptions implements JsonSerializable
     ) {
     }
 
-    public function jsonSerialize(): mixed
+    public function jsonSerialize(): array
     {
         $result = [
             'recursive' => $this->recursive,

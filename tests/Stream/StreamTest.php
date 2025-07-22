@@ -19,7 +19,7 @@ final class StreamTest extends TestCase
 
         $stream = new Stream($mockHandler);
 
-        $chunks = iterator_to_array($stream->getIterator());
+        $chunks = iterator_to_array($stream);
         $this->assertSame(['chunk1', 'chunk2'], $chunks);
     }
 

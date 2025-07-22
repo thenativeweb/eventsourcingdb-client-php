@@ -17,10 +17,10 @@
   stopOnFailure="true"
 >
   <testsuites>
-    <testsuite name="HttpClient Tests">
+    <testsuite name="HttpClient">
       <directory>tests/Stream</directory>
     </testsuite>
-    <testsuite name="EsdbClient Tests">
+    <testsuite name="EsdbClient">
       <directory>tests</directory>
       <exclude>tests/Stream</exclude>
     </testsuite>

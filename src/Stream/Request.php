@@ -6,16 +6,19 @@ namespace Thenativeweb\Eventsourcingdb\Stream;
 
 class Request
 {
+    use MessageTrait;
+
     private Uri $uri;
 
     public function __construct(
-        private string $method,
+        private readonly string $method,
         string $uri,
-        private array $headers = [],
-        private ?string $body = null,
-        private string $protocolVersion = '1.1'
+        array $headers = [],
+        private readonly ?string $body = null,
+        private readonly string $protocolVersion = '1.1'
     ) {
         $this->uri = new Uri($uri);
+        $this->parseHeaders($headers);
     }
 
     public function getMethod(): string
@@ -31,11 +34,6 @@ class Request
     public function getProtocolVersion(): string
     {
         return $this->protocolVersion;
-    }
-
-    public function getHeaders(): array
-    {
-        return $this->headers;
     }
 
     public function getBody(): ?string

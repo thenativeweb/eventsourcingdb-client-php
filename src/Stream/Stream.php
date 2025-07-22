@@ -8,7 +8,7 @@ use IteratorAggregate;
 use Stringable;
 use Traversable;
 
-class Stream implements IteratorAggregate, Stringable
+readonly class Stream implements IteratorAggregate, Stringable
 {
     public function __construct(
         private CurlMultiHandler $curlMultiHandler
@@ -29,12 +29,7 @@ class Stream implements IteratorAggregate, Stringable
 
     public function getContents(): string
     {
-        $content = '';
-        foreach ($this->getIterator() as $chunk) {
-            $content .= $chunk;
-        }
-
-        return $content;
+        return implode('', iterator_to_array($this));
     }
 
     public function cancel(float $timeout = 0.0): void

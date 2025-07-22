@@ -48,6 +48,12 @@ final class CurlFactoryTest extends TestCase
         $this->assertSame(CURL_HTTP_VERSION_1_0, $options[CURLOPT_HTTP_VERSION]);
         $this->assertSame('GET', $options[CURLOPT_CUSTOMREQUEST]);
         $this->assertSame(['X-Test: value'], $options[CURLOPT_HTTPHEADER]);
+        $this->assertArrayNotHasKey(CURLOPT_SSL_VERIFYPEER, $options);
+        $this->assertArrayNotHasKey(CURLOPT_SSL_VERIFYHOST, $options);
+        $this->assertArrayNotHasKey(CURLOPT_TIMEOUT, $options);
+        $this->assertArrayNotHasKey(CURLOPT_POSTFIELDS, $options);
+        $this->assertArrayNotHasKey(CURLOPT_ENCODING, $options);
+        $this->assertArrayNotHasKey(CURLOPT_NOBODY, $options);
     }
 
     public function testCreateSetsHttpVersion20(): void
@@ -148,7 +154,7 @@ final class CurlFactoryTest extends TestCase
 
         $headerFunction = $options[CURLOPT_HEADERFUNCTION];
         $length = $headerFunction(null, 'test-header');
-        $this->assertEquals(strlen('test-header'), $length);
+        $this->assertSame(strlen('test-header'), $length);
     }
 
     public function testWriteFunctionWritesToQueue(): void
@@ -168,6 +174,22 @@ final class CurlFactoryTest extends TestCase
 
         $writeFunction = $options[CURLOPT_WRITEFUNCTION];
         $length = $writeFunction(null, 'test-chunk');
-        $this->assertEquals(strlen('test-chunk'), $length);
+        $this->assertSame(strlen('test-chunk'), $length);
+    }
+
+    public function testCreateSetsPostFieldsIfAcceptEncodingExists(): void
+    {
+        $acceptEncoding = ['gzip', 'deflate'];
+
+        $this->requestMock->method('hasHeader')->willReturn(true);
+        $this->requestMock->method('getHeader')->willReturn($acceptEncoding);
+
+        $options = CurlFactory::create(
+            $this->requestMock,
+            $this->headerQueueMock,
+            $this->writeQueueMock,
+        );
+
+        $this->assertSame(implode(',', $acceptEncoding), $options[CURLOPT_ENCODING]);
     }
 }

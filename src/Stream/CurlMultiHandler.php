@@ -115,6 +115,13 @@ class CurlMultiHandler
         curl_multi_close($this->multiHandle);
         curl_close($this->handle);
 
+        unset(
+            $this->handle,
+            $this->multiHandle,
+            $this->header,
+            $this->write,
+        );
+
         $this->handle = null;
         $this->multiHandle = null;
         $this->header = null;

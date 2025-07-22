@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Thenativeweb\Eventsourcingdb;
 
+use Exception;
 use RuntimeException;
 use Testcontainers\Container\GenericContainer;
 use Testcontainers\Container\StartedGenericContainer;
@@ -62,7 +63,7 @@ final class Container
         while (true) {
             try {
                 $response = $this->httpClient->get($pingUrl);
-            } catch (\Exception $e) {
+            } catch (Exception) {
                 usleep(100_000);
                 continue;
             }

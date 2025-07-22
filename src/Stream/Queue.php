@@ -12,7 +12,7 @@ class Queue implements IteratorAggregate
 {
     public function __construct(
         private array $queue = [],
-        private int $maxSize = 0,
+        private readonly int $maxSize = 0,
     ) {
     }
 
@@ -38,7 +38,7 @@ class Queue implements IteratorAggregate
 
         $this->queue[] = $data;
 
-        if ($this->maxSize > 0 && count($this->queue) >= $this->maxSize) {
+        if ($this->maxSize > 0 && count($this->queue) > $this->maxSize) {
             $this->queue = array_slice($this->queue, -$this->maxSize);
         }
     }

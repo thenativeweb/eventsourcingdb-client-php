@@ -13,7 +13,7 @@ class HttpClient
     private CurlMultiHandler $curlMultiHandler;
 
     public function __construct(
-        private ?string $baseUrl = null,
+        private readonly ?string $baseUrl = null,
     ) {
         $this->curlMultiHandler = new CurlMultiHandler();
     }
