@@ -2,11 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Thenativeweb\Eventsourcingdb\HttpClient;
+namespace Thenativeweb\Eventsourcingdb\Stream;
 
-use Psr\Http\Message\UriInterface;
+use InvalidArgumentException;
+use Stringable;
 
-class Uri implements UriInterface, \Stringable
+class Uri implements Stringable
 {
     private array $parseUrl;
 
@@ -16,9 +17,13 @@ class Uri implements UriInterface, \Stringable
 
     public function parseUrl(string $uri): array
     {
+        if (!str_starts_with($uri, 'http') && !str_starts_with($uri, '//')) {
+            $uri = '//' . $uri;
+        }
+
         $parsedUrl = parse_url($uri);
         if ($parsedUrl === false) {
-            throw new \InvalidArgumentException('Invalid URI: ' . $uri);
+            throw new InvalidArgumentException('Internal HttpClient: Invalid URI: ' . $uri);
         }
 
         return $parsedUrl;
@@ -85,91 +90,6 @@ class Uri implements UriInterface, \Stringable
     public function getFragment(): string
     {
         return $this->parseUrl['fragment'] ?? '';
-    }
-
-    public function withScheme(string $scheme): UriInterface
-    {
-        if ($this->host === $host) {
-            return $this;
-        }
-    }
-
-    public function withUserInfo(string $user, ?string $password = null): UriInterface
-    {
-        $userInfo = $user;
-        if ($password !== null) {
-            $userInfo .= ':' . $password;
-        }
-
-        if ($this->getUserInfo() === $userInfo) {
-            return $this;
-        }
-
-        $uri = clone $this;
-        $uri->parseUrl['user'] = $user;
-        $uri->parseUrl['pass'] = $password;
-
-        return $uri;
-    }
-
-    public function withHost(string $host): UriInterface
-    {
-        if ($this->getHost() === $host) {
-            return $this;
-        }
-
-        $uri = clone $this;
-        $uri->parseUrl['host'] = $host;
-
-        return $uri;
-    }
-
-    public function withPort(?int $port): UriInterface
-    {
-        if ($this->getPort() === $port) {
-            return $this;
-        }
-
-        $uri = clone $this;
-        $uri->parseUrl['port'] = $port;
-
-        return $uri;
-    }
-
-    public function withPath(string $path): UriInterface
-    {
-        if ($this->getPath() === $path) {
-            return $this;
-        }
-
-        $uri = clone $this;
-        $uri->parseUrl['path'] = $path;
-
-        return $uri;
-    }
-
-    public function withQuery(string $query): UriInterface
-    {
-        if ($this->getQuery() === $query) {
-            return $this;
-        }
-
-        $uri = clone $this;
-        $uri->parseUrl['query'] = $query;
-
-        return $uri;
-    }
-
-    public function withFragment(string $fragment): UriInterface
-    {
-        if ($this->getFragment() === $fragment) {
-            return $this;
-        }
-
-        $uri = clone $this;
-        $uri->parseUrl['fragment'] = $fragment;
-
-        return $uri;
     }
 
     public function __toString(): string

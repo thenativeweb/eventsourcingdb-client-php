@@ -43,8 +43,6 @@ final class WriteEventsTest extends TestCase
             ],
         );
 
-        var_dump(json_encode($firstEvent));
-
         $secondEvent = new EventCandidate(
             source: 'https://www.eventsourcingdb.io',
             subject: '/test',

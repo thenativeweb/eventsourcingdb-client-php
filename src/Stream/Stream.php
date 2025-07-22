@@ -2,18 +2,22 @@
 
 declare(strict_types=1);
 
-namespace Thenativeweb\Eventsourcingdb\HttpClient;
+namespace Thenativeweb\Eventsourcingdb\Stream;
 
-class Stream implements StreamInterface
+use IteratorAggregate;
+use Stringable;
+use Traversable;
+
+class Stream implements IteratorAggregate, Stringable
 {
     public function __construct(
-        private readonly CurlMultiHandler $curlMultiHandler
+        private CurlMultiHandler $curlMultiHandler
     ) {
     }
 
-    public function getIterator(): \Traversable
+    public function getIterator(): Traversable
     {
-        foreach ($this->curlMultiHandler->startIterator() as $chunk) {
+        foreach ($this->curlMultiHandler->contentIterator() as $chunk) {
             yield $chunk;
         }
     }
@@ -33,7 +37,7 @@ class Stream implements StreamInterface
         return $content;
     }
 
-    public function abortTimeout(float $timeout = 0.0): void
+    public function cancel(float $timeout = 0.0): void
     {
         $this->curlMultiHandler->setStreamTimeout($timeout);
     }

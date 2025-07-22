@@ -2,13 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Thenativeweb\Eventsourcingdb\HttpClient;
+namespace Thenativeweb\Eventsourcingdb\Stream;
 
-use Psr\Http\Message\UriInterface;
-
-class Request implements RequestInterface
+class Request
 {
-    private UriInterface $uri;
+    private Uri $uri;
 
     public function __construct(
         private string $method,
@@ -22,10 +20,10 @@ class Request implements RequestInterface
 
     public function getMethod(): string
     {
-        return $this->method;
+        return strtoupper($this->method);
     }
 
-    public function getUri(): UriInterface
+    public function getUri(): Uri
     {
         return $this->uri;
     }

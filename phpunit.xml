@@ -19,7 +19,6 @@
   <testsuites>
     <testsuite name="Tests">
       <directory>tests</directory>
-      <exclude>tests/Stream/NdJsonTest.php</exclude>
     </testsuite>
   </testsuites>
 </phpunit>

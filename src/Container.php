@@ -7,7 +7,7 @@ namespace Thenativeweb\Eventsourcingdb;
 use RuntimeException;
 use Testcontainers\Container\GenericContainer;
 use Testcontainers\Container\StartedGenericContainer;
-use Thenativeweb\Eventsourcingdb\HttpClient\HttpClient;
+use Thenativeweb\Eventsourcingdb\Stream\HttpClient;
 
 final class Container
 {
@@ -115,7 +115,6 @@ final class Container
     public function getClient(): Client
     {
         $baseUrl = $this->getBaseUrl();
-        // var_dump($baseUrl);exit();
         return new Client($baseUrl, $this->apiToken);
     }
 

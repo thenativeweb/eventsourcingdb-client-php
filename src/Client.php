@@ -6,8 +6,8 @@ namespace Thenativeweb\Eventsourcingdb;
 
 use DateTimeImmutable;
 use RuntimeException;
+use Thenativeweb\Eventsourcingdb\Stream\HttpClient;
 use Thenativeweb\Eventsourcingdb\Stream\NdJson;
-use Thenativeweb\Eventsourcingdb\HttpClient\HttpClient;
 
 final readonly class Client
 {
@@ -22,9 +22,9 @@ final readonly class Client
         $this->httpClient = new HttpClient($url);
     }
 
-    public function abortStream(float $timeout): void
+    public function cancelStream(float $timeout): void
     {
-        $this->httpClient->abortStream($timeout);
+        $this->httpClient->cancelStream($timeout);
     }
 
     public function ping(): void
@@ -99,7 +99,7 @@ final readonly class Client
         }
 
         if (!json_validate($body)) {
-            throw new RuntimeException('Failed to read events.');
+            throw new RuntimeException('Failed to read events, after writing.');
         }
 
         $data = json_decode($body, true);
@@ -226,12 +226,7 @@ final readonly class Client
             ));
         }
 
-        $lauf = 5;
         foreach (NdJson::readStream($response->getStream()) as $eventLine) {
-            if (--$lauf === 0) {
-                break;
-            }
-
             switch ($eventLine->type) {
                 case 'heartbeat':
                     break;
