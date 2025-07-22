@@ -340,10 +340,10 @@ $events = $client->observeEvents(
     recursive: false,
   ),
 );
-$client->cancelStreamAfter(0.1);
+$client->abortIn(0.1);
 foreach ($events as $event) {
   // ...
-  $client->cancelStreamAfter(0.1);
+  $client->abortIn(0.1);
 }
 ```
 

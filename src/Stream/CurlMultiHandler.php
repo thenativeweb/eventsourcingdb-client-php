@@ -12,13 +12,15 @@ class CurlMultiHandler
 {
     private ?CurlHandle $handle = null;
     private ?CurlMultiHandle $multiHandle = null;
-    private float $cancelStreamAfter = 0.0;
+    private float $abortInSecond = 0.0;
+    private float $iteratorTime;
     private ?Queue $header = null;
     private ?Queue $write = null;
 
-    public function cancelStreamAfter(float $time): void
+    public function abortIn(float $second): void
     {
-        $this->cancelStreamAfter = $time;
+        $this->abortInSecond = $second;
+        $this->iteratorTime = microtime(true);
     }
 
     public function getHeaderQueue(): Queue
@@ -94,10 +96,13 @@ class CurlMultiHandler
             throw new RuntimeException('Internal HttpClient: No write queue available.');
         }
 
-        $start = microtime(true);
+        $this->iteratorTime = microtime(true);
 
         do {
-            if ($this->cancelStreamAfter > 0 && (microtime(true) - $start) >= $this->cancelStreamAfter) {
+            if (
+                $this->abortInSecond > 0
+                && (microtime(true) - $this->iteratorTime) >= $this->abortInSecond
+            ) {
                 break;
             }
 

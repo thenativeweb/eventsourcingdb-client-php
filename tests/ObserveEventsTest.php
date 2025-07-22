@@ -22,7 +22,7 @@ final class ObserveEventsTest extends TestCase
             recursive: true,
         );
 
-        $this->client->cancelStreamAfter(0.1);
+        $this->client->abortIn(0.1);
         foreach ($this->client->observeEvents('/', $observeEventsOptions) as $event) {
             $didObserveEvents = true;
         }
@@ -60,7 +60,7 @@ final class ObserveEventsTest extends TestCase
             recursive: false,
         );
 
-        $this->client->cancelStreamAfter(0.1);
+        $this->client->abortIn(0.1);
         foreach ($this->client->observeEvents('/test', $observeEventsOptions) as $event) {
             $eventsObserved[] = $event;
         }
@@ -98,7 +98,7 @@ final class ObserveEventsTest extends TestCase
             recursive: true,
         );
 
-        $this->client->cancelStreamAfter(0.1);
+        $this->client->abortIn(0.1);
         foreach ($this->client->observeEvents('/', $observeEventsOptions) as $event) {
             $eventsObserved[] = $event;
         }
@@ -140,7 +140,7 @@ final class ObserveEventsTest extends TestCase
             ),
         );
 
-        $this->client->cancelStreamAfter(0.1);
+        $this->client->abortIn(0.1);
         foreach ($this->client->observeEvents('/test', $observeEventsOptions) as $event) {
             $eventsObserved[] = $event;
         }
@@ -185,7 +185,7 @@ final class ObserveEventsTest extends TestCase
             ),
         );
 
-        $this->client->cancelStreamAfter(0.1);
+        $this->client->abortIn(0.1);
         foreach ($this->client->observeEvents('/test', $observeEventsOptions) as $event) {
             $eventsObserved[] = $event;
         }
@@ -193,6 +193,45 @@ final class ObserveEventsTest extends TestCase
         $this->assertCount(1, $eventsObserved);
         $this->assertSame('1', $eventsObserved[0]->id);
         $this->assertSame(42, $eventsObserved[0]->data['value']);
+    }
+
+    public function testObserverAllEventsWithAbortInLoop(): void
+    {
+        $firstEvent = new EventCandidate(
+            source: 'https://www.eventsourcingdb.io',
+            subject: '/test',
+            type: 'io.eventsourcingdb.test',
+            data: [
+                'value' => 23,
+            ],
+        );
+
+        $secondEvent = new EventCandidate(
+            source: 'https://www.eventsourcingdb.io',
+            subject: '/test',
+            type: 'io.eventsourcingdb.test',
+            data: [
+                'value' => 42,
+            ],
+        );
+
+        iterator_count($this->client->writeEvents([
+            $firstEvent,
+            $secondEvent,
+        ]));
+
+        $eventsObserved = [];
+        $observeEventsOptions = new ObserveEventsOptions(
+            recursive: false,
+        );
+
+        foreach ($this->client->observeEvents('/test', $observeEventsOptions) as $event) {
+            $eventsObserved[] = $event;
+
+            $this->client->abortIn(0.5);
+        }
+
+        $this->assertCount(2, $eventsObserved);
     }
 
     public function testObserverAllEventsPerformanceBenchmark(): void
@@ -222,7 +261,7 @@ final class ObserveEventsTest extends TestCase
         $startTime = microtime(true);
         $maxExecutionTime = 2;
 
-        $this->client->cancelStreamAfter(0.5);
+        $this->client->abortIn(0.5);
         foreach ($this->client->observeEvents('/test', $observeEventsOptions) as $event) {
             $eventsObserved[] = $event;
         }

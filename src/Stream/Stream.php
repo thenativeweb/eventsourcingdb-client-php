@@ -31,9 +31,4 @@ readonly class Stream implements IteratorAggregate, Stringable
     {
         return implode('', iterator_to_array($this));
     }
-
-    public function cancel(float $timeout = 0.0): void
-    {
-        $this->curlMultiHandler->cancelStreamAfter($timeout);
-    }
 }

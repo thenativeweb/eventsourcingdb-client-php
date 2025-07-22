@@ -44,15 +44,4 @@ final class StreamTest extends TestCase
 
         $this->assertSame('foobar', (string) $stream);
     }
-
-    public function testCancelSetsStreamTimeout(): void
-    {
-        $mockHandler = $this->createMock(CurlMultiHandler::class);
-        $mockHandler->expects($this->once())
-            ->method('cancelStreamAfter')
-            ->with(5.0);
-
-        $stream = new Stream($mockHandler);
-        $stream->cancel(5.0);
-    }
 }
