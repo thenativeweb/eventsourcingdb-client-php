@@ -7,9 +7,9 @@ namespace Stream;
 use ArrayIterator;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use Thenativeweb\Eventsourcingdb\Stream\Header;
 use Thenativeweb\Eventsourcingdb\Stream\HttpClient;
 use Thenativeweb\Eventsourcingdb\Stream\Queue;
-use Thenativeweb\Eventsourcingdb\Stream\Header;
 
 final class HttpClientTest extends TestCase
 {
@@ -18,15 +18,15 @@ final class HttpClientTest extends TestCase
         $httpClient = new HttpClient('https://example.com');
         $uri = $httpClient->buildUri('/test');
 
-        $this->assertEquals('https://example.com/test', $uri);
+        $this->assertSame('https://example.com/test', $uri);
     }
 
     public function testBuildUriWithoutBaseUrl(): void
     {
-        $client = new HttpClient();
-        $uri = $client->buildUri('test');
+        $httpClient = new HttpClient();
+        $uri = $httpClient->buildUri('test');
 
-        $this->assertEquals('test', $uri);
+        $this->assertSame('test', $uri);
     }
 
     public function testParseHeaderQueueParsesCorrectly(): void
@@ -47,10 +47,10 @@ final class HttpClientTest extends TestCase
         $header = $httpClient->parseHeaderQueue($queueMock);
 
         $this->assertInstanceOf(Header::class, $header);
-        $this->assertEquals(200, $header->statusCode);
-        $this->assertEquals('1.1', $header->httpVersion);
-        $this->assertEquals('application/json', $header->contentType);
-        $this->assertEquals(123, $header->contentLength);
+        $this->assertSame(200, $header->statusCode);
+        $this->assertSame('1.1', $header->httpVersion);
+        $this->assertSame('application/json', $header->contentType);
+        $this->assertSame(123, $header->contentLength);
     }
 
     #[DataProvider('callContentTypes')]
@@ -59,44 +59,42 @@ final class HttpClientTest extends TestCase
         $httpClient = new HttpClient();
         $isSupported = $httpClient->isContentTypeSupported($contentType);
 
-        $this->assertEquals($expected, $isSupported, "Content type '{$contentType}' should be " . ($expected ? 'supported' : 'not supported'));
+        $this->assertSame($expected, $isSupported, "Content type '{$contentType}' should be " . ($expected ? 'supported' : 'not supported'));
     }
 
-    public static function callContentTypes(): array
+    public static function callContentTypes(): \Iterator
     {
-        return [
-            'application/json' => [
-                'application/json',
-                true,
-            ],
-            'application/json and charset' => [
-                'application/json; charset=utf-8',
-                true,
-            ],
-            'application/x-ndjson' => [
-                'application/x-ndjson',
-                true,
-            ],
-            'application/x-ndjson and charset' => [
-                'application/x-ndjson; charset=utf-8',
-                true,
-            ],
-            'text/plain' => [
-                'text/plain',
-                true,
-            ],
-            'text/plain and charset' => [
-                'text/plain; charset=utf-8',
-                true,
-            ],
-            'text/json' => [
-                'text/json',
-                false,
-            ],
-            'text/x-ndjson' => [
-                'text/x-ndjson',
-                false,
-            ],
+        yield 'application/json' => [
+            'application/json',
+            true,
+        ];
+        yield 'application/json and charset' => [
+            'application/json; charset=utf-8',
+            true,
+        ];
+        yield 'application/x-ndjson' => [
+            'application/x-ndjson',
+            true,
+        ];
+        yield 'application/x-ndjson and charset' => [
+            'application/x-ndjson; charset=utf-8',
+            true,
+        ];
+        yield 'text/plain' => [
+            'text/plain',
+            true,
+        ];
+        yield 'text/plain and charset' => [
+            'text/plain; charset=utf-8',
+            true,
+        ];
+        yield 'text/json' => [
+            'text/json',
+            false,
+        ];
+        yield 'text/x-ndjson' => [
+            'text/x-ndjson',
+            false,
         ];
     }
 }

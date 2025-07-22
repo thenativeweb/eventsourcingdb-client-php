@@ -53,9 +53,9 @@ final class ResponseTest extends TestCase
         ];
         $response = new Response(200, $headers);
 
-        $this->assertEquals(['application/json'], $response->getHeader('CONTENT-TYPE'));
-        $this->assertEquals(['application/json'], $response->getHeader('Content-Type'));
-        $this->assertEquals(['application/json'], $response->getHeader('content-type'));
+        $this->assertSame(['application/json'], $response->getHeader('CONTENT-TYPE'));
+        $this->assertSame(['application/json'], $response->getHeader('Content-Type'));
+        $this->assertSame(['application/json'], $response->getHeader('content-type'));
     }
 
     public function testGetHeaderLineReturnsEmptyStringWhenHeaderNotFound(): void

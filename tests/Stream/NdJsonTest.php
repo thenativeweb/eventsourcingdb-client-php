@@ -50,7 +50,10 @@ final class NdJsonTest extends TestCase
 
     public function testReadStreamSkipsEmptyLines(): void
     {
-        $jsonLines = json_encode(['type' => 'TestEvent', 'payload' => []]);
+        $jsonLines = json_encode([
+            'type' => 'TestEvent',
+            'payload' => [],
+        ]);
 
         $stream = $this->createMock(Stream::class);
         $stream->method('getIterator')

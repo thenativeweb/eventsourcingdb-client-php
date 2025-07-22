@@ -10,7 +10,7 @@ final readonly class NdJson
 {
     public static function readStream(Stream $stream): iterable
     {
-        foreach($stream as $chunk) {
+        foreach ($stream as $chunk) {
             $line = $chunk;
             if ($line === '') {
                 continue;

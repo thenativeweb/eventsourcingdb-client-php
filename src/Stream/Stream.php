@@ -15,16 +15,16 @@ class Stream implements IteratorAggregate, Stringable
     ) {
     }
 
+    public function __toString(): string
+    {
+        return $this->getContents();
+    }
+
     public function getIterator(): Traversable
     {
         foreach ($this->curlMultiHandler->contentIterator() as $chunk) {
             yield $chunk;
         }
-    }
-
-    public function __toString(): string
-    {
-        return $this->getContents();
     }
 
     public function getContents(): string

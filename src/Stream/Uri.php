@@ -11,8 +11,36 @@ class Uri implements Stringable
 {
     private array $parseUrl;
 
-    public function __construct(string $uri) {
+    public function __construct(string $uri)
+    {
         $this->parseUrl = $this->parseUrl($uri);
+    }
+
+    public function __toString(): string
+    {
+        $uri = $this->getScheme() . '://';
+
+        if ($this->getUserInfo() !== '') {
+            $uri .= $this->getUserInfo() . '@';
+        }
+
+        $uri .= $this->getHost();
+
+        if ($this->getPort()) {
+            $uri .= ':' . $this->getPort();
+        }
+
+        $uri .= $this->getPath();
+
+        if ($this->getQuery() !== '') {
+            $uri .= '?' . $this->getQuery();
+        }
+
+        if ($this->getFragment() !== '') {
+            $uri .= '#' . $this->getFragment();
+        }
+
+        return $uri;
     }
 
     public function parseUrl(string $uri): array
@@ -61,7 +89,7 @@ class Uri implements Stringable
         }
 
         if ($pass !== null) {
-            return $user . ':' .$pass;
+            return $user . ':' . $pass;
         }
 
         return $user;
@@ -90,32 +118,5 @@ class Uri implements Stringable
     public function getFragment(): string
     {
         return $this->parseUrl['fragment'] ?? '';
-    }
-
-    public function __toString(): string
-    {
-        $uri = $this->getScheme() . '://';
-
-        if ($this->getUserInfo()) {
-            $uri .= $this->getUserInfo() . '@';
-        }
-
-        $uri .= $this->getHost();
-
-        if ($this->getPort()) {
-            $uri .= ':' . $this->getPort();
-        }
-
-        $uri .= $this->getPath();
-
-        if ($this->getQuery()) {
-            $uri .= '?' . $this->getQuery();
-        }
-
-        if ($this->getFragment()) {
-            $uri .= '#' . $this->getFragment();
-        }
-
-        return $uri;
     }
 }

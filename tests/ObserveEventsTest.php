@@ -195,13 +195,12 @@ final class ObserveEventsTest extends TestCase
         $this->assertSame(42, $eventsObserved[0]->data['value']);
     }
 
-
     public function testObserverAllEventsPerformanceBenchmark(): void
     {
         $eventCount = 100;
         $events = [];
 
-        for ($i = 0; $i < $eventCount; $i++) {
+        for ($i = 0; $i < $eventCount; ++$i) {
             $events[] = new EventCandidate(
                 source: 'https://www.eventsourcingdb.io',
                 subject: '/test',

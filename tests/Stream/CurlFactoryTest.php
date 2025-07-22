@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Stream;
 
+use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Thenativeweb\Eventsourcingdb\Stream\CurlFactory;
 use Thenativeweb\Eventsourcingdb\Stream\Queue;
@@ -12,17 +13,14 @@ use Thenativeweb\Eventsourcingdb\Stream\Uri;
 
 final class CurlFactoryTest extends TestCase
 {
-    private Request $requestMock;
-    private Queue $headerQueueMock;
-    private Queue $writeQueueMock;
-    private Uri $uriMock;
+    private MockObject $requestMock;
+    private MockObject $headerQueueMock;
+    private MockObject $writeQueueMock;
+    private MockObject $uriMock;
 
     protected function setUp(): void
     {
         parent::setUp();
-
-        $this->requestMock = $this->createMock(Request::class);
-
 
         $this->requestMock = $this->createMock(Request::class);
         $this->headerQueueMock = $this->createMock(Queue::class);
@@ -35,7 +33,7 @@ final class CurlFactoryTest extends TestCase
     public function testCreateReturnsDefaultOptionsForHttp10(): void
     {
         $this->requestMock->method('getProtocolVersion')->willReturn('1.0');
-        $this->requestMock->method('getMethod')->willReturnCallback(static fn() => 'GET');
+        $this->requestMock->method('getMethod')->willReturnCallback(static fn (): string => 'GET');
         $this->requestMock->method('getHeaders')->willReturn(['X-Test: value']);
         $this->uriMock->method('__toString')->willReturn('http://example.com');
         $this->uriMock->method('getScheme')->willReturn('http');
@@ -104,7 +102,7 @@ final class CurlFactoryTest extends TestCase
     {
         $body = '{"key":"value"}';
 
-        $this->requestMock->method('getBody')->willReturnCallback(static fn() => $body);
+        $this->requestMock->method('getBody')->willReturnCallback(static fn (): string => $body);
         $this->uriMock->method('__toString')->willReturn('http://example.com');
         $this->uriMock->method('getScheme')->willReturn('http');
 
@@ -119,7 +117,7 @@ final class CurlFactoryTest extends TestCase
 
     public function testCreateSetsNoBodyForHeadMethod(): void
     {
-        $this->requestMock->method('getMethod')->willReturnCallback(static fn() => 'HEAD');
+        $this->requestMock->method('getMethod')->willReturnCallback(static fn (): string => 'HEAD');
         $this->uriMock->method('__toString')->willReturn('http://example.com');
         $this->uriMock->method('getScheme')->willReturn('http');
 
@@ -140,7 +138,7 @@ final class CurlFactoryTest extends TestCase
 
         $this->headerQueueMock->expects($this->once())
             ->method('write')
-            ->with("test-header");
+            ->with('test-header');
 
         $options = CurlFactory::create(
             $this->requestMock,
@@ -149,8 +147,8 @@ final class CurlFactoryTest extends TestCase
         );
 
         $headerFunction = $options[CURLOPT_HEADERFUNCTION];
-        $length = $headerFunction(null, "test-header");
-        $this->assertEquals(strlen("test-header"), $length);
+        $length = $headerFunction(null, 'test-header');
+        $this->assertEquals(strlen('test-header'), $length);
     }
 
     public function testWriteFunctionWritesToQueue(): void
@@ -160,7 +158,7 @@ final class CurlFactoryTest extends TestCase
 
         $this->writeQueueMock->expects($this->once())
             ->method('write')
-            ->with("test-chunk");
+            ->with('test-chunk');
 
         $options = CurlFactory::create(
             $this->requestMock,
@@ -169,7 +167,7 @@ final class CurlFactoryTest extends TestCase
         );
 
         $writeFunction = $options[CURLOPT_WRITEFUNCTION];
-        $length = $writeFunction(null, "test-chunk");
-        $this->assertEquals(strlen("test-chunk"), $length);
+        $length = $writeFunction(null, 'test-chunk');
+        $this->assertEquals(strlen('test-chunk'), $length);
     }
 }

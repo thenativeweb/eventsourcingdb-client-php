@@ -72,6 +72,7 @@ class HttpClient
 
         $this->curlMultiHandler->addHandle($request);
         $this->curlMultiHandler->execute();
+
         $headerQueue = $this->curlMultiHandler->getHeaderQueue();
         $responseHeader = $this->parseHeaderQueue($headerQueue);
 
@@ -92,9 +93,9 @@ class HttpClient
         return $response;
     }
 
-    public function parseHeaderQueue(Queue $header): Header
+    public function parseHeaderQueue(Queue $queue): Header
     {
-        foreach ($header as $line) {
+        foreach ($queue as $line) {
             if (preg_match('/^HTTP\/(\d\.\d)\s+(\d{3})/i', $line, $matches)) {
                 $httpVersion = trim($matches[1]);
                 $httpStatus = (int) $matches[2];

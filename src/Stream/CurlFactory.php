@@ -11,9 +11,8 @@ class CurlFactory
         Queue $bufferQueueHeader,
         Queue $bufferQueueWrite,
         int $timeout = 0,
-    ): array
-    {
-        $httpVersion = match($request->getProtocolVersion()) {
+    ): array {
+        $httpVersion = match ($request->getProtocolVersion()) {
             '2,0', '2.0', '2' => \CURL_HTTP_VERSION_2_0,
             '1,1', '1.1' => \CURL_HTTP_VERSION_1_1,
             default => \CURL_HTTP_VERSION_1_0,
@@ -30,11 +29,11 @@ class CurlFactory
             CURLOPT_VERBOSE => false,
         ];
 
-        $options[CURLOPT_HEADERFUNCTION] = function ($ch, $header) use (&$bufferQueueHeader) {
+        $options[CURLOPT_HEADERFUNCTION] = function ($ch, $header) use (&$bufferQueueHeader): int {
             $bufferQueueHeader->write($header);
             return strlen($header);
         };
-        $options[CURLOPT_WRITEFUNCTION] = function ($ch, $chunk) use (&$bufferQueueWrite) {
+        $options[CURLOPT_WRITEFUNCTION] = function ($ch, $chunk) use (&$bufferQueueWrite): int {
             $bufferQueueWrite->write($chunk);
             return strlen($chunk);
         };
@@ -56,9 +55,6 @@ class CurlFactory
             $options[CURLOPT_NOBODY] = true;
             unset(
                 $options[CURLOPT_WRITEFUNCTION],
-                $options[CURLOPT_READFUNCTION],
-                $options[CURLOPT_FILE],
-                $options[CURLOPT_INFILE]
             );
         }
 
