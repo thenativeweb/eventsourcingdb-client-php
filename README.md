@@ -102,6 +102,8 @@ To read all events of a subject, call the `readEvents` function with the subject
 The function returns an iterator, which you can use in a `foreach` loop:
 
 ```php
+use Thenativeweb\Eventsourcingdb\ReadEventsOptions;
+
 $events = $client->readEvents(
   '/books/42',
   new ReadEventsOptions(
@@ -119,6 +121,8 @@ foreach ($events as $event) {
 If you want to read not only all the events of a subject, but also the events of all nested subjects, set the `recursive` option to `true`:
 
 ```php
+use Thenativeweb\Eventsourcingdb\ReadEventsOptions;
+
 $events = $client->readEvents(
   '/books/42',
   new ReadEventsOptions(
@@ -138,6 +142,9 @@ This also allows you to read *all* events ever written. To do so, provide `/` as
 By default, events are read in chronological order. To read in anti-chronological order, provide the `order` option and set it to `Order::ANTICHRONOLOGICAL`:
 
 ```php
+use Thenativeweb\Eventsourcingdb\Order;
+use Thenativeweb\Eventsourcingdb\ReadEventsOptions;
+
 $events = $client->readEvents(
   '/books/42',
   new ReadEventsOptions(
@@ -160,6 +167,10 @@ Sometimes you do not want to read all events, but only a range of events. For th
 Specify the ID and whether to include or exclude it, for both the lower and upper bound:
 
 ```php
+use Thenativeweb\Eventsourcingdb\Bound;
+use Thenativeweb\Eventsourcingdb\BoundType;
+use Thenativeweb\Eventsourcingdb\ReadEventsOptions;
+
 $events = $client->readEvents(
   '/books/42',
   new ReadEventsOptions(
@@ -181,6 +192,10 @@ To read starting from the latest event of a given type, provide the `fromLatestE
 Possible options are `ReadIfEventIsMissing::READ_NOTHING`, which skips reading entirely, or `ReadIfEventIsMissing::READ_EVERYTHING`, which effectively behaves as if `fromLatestEvent` was not specified:
 
 ```php
+use Thenativeweb\Eventsourcingdb\ReadEventsOptions;
+use Thenativeweb\Eventsourcingdb\ReadFromLatestEvent;
+use Thenativeweb\Eventsourcingdb\ReadIfEventIsMissing;
+
 $events = $client->readEvents(
   '/books/42',
   new ReadEventsOptions(
@@ -216,6 +231,122 @@ foreach ($rows as $row) {
 
 *Note that each row returned by the iterator is an associative array and matches the projection specified in your query.*
 
+### Observing Events
+
+To observe all events of a subject, call the `observeEvents` function with the subject as the first argument and an options object as the second argument. Set the `recursive` option to `false`. This ensures that only events of the given subject are returned, not events of nested subjects.
+
+The function returns an asynchronous iterator, which you can use e.g. inside a `for await` loop:
+
+```php
+use Thenativeweb\Eventsourcingdb\ObserveEventsOptions;
+
+$events = $client->observeEvents(
+  '/books/42',
+  new ObserveEventsOptions(
+    recursive: false,
+  ),
+);
+
+foreach ($events as $event) {
+  // ...
+}
+```
+
+#### Observing From Subjects Recursively
+
+If you want to observe not only all the events of a subject, but also the events of all nested subjects, set the `recursive` option to `true`:
+
+```php
+use Thenativeweb\Eventsourcingdb\ObserveEventsOptions;
+
+$events = $client->observeEvents(
+  '/books/42',
+  new ObserveEventsOptions(
+    recursive: true,
+  ),
+);
+
+foreach ($events as $event) {
+  // ...
+}
+```
+
+This also allows you to observe *all* events ever written. To do so, provide `/` as the subject and set `recursive` to `true`, since all subjects are nested under the root subject.
+
+#### Specifying Bounds
+
+Sometimes you do not want to observe all events, but only a range of events. For that, you can specify the `lowerBound` option.
+
+Specify the ID and whether to include or exclude it:
+
+```php
+use Thenativeweb\Eventsourcingdb\Bound;
+use Thenativeweb\Eventsourcingdb\BoundType;
+use Thenativeweb\Eventsourcingdb\ObserveEventsOptions;
+
+$events = $client->observeEvents(
+  '/books/42',
+  new ObserveEventsOptions(
+    recursive: false,
+    lowerBound: new Bound('100', BoundType::INCLUSIVE),
+  ),
+);
+
+foreach ($events as $event) {
+  // ...
+}
+```
+
+#### Starting From the Latest Event of a Given Type
+
+To observe starting from the latest event of a given type, provide the `fromLatestEvent` option and specify the subject, the type, and how to proceed if no such event exists.
+
+Possible options are `wait-for-event`, which waits for an event of the given type to happen, or `read-everything`, which effectively behaves as if `fromLatestEvent` was not specified:
+
+```php
+use Thenativeweb\Eventsourcingdb\ObserveEventsOptions;
+use Thenativeweb\Eventsourcingdb\ObserveFromLatestEvent;
+use Thenativeweb\Eventsourcingdb\ObserveIfEventIsMissing;
+
+$events = $client->observeEvents(
+  '/books/42',
+  new ObserveEventsOptions(
+    recursive: false,
+    fromLatestEvent: new ObserveFromLatestEvent(
+      subject: '/books/42',
+      type: 'io.eventsourcingdb.library.book-borrowed',
+      ifEventIsMissing: ObserveIfEventIsMissing::READ_EVERYTHING,
+    ),
+  ),
+);
+
+foreach ($events as $event) {
+  // ...
+}
+```
+
+*Note that `fromLatestEvent` and `lowerBound` can not be provided at the same time.*
+
+#### Aborting Observing
+
+If you need to abort observing use `cancelStreamAfter` before or within the `foreach` loop. However, this only works if there is currently an iteration going on.
+
+```php
+use Thenativeweb\Eventsourcingdb\ObserveEventsOptions;
+
+$events = $client->observeEvents(
+  '/books/42',
+  new ObserveEventsOptions(
+    recursive: false,
+  ),
+);
+$client->cancelStreamAfter(0.1);
+foreach ($events as $event) {
+  // ...
+  $client->cancelStreamAfter(0.1);
+}
+```
+
 ### Using Testcontainers
 
 Import the `Container` class, call the `start` function to run a test container, get a client, run your test code, and finally call the `stop` function to stop the test container:
@@ -246,6 +377,8 @@ $isRunning = $container->isRunning();
 By default, `Container` uses the `latest` tag of the official EventSourcingDB Docker image. To change that, call the `withImageTag` function:
 
 ```php
+use Thenativeweb\Eventsourcingdb\Container;
+
 $container = new Container()
   ->withImageTag('1.0.0');
 ```
@@ -253,6 +386,8 @@ $container = new Container()
 Similarly, you can configure the port to use and the API token. Call the `withPort` or the `withApiToken` function respectively:
 
 ```php
+use Thenativeweb\Eventsourcingdb\Container;
+
 $container = new Container()
   ->withPort(4000)
   ->withApiToken('secret');
