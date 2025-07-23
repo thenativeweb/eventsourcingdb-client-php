@@ -413,7 +413,7 @@ foreach($subjects as $subject) {
 
 #### Aborting Listing
 
-If you need to abort listing use `abortIn` before or within the `foreach` loop. However, this only works if there is currently an iteration going on:
+If you need to abort listing use `abortIn` before or within the `foreach` loop. The abortIn method expects the abort time in seconds. However, this only works if there is currently an iteration going on:
 
 ```php
 $subjects = $client->readSubjects('/');
@@ -439,7 +439,7 @@ foreach($eventTypes as $eventType) {
 
 #### Aborting Listing
 
-If you need to abort listing use `abortIn` before or within the `foreach` loop. However, this only works if there is currently an iteration going on:
+If you need to abort listing use `abortIn` before or within the `foreach` loop. The abortIn method expects the abort time in seconds. However, this only works if there is currently an iteration going on:
 
 ```php
 $eventTypes = $client->readEventTypes();
