@@ -364,6 +364,92 @@ foreach ($events as $event) {
 }
 ```
 
+### Registering an Event Schema
+
+To register an event schema, call the `registerEventSchema` function and hand over an event type and the desired schema:
+
+```php
+$eventType = 'io.eventsourcingdb.library.book-acquired';
+$schema = [
+  'type' => 'object',
+  'properties' => [
+    'title' => ['type' => 'string'],
+    'author' => ['type' => 'string'],
+    'isbn' => ['type' => 'string'],
+  ],
+  'required' => [
+    'title',
+    'author',
+    'isbn',
+  ],
+  'additionalProperties' => false,
+];
+
+$client->registerEventSchema($eventType, $schema);
+```
+
+### Listing Subjects
+
+To list all subjects, call the `readSubjects` function with `/` as the base subject. The function returns an asynchronous iterator, which you can use e.g. inside a `foreach` loop:
+
+```php
+$subjects = $client->readSubjects('/');
+
+foreach($subjects as $subject) {
+  // ...
+}
+```
+
+If you only want to list subjects within a specific branch, provide the desired base subject instead:
+
+```php
+$subjects = $client->readSubjects('/books');
+
+foreach($subjects as $subject) {
+  // ...
+}
+```
+
+#### Aborting Listing
+
+If you need to abort listing use `abortIn` before or within the `foreach` loop. However, this only works if there is currently an iteration going on:
+
+```php
+$subjects = $client->readSubjects('/');
+
+$client->abortIn(0.1);
+foreach($subjects as $subject) {
+  // ...
+  $client->abortIn(0.1);
+}
+```
+
+### Listing Event Types
+
+To list all event types, call the `readEventTypes` function. The function returns an asynchronous iterator, which you can use e.g. inside a `foreach` loop:
+
+```php
+$eventTypes = $client->readEventTypes();
+
+foreach($eventTypes as $eventType) {
+  // ...
+}
+```
+
+#### Aborting Listing
+
+If you need to abort listing use `abortIn` before or within the `foreach` loop. However, this only works if there is currently an iteration going on:
+
+```php
+$eventTypes = $client->readEventTypes();
+
+$client->abortIn(0.1);
+foreach($eventTypes as $eventType) {
+  // ...
+  $client->abortIn(0.1);
+}
+```
+
 ### Using Testcontainers
 
 Import the `Container` class, call the `start` function to run a test container, get a client, run your test code, and finally call the `stop` function to stop the test container:
