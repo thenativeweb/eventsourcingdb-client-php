@@ -18,9 +18,9 @@ class HttpClient
         $this->curlMultiHandler = new CurlMultiHandler();
     }
 
-    public function abortIn(float $second): void
+    public function abortIn(float $seconds): void
     {
-        $this->curlMultiHandler->abortIn($second);
+        $this->curlMultiHandler->abortIn($seconds);
     }
 
     public function buildUri(string $uri): string
@@ -44,13 +44,13 @@ class HttpClient
         return $this->sendRequest($request);
     }
 
-    public function post(string $uri, ?string $apiToken = null, array $jsonArray = []): Response
+    public function post(string $uri, ?string $apiToken = null, null|array|object $jsonValue = null): Response
     {
         $header = [];
         if ($apiToken !== null) {
             $header[] = 'Authorization: Bearer ' . $apiToken;
         }
-        if ($jsonArray !== []) {
+        if ($jsonValue !== null) {
             $header[] = 'Content-Type: application/json';
         }
 
@@ -58,7 +58,7 @@ class HttpClient
             'POST',
             $this->buildUri($uri),
             $header,
-            json_encode($jsonArray),
+            json_encode($jsonValue),
         );
 
         return $this->sendRequest($request);

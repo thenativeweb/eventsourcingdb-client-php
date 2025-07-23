@@ -22,9 +22,9 @@ final readonly class Client
         $this->httpClient = new HttpClient($url);
     }
 
-    public function abortIn(float $second): void
+    public function abortIn(float $seconds): void
     {
-        $this->httpClient->abortIn($second);
+        $this->httpClient->abortIn($seconds);
     }
 
     public function ping(): void

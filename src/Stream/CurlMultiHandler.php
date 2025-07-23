@@ -12,14 +12,14 @@ class CurlMultiHandler
 {
     private ?CurlHandle $handle = null;
     private ?CurlMultiHandle $multiHandle = null;
-    private float $abortInSecond = 0.0;
+    private float $abortInSeconds = 0.0;
     private float $iteratorTime;
     private ?Queue $header = null;
     private ?Queue $write = null;
 
-    public function abortIn(float $second): void
+    public function abortIn(float $seconds): void
     {
-        $this->abortInSecond = max($second, 0.0);
+        $this->abortInSeconds = max($seconds, 0.0);
         $this->iteratorTime = microtime(true);
     }
 
@@ -77,11 +77,11 @@ class CurlMultiHandler
         }
 
         do {
-            $status = curl_multi_exec($multiHandle, $running);
-            if ($running) {
+            $status = curl_multi_exec($multiHandle, $isRunning);
+            if ($isRunning) {
                 curl_multi_select($multiHandle);
             }
-        } while ($this->header->isEmpty() && $running && $status === CURLM_OK);
+        } while ($this->header->isEmpty() && $isRunning && $status === CURLM_OK);
 
         $this->multiHandle = $multiHandle;
     }
@@ -100,21 +100,21 @@ class CurlMultiHandler
 
         do {
             if (
-                $this->abortInSecond > 0
-                && (microtime(true) - $this->iteratorTime) >= $this->abortInSecond
+                $this->abortInSeconds > 0
+                && (microtime(true) - $this->iteratorTime) >= $this->abortInSeconds
             ) {
                 break;
             }
 
-            $status = curl_multi_exec($this->multiHandle, $running);
-            if ($running) {
+            $status = curl_multi_exec($this->multiHandle, $isRunning);
+            if ($isRunning) {
                 curl_multi_select($this->multiHandle);
             }
 
             while (!$this->write->isEmpty()) {
                 yield $this->write->read();
             }
-        } while ($running && $status === CURLM_OK);
+        } while ($isRunning && $status === CURLM_OK);
 
         curl_multi_remove_handle($this->multiHandle, $this->handle);
         curl_multi_close($this->multiHandle);

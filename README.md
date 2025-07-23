@@ -346,7 +346,7 @@ foreach ($events as $event) {
 
 #### Aborting Observing
 
-If you need to abort observing use `abortIn` before or within the `foreach` loop. However, this only works if there is currently an iteration going on.
+If you need to abort observing use `abortIn` before or within the `foreach` loop. However, this only works if there is currently an iteration going on:
 
 ```php
 use Thenativeweb\Eventsourcingdb\ObserveEventsOptions;
@@ -357,6 +357,7 @@ $events = $client->observeEvents(
     recursive: false,
   ),
 );
+
 $client->abortIn(0.1);
 foreach ($events as $event) {
   // ...
@@ -504,3 +505,4 @@ In case you need to set up the client yourself, use the following functions to g
 - `getMappedPort()` returns the port
 - `getBaseUrl()` returns the full URL of the container
 - `getApiToken()` returns the API token
+
