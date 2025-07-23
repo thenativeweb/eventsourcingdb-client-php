@@ -4,39 +4,20 @@ declare(strict_types=1);
 
 namespace Thenativeweb\Eventsourcingdb\Stream;
 
-use Psr\Http\Message\StreamInterface;
 use RuntimeException;
 
 final readonly class NdJson
 {
-    public static function readLine(StreamInterface $stream): string
+    public static function readStream(Stream $stream): iterable
     {
-        $buffer = '';
-
-        while (!$stream->eof()) {
-            if ('' === ($byte = $stream->read(1))) {
-                return $buffer;
-            }
-
-            $buffer .= $byte;
-            if ($byte === "\n") {
-                break;
-            }
-        }
-
-        return $buffer;
-    }
-
-    public static function readStream(StreamInterface $stream): iterable
-    {
-        while (!$stream->eof()) {
-            $line = self::readLine($stream);
+        foreach ($stream as $chunk) {
+            $line = $chunk;
             if ($line === '') {
                 continue;
             }
 
             if (!json_validate($line)) {
-                throw new RuntimeException('Failed to read events.');
+                throw new RuntimeException('Failed to read events, when processing the ndjson.');
             }
 
             $item = json_decode($line, true);
