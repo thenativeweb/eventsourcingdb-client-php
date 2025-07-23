@@ -237,8 +237,7 @@ To run an EventQL query, call the `runEventQlQuery` function and provide the que
 
 ```php
 $rows = $client->runEventQlQuery(
-  'FROM e IN events' .
-  'PROJECT INTO e'
+  'FROM e IN events PROJECT INTO e'
 );
 
 foreach ($rows as $row) {
@@ -318,7 +317,7 @@ foreach ($events as $event) {
 
 To observe starting from the latest event of a given type, provide the `fromLatestEvent` option and specify the subject, the type, and how to proceed if no such event exists.
 
-Possible options are `wait-for-event`, which waits for an event of the given type to happen, or `read-everything`, which effectively behaves as if `fromLatestEvent` was not specified:
+Possible options are `ObserveIfEventIsMissing::WAIT_FOR_EVENT`, which waits for an event of the given type to happen, or `ObserveIfEventIsMissing::READ_EVERYTHING`, which effectively behaves as if `fromLatestEvent` was not specified:
 
 ```php
 use Thenativeweb\Eventsourcingdb\ObserveEventsOptions;
@@ -346,7 +345,7 @@ foreach ($events as $event) {
 
 #### Aborting Observing
 
-If you need to abort observing use `abortIn` before or within the `foreach` loop. The abortIn method expects the abort time in seconds. However, this only works if there is currently an iteration going on:
+If you need to abort observing use `abortIn` before or within the `foreach` loop. The `abortIn` method expects the abort time in seconds. However, this only works if there is currently an iteration going on:
 
 ```php
 use Thenativeweb\Eventsourcingdb\ObserveEventsOptions;

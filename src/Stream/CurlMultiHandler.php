@@ -12,14 +12,14 @@ class CurlMultiHandler
 {
     private ?CurlHandle $handle = null;
     private ?CurlMultiHandle $multiHandle = null;
-    private float $abortInSeconds = 0.0;
+    private float $abortIn = 0.0;
     private float $iteratorTime;
     private ?Queue $header = null;
     private ?Queue $write = null;
 
     public function abortIn(float $seconds): void
     {
-        $this->abortInSeconds = max($seconds, 0.0);
+        $this->abortIn = max($seconds, 0.0);
         $this->iteratorTime = microtime(true);
     }
 
@@ -100,8 +100,8 @@ class CurlMultiHandler
 
         do {
             if (
-                $this->abortInSeconds > 0
-                && (microtime(true) - $this->iteratorTime) >= $this->abortInSeconds
+                $this->abortIn > 0
+                && (microtime(true) - $this->iteratorTime) >= $this->abortIn
             ) {
                 break;
             }
