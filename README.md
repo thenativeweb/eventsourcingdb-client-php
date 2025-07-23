@@ -221,7 +221,8 @@ To run an EventQL query, call the `runEventQlQuery` function and provide the que
 
 ```php
 $rows = $client->runEventQlQuery(
-  'FROM e IN events PROJECT INTO e',
+  'FROM e IN events' .
+  'PROJECT INTO e'
 );
 
 foreach ($rows as $row) {
@@ -235,7 +236,7 @@ foreach ($rows as $row) {
 
 To observe all events of a subject, call the `observeEvents` function with the subject as the first argument and an options object as the second argument. Set the `recursive` option to `false`. This ensures that only events of the given subject are returned, not events of nested subjects.
 
-The function returns an asynchronous iterator, which you can use e.g. inside a `for await` loop:
+The function returns an asynchronous iterator, which you can use e.g. inside a `foreach` loop:
 
 ```php
 use Thenativeweb\Eventsourcingdb\ObserveEventsOptions;
@@ -329,7 +330,7 @@ foreach ($events as $event) {
 
 #### Aborting Observing
 
-If you need to abort observing use `cancelStreamAfter` before or within the `foreach` loop. However, this only works if there is currently an iteration going on.
+If you need to abort observing use `abortIn` before or within the `foreach` loop. However, this only works if there is currently an iteration going on.
 
 ```php
 use Thenativeweb\Eventsourcingdb\ObserveEventsOptions;
@@ -401,4 +402,3 @@ In case you need to set up the client yourself, use the following functions to g
 - `getMappedPort()` returns the port
 - `getBaseUrl()` returns the full URL of the container
 - `getApiToken()` returns the API token
-

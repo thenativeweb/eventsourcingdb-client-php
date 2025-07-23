@@ -19,7 +19,7 @@ class CurlMultiHandler
 
     public function abortIn(float $second): void
     {
-        $this->abortInSecond = $second;
+        $this->abortInSecond = abs($second);
         $this->iteratorTime = microtime(true);
     }
 
