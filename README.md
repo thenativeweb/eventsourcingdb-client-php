@@ -221,7 +221,7 @@ To run an EventQL query, call the `runEventQlQuery` function and provide the que
 
 ```php
 $rows = $client->runEventQlQuery(
-  'FROM e IN events PROJECT INTO e'
+  'FROM e IN events PROJECT INTO e',
 );
 
 foreach ($rows as $row) {
