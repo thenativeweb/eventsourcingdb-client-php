@@ -329,7 +329,7 @@ foreach ($events as $event) {
 
 #### Aborting Observing
 
-If you need to abort observing use `abortIn` before or within the `foreach` loop. The abortIn method expects the abort time in seconds. However, this only works if there is currently an iteration going on:
+If you need to abort observing use `abortIn` before or within the `foreach` loop. The `abortIn` method expects the abort time in seconds. However, this only works if there is currently an iteration going on:
 
 ```php
 use Thenativeweb\Eventsourcingdb\ObserveEventsOptions;
