@@ -73,7 +73,7 @@ If you only want to write events in case a subject (such as `/books/42`) does no
 use Thenativeweb\Eventsourcingdb\IsSubjectPristine;
 
 $writtenEvents = $client->writeEvents([
-  // ...
+  // events
 ], [
   new IsSubjectPristine('/books/42'),
 ]);
@@ -87,13 +87,29 @@ If you only want to write events in case the last event of a subject (such as `/
 use Thenativeweb\Eventsourcingdb\IsSubjectOnEventId;
 
 $writtenEvents = $client->writeEvents([
-  // ...
+  // events
 ], [
   new IsSubjectOnEventId('/books/42', '0'),
 ]);
 ```
 
 *Note that according to the CloudEvents standard, event IDs must be of type string.*
+
+#### Using the `isEventQlTrue` precondition
+
+If you want to write events depending on an EventQL query, use the `IsEventQlTrue` function to create a precondition:
+
+```php
+use Thenativeweb\Eventsourcingdb\IsEventQlTrue;
+
+$writtenEvents = $client->writeEvents([
+  // events
+], [
+  new IsEventQlTrue('FROM e IN events WHERE e.type == \'io.eventsourcingdb.library.book-borrowed\' PROJECT INTO COUNT() < 10')
+]);
+```
+
+*Note that the query must return a single row with a single value, which is interpreted as a boolean.*
 
 ### Reading Events
 
