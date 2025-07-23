@@ -13,7 +13,7 @@
       "Thenativeweb\\Eventsourcingdb\\Tests\\": "tests/"
     },
     "files": [
-      "tests/getImageVersionFromDockerfile.php"
+      "tests/Fn/getImageVersionFromDockerfile.php"
     ]
   },
   "authors": [

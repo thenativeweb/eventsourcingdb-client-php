@@ -6,7 +6,7 @@ namespace Thenativeweb\Eventsourcingdb;
 
 use JsonSerializable;
 
-class EventType implements JsonSerializable
+final readonly class EventType implements JsonSerializable
 {
     public function __construct(
         public string $eventType,

@@ -12,7 +12,7 @@ enum BoundType: string
     case EXCLUSIVE = 'exclusive';
 }
 
-class Bound implements JsonSerializable
+final readonly class Bound implements JsonSerializable
 {
     public function __construct(
         public string $id,

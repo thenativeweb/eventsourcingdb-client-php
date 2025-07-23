@@ -12,7 +12,7 @@ enum ObserveIfEventIsMissing: string
     case WAIT_FOR_EVENT = 'wait-for-event';
 }
 
-class ObserveFromLatestEvent implements JsonSerializable
+final readonly class ObserveFromLatestEvent implements JsonSerializable
 {
     public function __construct(
         public string $subject,
@@ -31,7 +31,7 @@ class ObserveFromLatestEvent implements JsonSerializable
     }
 }
 
-class ObserveEventsOptions implements JsonSerializable
+final readonly class ObserveEventsOptions implements JsonSerializable
 {
     public function __construct(
         public bool $recursive,

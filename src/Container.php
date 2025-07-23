@@ -42,18 +42,42 @@ final class Container
         return $this;
     }
 
+    /**
+     * @throws Exception
+     */
     public function start(): void
     {
-        $container =
-            (new GenericContainer("{$this->imageName}:{$this->imageTag}"))
-                ->withExposedPorts($this->internalPort)
-                ->withCommand([
-                    'run',
-                    '--api-token', $this->apiToken,
-                    '--data-directory-temporary',
-                    '--http-enabled',
-                    '--https-enabled=false',
-                ]);
+        $container = null;
+        $retryCount = 5;
+        while ($retryCount) {
+            try {
+                $container =
+                    (new GenericContainer("{$this->imageName}:{$this->imageTag}"))
+                        ->withExposedPorts($this->internalPort)
+                        ->withCommand([
+                            'run',
+                            '--api-token', $this->apiToken,
+                            '--data-directory-temporary',
+                            '--http-enabled',
+                            '--https-enabled=false',
+                        ]);
+
+            } catch (Exception $exception) {
+                --$retryCount;
+
+                $exceptionMessage = $exception->getMessage();
+
+                sleep(6);
+            }
+
+            if ($container instanceof GenericContainer) {
+                break;
+            }
+        }
+
+        if (!$container instanceof GenericContainer) {
+            exit($exceptionMessage ?? 'Failed to create container');
+        }
 
         $this->container = $container->start();
 
