@@ -298,6 +298,8 @@ final readonly class Client
 
         foreach (NdJson::readStream($response->getStream()) as $eventLine) {
             switch ($eventLine->type) {
+                case 'heartbeat':
+                    break;
                 case 'subject':
                     $subject = $eventLine->payload['subject'];
                     yield $subject;
@@ -328,6 +330,8 @@ final readonly class Client
 
         foreach (NdJson::readStream($response->getStream()) as $eventLine) {
             switch ($eventLine->type) {
+                case 'heartbeat':
+                    break;
                 case 'eventType':
                     $eventType = new EventType(
                         $eventLine->payload['eventType'],
