@@ -341,6 +341,7 @@ $events = $client->observeEvents(
     recursive: false,
   ),
 );
+
 $client->abortIn(0.1);
 foreach ($events as $event) {
   // ...

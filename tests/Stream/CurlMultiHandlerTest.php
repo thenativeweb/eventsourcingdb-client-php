@@ -26,7 +26,7 @@ final class CurlMultiHandlerTest extends TestCase
         $curlMultiHandler = new CurlMultiHandler();
         $curlMultiHandler->abortIn(5.5);
 
-        $this->assertEqualsWithDelta(5.5, $this->getPropertyValue($curlMultiHandler, 'abortInSecond'), PHP_FLOAT_EPSILON);
+        $this->assertEqualsWithDelta(5.5, $this->getPropertyValue($curlMultiHandler, 'abortInSeconds'), PHP_FLOAT_EPSILON);
         $this->assertIsFloat($this->getPropertyValue($curlMultiHandler, 'iteratorTime'));
     }
 
@@ -35,7 +35,7 @@ final class CurlMultiHandlerTest extends TestCase
         $curlMultiHandler = new CurlMultiHandler();
         $curlMultiHandler->abortIn(-3.3);
 
-        $this->assertEqualsWithDelta(0.0, $this->getPropertyValue($curlMultiHandler, 'abortInSecond'), PHP_FLOAT_EPSILON);
+        $this->assertEqualsWithDelta(0.0, $this->getPropertyValue($curlMultiHandler, 'abortInSeconds'), PHP_FLOAT_EPSILON);
         $this->assertIsFloat($this->getPropertyValue($curlMultiHandler, 'iteratorTime'));
     }
 
