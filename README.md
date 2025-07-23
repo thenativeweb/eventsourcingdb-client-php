@@ -73,7 +73,7 @@ If you only want to write events in case a subject (such as `/books/42`) does no
 use Thenativeweb\Eventsourcingdb\IsSubjectPristine;
 
 $writtenEvents = $client->writeEvents([
-  // ...
+  // events
 ], [
   new IsSubjectPristine('/books/42'),
 ]);
@@ -87,13 +87,29 @@ If you only want to write events in case the last event of a subject (such as `/
 use Thenativeweb\Eventsourcingdb\IsSubjectOnEventId;
 
 $writtenEvents = $client->writeEvents([
-  // ...
+  // events
 ], [
   new IsSubjectOnEventId('/books/42', '0'),
 ]);
 ```
 
 *Note that according to the CloudEvents standard, event IDs must be of type string.*
+
+#### Using the `isEventQlTrue` precondition
+
+If you want to write events depending on an EventQL query, use the `IsEventQlTrue` function to create a precondition:
+
+```php
+use Thenativeweb\Eventsourcingdb\IsEventQlTrue;
+
+$writtenEvents = $client->writeEvents([
+  // events
+], [
+  new IsEventQlTrue("FROM e IN events WHERE e.type == 'io.eventsourcingdb.library.book-borrowed' PROJECT INTO COUNT() < 10")
+]);
+```
+
+*Note that the query must return a single row with a single value, which is interpreted as a boolean.*
 
 ### Reading Events
 
@@ -343,6 +359,92 @@ $events = $client->observeEvents(
 
 $client->abortIn(0.1);
 foreach ($events as $event) {
+  // ...
+  $client->abortIn(0.1);
+}
+```
+
+### Registering an Event Schema
+
+To register an event schema, call the `registerEventSchema` function and hand over an event type and the desired schema:
+
+```php
+$eventType = 'io.eventsourcingdb.library.book-acquired';
+$schema = [
+  'type' => 'object',
+  'properties' => [
+    'title' => ['type' => 'string'],
+    'author' => ['type' => 'string'],
+    'isbn' => ['type' => 'string'],
+  ],
+  'required' => [
+    'title',
+    'author',
+    'isbn',
+  ],
+  'additionalProperties' => false,
+];
+
+$client->registerEventSchema($eventType, $schema);
+```
+
+### Listing Subjects
+
+To list all subjects, call the `readSubjects` function with `/` as the base subject. The function returns an asynchronous iterator, which you can use e.g. inside a `foreach` loop:
+
+```php
+$subjects = $client->readSubjects('/');
+
+foreach($subjects as $subject) {
+  // ...
+}
+```
+
+If you only want to list subjects within a specific branch, provide the desired base subject instead:
+
+```php
+$subjects = $client->readSubjects('/books');
+
+foreach($subjects as $subject) {
+  // ...
+}
+```
+
+#### Aborting Listing
+
+If you need to abort listing use `abortIn` before or within the `foreach` loop. The `abortIn` method expects the abort time in seconds. However, this only works if there is currently an iteration going on:
+
+```php
+$subjects = $client->readSubjects('/');
+
+$client->abortIn(0.1);
+foreach($subjects as $subject) {
+  // ...
+  $client->abortIn(0.1);
+}
+```
+
+### Listing Event Types
+
+To list all event types, call the `readEventTypes` function. The function returns an asynchronous iterator, which you can use e.g. inside a `foreach` loop:
+
+```php
+$eventTypes = $client->readEventTypes();
+
+foreach($eventTypes as $eventType) {
+  // ...
+}
+```
+
+#### Aborting Listing
+
+If you need to abort listing use `abortIn` before or within the `foreach` loop. The `abortIn` method expects the abort time in seconds. However, this only works if there is currently an iteration going on:
+
+```php
+$eventTypes = $client->readEventTypes();
+
+$client->abortIn(0.1);
+foreach($eventTypes as $eventType) {
   // ...
   $client->abortIn(0.1);
 }

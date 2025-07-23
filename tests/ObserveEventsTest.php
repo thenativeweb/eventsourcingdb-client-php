@@ -5,6 +5,7 @@ declare(strict_types=1);
 use PHPUnit\Framework\TestCase;
 use Thenativeweb\Eventsourcingdb\Bound;
 use Thenativeweb\Eventsourcingdb\BoundType;
+use Thenativeweb\Eventsourcingdb\CloudEvent;
 use Thenativeweb\Eventsourcingdb\EventCandidate;
 use Thenativeweb\Eventsourcingdb\ObserveEventsOptions;
 use Thenativeweb\Eventsourcingdb\ObserveFromLatestEvent;
@@ -146,6 +147,7 @@ final class ObserveEventsTest extends TestCase
         }
 
         $this->assertCount(1, $eventsObserved);
+        $this->assertInstanceOf(CloudEvent::class, $eventsObserved[0]);
         $this->assertSame('1', $eventsObserved[0]->id);
         $this->assertSame(42, $eventsObserved[0]->data['value']);
     }
@@ -191,6 +193,7 @@ final class ObserveEventsTest extends TestCase
         }
 
         $this->assertCount(1, $eventsObserved);
+        $this->assertInstanceOf(CloudEvent::class, $eventsObserved[0]);
         $this->assertSame('1', $eventsObserved[0]->id);
         $this->assertSame(42, $eventsObserved[0]->data['value']);
     }
@@ -259,9 +262,9 @@ final class ObserveEventsTest extends TestCase
         );
 
         $startTime = microtime(true);
-        $maxExecutionTime = 3.0;
+        $maxExecutionTime = 2.0;
 
-        $this->client->abortIn(1.5);
+        $this->client->abortIn(0.5);
         foreach ($this->client->observeEvents('/test', $observeEventsOptions) as $event) {
             $eventsObserved[] = $event;
         }

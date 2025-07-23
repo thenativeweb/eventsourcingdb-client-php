@@ -5,6 +5,7 @@ declare(strict_types=1);
 use PHPUnit\Framework\TestCase;
 use Thenativeweb\Eventsourcingdb\Bound;
 use Thenativeweb\Eventsourcingdb\BoundType;
+use Thenativeweb\Eventsourcingdb\CloudEvent;
 use Thenativeweb\Eventsourcingdb\EventCandidate;
 use Thenativeweb\Eventsourcingdb\Order;
 use Thenativeweb\Eventsourcingdb\ReadEventsOptions;
@@ -134,8 +135,10 @@ final class ReadEventsTest extends TestCase
         }
 
         $this->assertCount(2, $eventsRead);
+        $this->assertInstanceOf(CloudEvent::class, $eventsRead[0]);
         $this->assertSame('0', $eventsRead[0]->id);
         $this->assertSame(23, $eventsRead[0]->data['value']);
+        $this->assertInstanceOf(CloudEvent::class, $eventsRead[1]);
         $this->assertSame('1', $eventsRead[1]->id);
         $this->assertSame(42, $eventsRead[1]->data['value']);
     }
@@ -176,8 +179,10 @@ final class ReadEventsTest extends TestCase
         }
 
         $this->assertCount(2, $eventsRead);
+        $this->assertInstanceOf(CloudEvent::class, $eventsRead[0]);
         $this->assertSame('1', $eventsRead[0]->id);
         $this->assertSame(42, $eventsRead[0]->data['value']);
+        $this->assertInstanceOf(CloudEvent::class, $eventsRead[1]);
         $this->assertSame('0', $eventsRead[1]->id);
         $this->assertSame(23, $eventsRead[1]->data['value']);
     }
@@ -218,6 +223,7 @@ final class ReadEventsTest extends TestCase
         }
 
         $this->assertCount(1, $eventsRead);
+        $this->assertInstanceOf(CloudEvent::class, $eventsRead[0]);
         $this->assertSame('1', $eventsRead[0]->id);
         $this->assertSame(42, $eventsRead[0]->data['value']);
     }
@@ -258,6 +264,7 @@ final class ReadEventsTest extends TestCase
         }
 
         $this->assertCount(1, $eventsRead);
+        $this->assertInstanceOf(CloudEvent::class, $eventsRead[0]);
         $this->assertSame('0', $eventsRead[0]->id);
         $this->assertSame(23, $eventsRead[0]->data['value']);
     }
@@ -302,6 +309,7 @@ final class ReadEventsTest extends TestCase
         }
 
         $this->assertCount(1, $eventsRead);
+        $this->assertInstanceOf(CloudEvent::class, $eventsRead[0]);
         $this->assertSame('1', $eventsRead[0]->id);
         $this->assertSame(42, $eventsRead[0]->data['value']);
     }

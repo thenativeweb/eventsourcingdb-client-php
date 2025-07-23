@@ -3,7 +3,9 @@
 declare(strict_types=1);
 
 use PHPUnit\Framework\TestCase;
+use Thenativeweb\Eventsourcingdb\CloudEvent;
 use Thenativeweb\Eventsourcingdb\EventCandidate;
+use Thenativeweb\Eventsourcingdb\IsEventQlTrue;
 use Thenativeweb\Eventsourcingdb\IsSubjectOnEventId;
 use Thenativeweb\Eventsourcingdb\IsSubjectPristine;
 use Thenativeweb\Eventsourcingdb\Tests\ClientTestTrait;
@@ -29,6 +31,7 @@ final class WriteEventsTest extends TestCase
 
         $writtenEvents = iterator_to_array($writtenEvents);
         $this->assertCount(1, $writtenEvents);
+        $this->assertInstanceOf(CloudEvent::class, $writtenEvents[0]);
         $this->assertSame('0', $writtenEvents[0]->id);
     }
 
@@ -59,8 +62,10 @@ final class WriteEventsTest extends TestCase
 
         $writtenEvents = iterator_to_array($writtenEvents);
         $this->assertCount(2, $writtenEvents);
+        $this->assertInstanceOf(CloudEvent::class, $writtenEvents[0]);
         $this->assertSame('0', $writtenEvents[0]->id);
         $this->assertSame(23, $writtenEvents[0]->data['value']);
+        $this->assertInstanceOf(CloudEvent::class, $writtenEvents[1]);
         $this->assertSame('1', $writtenEvents[1]->id);
         $this->assertSame(42, $writtenEvents[1]->data['value']);
     }
@@ -132,6 +137,41 @@ final class WriteEventsTest extends TestCase
             ],
             [
                 new IsSubjectOnEventId('/test', '1'),
+            ],
+        ));
+    }
+
+    public function testSupportsTheIsEventQlTruePrecondition(): void
+    {
+        $firstEvent = new EventCandidate(
+            source: 'https://www.eventsourcingdb.io',
+            subject: '/test',
+            type: 'io.eventsourcingdb.test',
+            data: [
+                'value' => 23,
+            ],
+        );
+
+        iterator_count($this->client->writeEvents([
+            $firstEvent,
+        ]));
+
+        $secondEvent = new EventCandidate(
+            source: 'https://www.eventsourcingdb.io',
+            subject: '/test',
+            type: 'io.eventsourcingdb.test',
+            data: [
+                'value' => 42,
+            ],
+        );
+
+        $this->expectExceptionMessage("Failed to write events, got HTTP status code '409', expected '200'");
+        iterator_to_array($this->client->writeEvents(
+            [
+                $secondEvent,
+            ],
+            [
+                new IsEventQlTrue('FROM e IN events PROJECT INTO COUNT() == 0'),
             ],
         ));
     }

@@ -257,4 +257,95 @@ final readonly class Client
             }
         }
     }
+
+    public function registerEventSchema(string $eventType, array $schema): void
+    {
+        $response = $this->httpClient->post(
+            '/api/v1/register-event-schema',
+            $this->apiToken,
+            [
+                'eventType' => $eventType,
+                'schema' => $schema,
+            ],
+        );
+
+        $status = $response->getStatusCode();
+        if ($status !== 200) {
+            throw new RuntimeException(sprintf(
+                "Failed to register event schema, got HTTP status code '%d', expected '200'",
+                $status
+            ));
+        }
+    }
+
+    public function readSubjects(string $baseSubject): iterable
+    {
+        $response = $this->httpClient->post(
+            '/api/v1/read-subjects',
+            $this->apiToken,
+            [
+                'baseSubject' => $baseSubject,
+            ],
+        );
+
+        $status = $response->getStatusCode();
+        if ($status !== 200) {
+            throw new RuntimeException(sprintf(
+                "Failed to read subjects, got HTTP status code '%d', expected '200'",
+                $status
+            ));
+        }
+
+        foreach (NdJson::readStream($response->getStream()) as $eventLine) {
+            switch ($eventLine->type) {
+                case 'heartbeat':
+                    break;
+                case 'subject':
+                    $subject = $eventLine->payload['subject'];
+                    yield $subject;
+
+                    break;
+                case 'error':
+                    throw new RuntimeException($eventLine->payload['error'] ?? 'unknown error');
+                default:
+                    throw new RuntimeException("Failed to handle unsupported line type {$eventLine->type}");
+            }
+        }
+    }
+
+    public function readEventTypes(): iterable
+    {
+        $response = $this->httpClient->post(
+            '/api/v1/read-event-types',
+            $this->apiToken,
+        );
+
+        $status = $response->getStatusCode();
+        if ($status !== 200) {
+            throw new RuntimeException(sprintf(
+                "Failed to read event types, got HTTP status code '%d', expected '200'",
+                $status
+            ));
+        }
+
+        foreach (NdJson::readStream($response->getStream()) as $eventLine) {
+            switch ($eventLine->type) {
+                case 'heartbeat':
+                    break;
+                case 'eventType':
+                    $eventType = new EventType(
+                        $eventLine->payload['eventType'],
+                        $eventLine->payload['isPhantom'],
+                        $eventLine->payload['schema'] ?? [],
+                    );
+                    yield $eventType;
+
+                    break;
+                case 'error':
+                    throw new RuntimeException($eventLine->payload['error'] ?? 'unknown error');
+                default:
+                    throw new RuntimeException("Failed to handle unsupported line type {$eventLine->type}");
+            }
+        }
+    }
 }
