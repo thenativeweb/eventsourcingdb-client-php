@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use PHPUnit\Framework\TestCase;
+use Thenativeweb\Eventsourcingdb\CloudEvent;
 use Thenativeweb\Eventsourcingdb\EventCandidate;
 use Thenativeweb\Eventsourcingdb\IsSubjectOnEventId;
 use Thenativeweb\Eventsourcingdb\IsSubjectPristine;
@@ -29,6 +30,7 @@ final class WriteEventsTest extends TestCase
 
         $writtenEvents = iterator_to_array($writtenEvents);
         $this->assertCount(1, $writtenEvents);
+        $this->assertInstanceOf(CloudEvent::class, $writtenEvents[0]);
         $this->assertSame('0', $writtenEvents[0]->id);
     }
 
@@ -59,8 +61,10 @@ final class WriteEventsTest extends TestCase
 
         $writtenEvents = iterator_to_array($writtenEvents);
         $this->assertCount(2, $writtenEvents);
+        $this->assertInstanceOf(CloudEvent::class, $writtenEvents[0]);
         $this->assertSame('0', $writtenEvents[0]->id);
         $this->assertSame(23, $writtenEvents[0]->data['value']);
+        $this->assertInstanceOf(CloudEvent::class, $writtenEvents[1]);
         $this->assertSame('1', $writtenEvents[1]->id);
         $this->assertSame(42, $writtenEvents[1]->data['value']);
     }
