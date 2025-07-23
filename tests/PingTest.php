@@ -2,10 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Thenativeweb\Eventsourcingdb\Tests;
-
 use PHPUnit\Framework\TestCase;
 use Thenativeweb\Eventsourcingdb\Client;
+use Thenativeweb\Eventsourcingdb\Tests\ClientTestTrait;
 
 final class PingTest extends TestCase
 {
