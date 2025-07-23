@@ -403,3 +403,4 @@ In case you need to set up the client yourself, use the following functions to g
 - `getMappedPort()` returns the port
 - `getBaseUrl()` returns the full URL of the container
 - `getApiToken()` returns the API token
+
