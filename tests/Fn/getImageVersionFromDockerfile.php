@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Thenativeweb\Eventsourcingdb\Tests;
+namespace Thenativeweb\Eventsourcingdb\Tests\Fn;
 
 use RuntimeException;
 
 function getImageVersionFromDockerfile(): string
 {
-    $dockerfile = __DIR__ . '/../docker/Dockerfile';
+    $dockerfile = __DIR__ . '/../../docker/Dockerfile';
 
     if (!file_exists($dockerfile)) {
         throw new RuntimeException('Dockerfile not found at ' . $dockerfile);

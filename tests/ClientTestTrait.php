@@ -6,6 +6,7 @@ namespace Thenativeweb\Eventsourcingdb\Tests;
 
 use Thenativeweb\Eventsourcingdb\Client;
 use Thenativeweb\Eventsourcingdb\Container;
+use function Thenativeweb\Eventsourcingdb\Tests\Fn\getImageVersionFromDockerfile;
 
 trait ClientTestTrait
 {

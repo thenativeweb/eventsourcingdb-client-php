@@ -18,7 +18,7 @@ enum ReadIfEventIsMissing: string
     case READ_EVERYTHING = 'read-everything';
 }
 
-class ReadFromLatestEvent implements JsonSerializable
+final readonly class ReadFromLatestEvent implements JsonSerializable
 {
     public function __construct(
         public string $subject,
@@ -37,7 +37,7 @@ class ReadFromLatestEvent implements JsonSerializable
     }
 }
 
-class ReadEventsOptions implements JsonSerializable
+final readonly class ReadEventsOptions implements JsonSerializable
 {
     public function __construct(
         public bool $recursive = false,
