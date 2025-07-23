@@ -8,8 +8,8 @@ class CurlFactory
 {
     public static function create(
         Request $request,
-        Queue $bufferQueueHeader,
-        Queue $bufferQueueWrite,
+        Queue $queueHeader,
+        Queue $queueWrite,
         int $timeout = 0,
     ): array {
         $httpVersion = match ($request->getProtocolVersion()) {
@@ -29,12 +29,29 @@ class CurlFactory
             CURLOPT_VERBOSE => false,
         ];
 
-        $options[CURLOPT_HEADERFUNCTION] = function ($ch, $header) use (&$bufferQueueHeader): int {
-            $bufferQueueHeader->write($header);
+        $contentType = null;
+        $options[CURLOPT_HEADERFUNCTION] = function ($ch, $header) use (&$queueHeader, &$contentType): int {
+            $queueHeader->write($header);
+            if (preg_match('/^Content-Type:\s*(.+)$/i', $header, $matches)) {
+                $contentType = strtolower(trim($matches[1]));
+            }
             return strlen($header);
         };
-        $options[CURLOPT_WRITEFUNCTION] = function ($ch, $chunk) use (&$bufferQueueWrite): int {
-            $bufferQueueWrite->write($chunk);
+
+        $buffer = '';
+        $options[CURLOPT_WRITEFUNCTION] = function ($ch, $chunk) use (&$buffer, &$queueWrite, &$contentType): int {
+            $buffer .= $chunk;
+            $write = true;
+
+            if ($contentType === 'application/x-ndjson' && !str_ends_with($buffer, "\n")) {
+                $write = false;
+            }
+
+            if ($write === true) {
+                $queueWrite->write($buffer);
+                $buffer = '';
+            }
+
             return strlen($chunk);
         };
 
