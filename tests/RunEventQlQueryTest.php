@@ -51,8 +51,10 @@ final class RunEventQlQueryTest extends TestCase
         }
 
         $this->assertCount(2, $rowsRead);
+        $this->assertIsArray($rowsRead[0]);
         $this->assertSame('0', $rowsRead[0]['id']);
         $this->assertSame(23, $rowsRead[0]['data']['value']);
+        $this->assertIsArray($rowsRead[1]);
         $this->assertSame('1', $rowsRead[1]['id']);
         $this->assertSame(42, $rowsRead[1]['data']['value']);
     }
