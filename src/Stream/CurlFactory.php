@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Thenativeweb\Eventsourcingdb\Stream;
 
+use CurlHandle;
+
 class CurlFactory
 {
     public static function create(
@@ -30,7 +32,7 @@ class CurlFactory
         ];
 
         $contentType = null;
-        $options[CURLOPT_HEADERFUNCTION] = function ($ch, $header) use (&$queueHeader, &$contentType): int {
+        $options[CURLOPT_HEADERFUNCTION] = function (?CurlHandle $curlHandle, string $header) use (&$queueHeader, &$contentType): int {
             $queueHeader->write($header);
             if (preg_match('/^Content-Type:\s*(.+)$/i', $header, $matches)) {
                 $contentType = strtolower(trim($matches[1]));
@@ -39,7 +41,7 @@ class CurlFactory
         };
 
         $buffer = '';
-        $options[CURLOPT_WRITEFUNCTION] = function ($ch, $chunk) use (&$buffer, &$queueWrite, &$contentType): int {
+        $options[CURLOPT_WRITEFUNCTION] = function (?CurlHandle $curlHandle, string $chunk) use (&$buffer, &$queueWrite, &$contentType): int {
             $buffer .= $chunk;
             $write = true;
 
@@ -47,7 +49,7 @@ class CurlFactory
                 $write = false;
             }
 
-            if ($write === true) {
+            if ($write) {
                 $queueWrite->write($buffer);
                 $buffer = '';
             }
