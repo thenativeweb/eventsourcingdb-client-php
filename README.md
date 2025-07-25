@@ -63,6 +63,8 @@ $writtenEvents = $client->writeEvents([
     ],
   ),
 ]);
+
+iterator_to_array($writtenEvents);
 ```
 
 #### Using the `isSubjectPristine` precondition
@@ -77,6 +79,8 @@ $writtenEvents = $client->writeEvents([
 ], [
   new IsSubjectPristine('/books/42'),
 ]);
+
+iterator_to_array($writtenEvents);
 ```
 
 #### Using the `isSubjectOnEventId` precondition
@@ -91,6 +95,8 @@ $writtenEvents = $client->writeEvents([
 ], [
   new IsSubjectOnEventId('/books/42', '0'),
 ]);
+
+iterator_to_array($writtenEvents);
 ```
 
 *Note that according to the CloudEvents standard, event IDs must be of type string.*
@@ -107,6 +113,8 @@ $writtenEvents = $client->writeEvents([
 ], [
   new IsEventQlTrue("FROM e IN events WHERE e.type == 'io.eventsourcingdb.library.book-borrowed' PROJECT INTO COUNT() < 10")
 ]);
+
+iterator_to_array($writtenEvents);
 ```
 
 *Note that the query must return a single row with a single value, which is interpreted as a boolean.*
