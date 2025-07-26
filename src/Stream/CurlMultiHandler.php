@@ -141,15 +141,17 @@ class CurlMultiHandler
     private function verifyCurlHandle(CurlMultiHandle $curlMultiHandle): void
     {
         $info = curl_multi_info_read($curlMultiHandle);
-        if ($info !== false) {
-            $handle = $info['handle'] ?? null;
-            if (!$handle instanceof CurlHandle) {
-                throw new RuntimeException('Internal HttpClient: cURL handle info read returned an invalid handle.');
-            }
+        if ($info === false) {
+            return;
+        }
 
-            if (curl_errno($handle) !== 0) {
-                throw new RuntimeException('Internal HttpClient: cURL handle execution failed with error: ' . curl_error($handle));
-            }
+        $handle = $info['handle'] ?? null;
+        if (!$handle instanceof CurlHandle) {
+            throw new RuntimeException('Internal HttpClient: cURL handle info read returned an invalid handle.');
+        }
+
+        if (curl_errno($handle) !== 0) {
+            throw new RuntimeException('Internal HttpClient: cURL handle execution failed with error: ' . curl_error($handle));
         }
     }
 }
