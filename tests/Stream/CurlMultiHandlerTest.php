@@ -24,6 +24,11 @@ final class CurlMultiHandlerTest extends TestCase
         return $reflectionProperty->getValue($object);
     }
 
+    public function removeLineBrake(string $line): string
+    {
+        return preg_replace('/\r\n|\r|\n/', '', $line);
+    }
+
     public function testAbortInWithPositiveValue(): void
     {
         $curlMultiHandler = new CurlMultiHandler();
@@ -84,7 +89,7 @@ final class CurlMultiHandlerTest extends TestCase
     public function testExecuteThrowsIfHostNotExists(): void
     {
         $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage("Internal HttpClient: cURL handle execution failed with error: Failed to connect to docker-dind port 1234 after 0 ms: Couldn't connect to server");
+        $this->expectExceptionMessageMatches("#Internal HttpClient: cURL handle execution failed with error: Failed to connect to docker-dind port 1234 after \d+ ms: Couldn't connect to server#");
 
         $host = $this->container->getHost();
         $baseUrl = "http://{$host}:1234";
@@ -98,17 +103,22 @@ final class CurlMultiHandlerTest extends TestCase
         $curlMultiHandler->execute();
     }
 
-    public function testExecuteSuccess(): void
+    public function testExecuteSendsRequestAndParsesHttpHeadersCorrectly(): void
     {
         $request = new Request(
             'GET',
-            $this->container->getBaseUrl(),
+            $this->container->getBaseUrl() . '/api/v1/ping',
         );
         $curlMultiHandler = new CurlMultiHandler();
         $curlMultiHandler->addHandle($request);
         $curlMultiHandler->execute();
 
-        $this->expectNotToPerformAssertions();
+        $headerQueue = $curlMultiHandler->getHeaderQueue();
+
+        $this->assertGreaterThanOrEqual(8, $headerQueue->getIterator()->count());
+        $this->assertSame('HTTP/1.1 200 OK', $this->removeLineBrake($headerQueue->read()));
+        $this->assertSame('Cache-Control: no-store, no-cache, must-revalidate, proxy-revalidate', $this->removeLineBrake($headerQueue->read()));
+        $this->assertSame('Content-Type: application/json', $this->removeLineBrake($headerQueue->read()));
     }
 
     public function testContentIteratorThrowsIfMultiHandleMissing(): void
