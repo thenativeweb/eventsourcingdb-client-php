@@ -16,6 +16,7 @@ class CurlMultiHandler
     private float $iteratorTime;
     private ?Queue $header = null;
     private ?Queue $write = null;
+    private array $curlOptions = [];
 
     public function abortIn(float $seconds): void
     {
@@ -58,6 +59,7 @@ class CurlMultiHandler
             throw new RuntimeException('Internal HttpClient: Failed to set cURL options: ' . curl_error($handle));
         }
 
+        $this->curlOptions = $options;
         $this->handle = $handle;
     }
 
@@ -82,6 +84,17 @@ class CurlMultiHandler
                 curl_multi_select($multiHandle);
             }
         } while ($this->header->isEmpty() && $isRunning && $status === CURLM_OK);
+
+        if ($this->header->isEmpty()) {
+            $ch = curl_init();
+            curl_setopt_array($ch, $this->curlOptions);
+            curl_exec($ch);
+
+            $errno = curl_errno($ch);
+            if ($errno !== 0) {
+                throw new RuntimeException('Internal HttpClient: cURL handle execution failed with error: ' . curl_error($ch));
+            }
+        }
 
         $this->multiHandle = $multiHandle;
     }

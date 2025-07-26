@@ -10,9 +10,12 @@ use RuntimeException;
 use Thenativeweb\Eventsourcingdb\Stream\CurlMultiHandler;
 use Thenativeweb\Eventsourcingdb\Stream\Queue;
 use Thenativeweb\Eventsourcingdb\Stream\Request;
+use Thenativeweb\Eventsourcingdb\Tests\ClientTestTrait;
 
 final class CurlMultiHandlerTest extends TestCase
 {
+    use ClientTestTrait;
+
     public function getPropertyValue(object $object, string $propertyName): mixed
     {
         $reflectionClass = new ReflectionClass($object);
@@ -76,6 +79,36 @@ final class CurlMultiHandlerTest extends TestCase
 
         $curlMultiHandler = new CurlMultiHandler();
         $curlMultiHandler->execute();
+    }
+
+    public function testExecuteThrowsIfHostNotExists(): void
+    {
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage("Internal HttpClient: cURL handle execution failed with error: Failed to connect to docker-dind port 1234 after 0 ms: Couldn't connect to server");
+
+        $host = $this->container->getHost();
+        $baseUrl = "http://{$host}:1234";
+
+        $request = new Request(
+            'GET',
+            $baseUrl,
+        );
+        $curlMultiHandler = new CurlMultiHandler();
+        $curlMultiHandler->addHandle($request);
+        $curlMultiHandler->execute();
+    }
+
+    public function testExecuteSuccess(): void
+    {
+        $request = new Request(
+            'GET',
+            $this->container->getBaseUrl(),
+        );
+        $curlMultiHandler = new CurlMultiHandler();
+        $curlMultiHandler->addHandle($request);
+        $curlMultiHandler->execute();
+
+        $this->expectNotToPerformAssertions();
     }
 
     public function testContentIteratorThrowsIfMultiHandleMissing(): void
