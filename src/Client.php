@@ -70,7 +70,7 @@ final readonly class Client
         }
     }
 
-    public function writeEvents(array $events, array $preconditions = []): iterable
+    public function writeEvents(array $events, array $preconditions = []): array
     {
         $requestBody = [
             'events' => $events,
@@ -95,7 +95,7 @@ final readonly class Client
 
         $body = $response->getStream()->getContents();
         if ($body === '') {
-            return;
+            return [];
         }
 
         if (!json_validate($body)) {
@@ -107,8 +107,8 @@ final readonly class Client
             throw new RuntimeException('Failed to read events, expected an array.');
         }
 
-        foreach ($data as $item) {
-            $cloudEvent = new CloudEvent(
+        $writtenEvents = array_map(
+            static fn ($item): CloudEvent => new CloudEvent(
                 $item['specversion'],
                 $item['id'],
                 new DateTimeImmutable($item['time']),
@@ -121,9 +121,11 @@ final readonly class Client
                 $item['predecessorhash'],
                 $item['traceparent'] ?? null,
                 $item['tracestate'] ?? null,
-            );
-            yield $cloudEvent;
-        }
+            ),
+            $data,
+        );
+
+        return $writtenEvents;
     }
 
     public function readEvents(string $subject, ReadEventsOptions $readEventsOptions): iterable

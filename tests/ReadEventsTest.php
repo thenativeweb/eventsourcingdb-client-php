@@ -49,10 +49,10 @@ final class ReadEventsTest extends TestCase
             ],
         );
 
-        iterator_count($this->client->writeEvents([
+        $this->client->writeEvents([
             $firstEvent,
             $secondEvent,
-        ]));
+        ]);
 
         $eventsRead = [];
         $readEventsOptions = new ReadEventsOptions(false);
@@ -84,10 +84,10 @@ final class ReadEventsTest extends TestCase
             ],
         );
 
-        iterator_count($this->client->writeEvents([
+        $this->client->writeEvents([
             $firstEvent,
             $secondEvent,
-        ]));
+        ]);
 
         $eventsRead = [];
         $readEventsOptions = new ReadEventsOptions(true);
@@ -119,10 +119,10 @@ final class ReadEventsTest extends TestCase
             ],
         );
 
-        iterator_count($this->client->writeEvents([
+        $this->client->writeEvents([
             $firstEvent,
             $secondEvent,
-        ]));
+        ]);
 
         $eventsRead = [];
         $readEventsOptions = new ReadEventsOptions(
@@ -163,10 +163,10 @@ final class ReadEventsTest extends TestCase
             ],
         );
 
-        iterator_count($this->client->writeEvents([
+        $this->client->writeEvents([
             $firstEvent,
             $secondEvent,
-        ]));
+        ]);
 
         $eventsRead = [];
         $readEventsOptions = new ReadEventsOptions(
@@ -207,10 +207,10 @@ final class ReadEventsTest extends TestCase
             ],
         );
 
-        iterator_count($this->client->writeEvents([
+        $this->client->writeEvents([
             $firstEvent,
             $secondEvent,
-        ]));
+        ]);
 
         $eventsRead = [];
         $readEventsOptions = new ReadEventsOptions(
@@ -248,10 +248,10 @@ final class ReadEventsTest extends TestCase
             ],
         );
 
-        iterator_count($this->client->writeEvents([
+        $this->client->writeEvents([
             $firstEvent,
             $secondEvent,
-        ]));
+        ]);
 
         $eventsRead = [];
         $readEventsOptions = new ReadEventsOptions(
@@ -289,10 +289,10 @@ final class ReadEventsTest extends TestCase
             ],
         );
 
-        iterator_count($this->client->writeEvents([
+        $this->client->writeEvents([
             $firstEvent,
             $secondEvent,
-        ]));
+        ]);
 
         $eventsRead = [];
         $readEventsOptions = new ReadEventsOptions(

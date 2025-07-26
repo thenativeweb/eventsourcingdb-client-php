@@ -42,10 +42,10 @@ final class ReadEventTypesTest extends TestCase
             ],
         );
 
-        iterator_count($this->client->writeEvents([
+        $this->client->writeEvents([
             $firstEvent,
             $secondEvent,
-        ]));
+        ]);
 
         $eventTypesRead = [];
 

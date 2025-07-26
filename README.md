@@ -44,8 +44,6 @@ $client->verifyApiToken();
 
 Call the `writeEvents` function and hand over an array with one or more events. You do not have to provide all event fields – some are automatically added by the server.
 
-For functionality, `writeEvents` always requires an iterator call via `iterator_count`, `iterator_to_array`, or the `foreach` loop.
-
 Specify `source`, `subject`, `type`, and `data` according to the [CloudEvents](https://docs.eventsourcingdb.io/fundamentals/cloud-events/) format.
 
 The function returns the written events, including the fields added by the server:
@@ -65,8 +63,6 @@ $writtenEvents = $client->writeEvents([
     ],
   ),
 ]);
-
-$writtenEventsArray = iterator_to_array($writtenEvents);
 ```
 
 #### Using the `isSubjectPristine` precondition
