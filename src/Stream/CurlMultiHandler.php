@@ -138,9 +138,9 @@ class CurlMultiHandler
         $this->write = null;
     }
 
-    private function verifyCurlHandle(CurlMultiHandle $multiHandle): void
+    private function verifyCurlHandle(CurlMultiHandle $curlMultiHandle): void
     {
-        $info = curl_multi_info_read($multiHandle);
+        $info = curl_multi_info_read($curlMultiHandle);
         if ($info !== false) {
             $handle = $info['handle'] ?? null;
             if (!$handle instanceof CurlHandle) {
