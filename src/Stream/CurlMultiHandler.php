@@ -16,7 +16,6 @@ class CurlMultiHandler
     private float $iteratorTime;
     private ?Queue $header = null;
     private ?Queue $write = null;
-    private array $curlOptions = [];
 
     public function abortIn(float $seconds): void
     {
@@ -59,7 +58,6 @@ class CurlMultiHandler
             throw new RuntimeException('Internal HttpClient: Failed to set cURL options: ' . curl_error($handle));
         }
 
-        $this->curlOptions = $options;
         $this->handle = $handle;
     }
 
@@ -83,17 +81,10 @@ class CurlMultiHandler
             if ($isRunning) {
                 curl_multi_select($multiHandle);
             }
+
+            $this->verifyCurlHandle($multiHandle);
+
         } while ($this->header->isEmpty() && $isRunning && $status === CURLM_OK);
-
-        if ($this->header->isEmpty()) {
-            $ch = curl_init();
-            curl_setopt_array($ch, $this->curlOptions);
-            curl_exec($ch);
-
-            if (curl_errno($ch) !== 0) {
-                throw new RuntimeException('Internal HttpClient: cURL handle execution failed with error: ' . curl_error($ch));
-            }
-        }
 
         $this->multiHandle = $multiHandle;
     }
@@ -123,17 +114,7 @@ class CurlMultiHandler
                 curl_multi_select($this->multiHandle);
             }
 
-            $info = curl_multi_info_read($this->multiHandle);
-            if ($info !== false) {
-                $handle = $info['handle'] ?? null;
-                if (!$handle instanceof CurlHandle) {
-                    throw new RuntimeException('Internal HttpClient: cURL handle info read returned an invalid handle.');
-                }
-
-                if (curl_errno($handle) !== 0) {
-                    throw new RuntimeException('Internal HttpClient: cURL handle execution failed with error: ' . curl_error($handle));
-                }
-            }
+            $this->verifyCurlHandle($this->multiHandle);
 
             while (!$this->write->isEmpty()) {
                 yield $this->write->read();
@@ -155,5 +136,20 @@ class CurlMultiHandler
         $this->multiHandle = null;
         $this->header = null;
         $this->write = null;
+    }
+
+    private function verifyCurlHandle(CurlMultiHandle $multiHandle): void
+    {
+        $info = curl_multi_info_read($multiHandle);
+        if ($info !== false) {
+            $handle = $info['handle'] ?? null;
+            if (!$handle instanceof CurlHandle) {
+                throw new RuntimeException('Internal HttpClient: cURL handle info read returned an invalid handle.');
+            }
+
+            if (curl_errno($handle) !== 0) {
+                throw new RuntimeException('Internal HttpClient: cURL handle execution failed with error: ' . curl_error($handle));
+            }
+        }
     }
 }
