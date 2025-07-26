@@ -44,6 +44,8 @@ $client->verifyApiToken();
 
 Call the `writeEvents` function and hand over an array with one or more events. You do not have to provide all event fields – some are automatically added by the server.
 
+For functionality, `writeEvents` always requires an iterator call via `iterator_count`, `iterator_to_array`, or the `foreach` loop.
+
 Specify `source`, `subject`, `type`, and `data` according to the [CloudEvents](https://docs.eventsourcingdb.io/fundamentals/cloud-events/) format.
 
 The function returns the written events, including the fields added by the server:
@@ -64,7 +66,7 @@ $writtenEvents = $client->writeEvents([
   ),
 ]);
 
-iterator_to_array($writtenEvents);
+$writtenEventsArray = iterator_to_array($writtenEvents);
 ```
 
 #### Using the `isSubjectPristine` precondition
@@ -79,8 +81,6 @@ $writtenEvents = $client->writeEvents([
 ], [
   new IsSubjectPristine('/books/42'),
 ]);
-
-iterator_to_array($writtenEvents);
 ```
 
 #### Using the `isSubjectOnEventId` precondition
@@ -95,8 +95,6 @@ $writtenEvents = $client->writeEvents([
 ], [
   new IsSubjectOnEventId('/books/42', '0'),
 ]);
-
-iterator_to_array($writtenEvents);
 ```
 
 *Note that according to the CloudEvents standard, event IDs must be of type string.*
@@ -113,8 +111,6 @@ $writtenEvents = $client->writeEvents([
 ], [
   new IsEventQlTrue("FROM e IN events WHERE e.type == 'io.eventsourcingdb.library.book-borrowed' PROJECT INTO COUNT() < 10")
 ]);
-
-iterator_to_array($writtenEvents);
 ```
 
 *Note that the query must return a single row with a single value, which is interpreted as a boolean.*
