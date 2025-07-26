@@ -40,10 +40,10 @@ final class ReadSubjectsTest extends TestCase
             ],
         );
 
-        iterator_count($this->client->writeEvents([
+        $this->client->writeEvents([
             $firstEvent,
             $secondEvent,
-        ]));
+        ]);
 
         $subjectsRead = [];
         foreach ($this->client->readSubjects('/') as $subject) {
@@ -77,10 +77,10 @@ final class ReadSubjectsTest extends TestCase
             ],
         );
 
-        iterator_count($this->client->writeEvents([
+        $this->client->writeEvents([
             $firstEvent,
             $secondEvent,
-        ]));
+        ]);
 
         $subjectsRead = [];
         foreach ($this->client->readSubjects('/test') as $subject) {

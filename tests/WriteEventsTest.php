@@ -29,7 +29,6 @@ final class WriteEventsTest extends TestCase
             $eventCandidate,
         ]);
 
-        $writtenEvents = iterator_to_array($writtenEvents);
         $this->assertCount(1, $writtenEvents);
         $this->assertInstanceOf(CloudEvent::class, $writtenEvents[0]);
         $this->assertSame('0', $writtenEvents[0]->id);
@@ -60,7 +59,6 @@ final class WriteEventsTest extends TestCase
             $secondEvent,
         ]);
 
-        $writtenEvents = iterator_to_array($writtenEvents);
         $this->assertCount(2, $writtenEvents);
         $this->assertInstanceOf(CloudEvent::class, $writtenEvents[0]);
         $this->assertSame('0', $writtenEvents[0]->id);
@@ -81,9 +79,9 @@ final class WriteEventsTest extends TestCase
             ],
         );
 
-        iterator_count($this->client->writeEvents([
+        $this->client->writeEvents([
             $firstEvent,
-        ]));
+        ]);
 
         $secondEvent = new EventCandidate(
             source: 'https://www.eventsourcingdb.io',
@@ -117,9 +115,9 @@ final class WriteEventsTest extends TestCase
             ],
         );
 
-        iterator_count($this->client->writeEvents([
+        $this->client->writeEvents([
             $firstEvent,
-        ]));
+        ]);
 
         $secondEvent = new EventCandidate(
             source: 'https://www.eventsourcingdb.io',
@@ -152,9 +150,9 @@ final class WriteEventsTest extends TestCase
             ],
         );
 
-        iterator_count($this->client->writeEvents([
+        $this->client->writeEvents([
             $firstEvent,
-        ]));
+        ]);
 
         $secondEvent = new EventCandidate(
             source: 'https://www.eventsourcingdb.io',

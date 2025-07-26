@@ -51,10 +51,10 @@ final class ObserveEventsTest extends TestCase
             ],
         );
 
-        iterator_count($this->client->writeEvents([
+        $this->client->writeEvents([
             $firstEvent,
             $secondEvent,
-        ]));
+        ]);
 
         $eventsObserved = [];
         $observeEventsOptions = new ObserveEventsOptions(
@@ -89,10 +89,10 @@ final class ObserveEventsTest extends TestCase
             ],
         );
 
-        iterator_count($this->client->writeEvents([
+        $this->client->writeEvents([
             $firstEvent,
             $secondEvent,
-        ]));
+        ]);
 
         $eventsObserved = [];
         $observeEventsOptions = new ObserveEventsOptions(
@@ -127,10 +127,10 @@ final class ObserveEventsTest extends TestCase
             ],
         );
 
-        iterator_count($this->client->writeEvents([
+        $this->client->writeEvents([
             $firstEvent,
             $secondEvent,
-        ]));
+        ]);
 
         $eventsObserved = [];
         $observeEventsOptions = new ObserveEventsOptions(
@@ -172,10 +172,10 @@ final class ObserveEventsTest extends TestCase
             ],
         );
 
-        iterator_count($this->client->writeEvents([
+        $this->client->writeEvents([
             $firstEvent,
             $secondEvent,
-        ]));
+        ]);
 
         $eventsObserved = [];
         $observeEventsOptions = new ObserveEventsOptions(
@@ -218,10 +218,10 @@ final class ObserveEventsTest extends TestCase
             ],
         );
 
-        iterator_count($this->client->writeEvents([
+        $this->client->writeEvents([
             $firstEvent,
             $secondEvent,
-        ]));
+        ]);
 
         $eventsObserved = [];
         $observeEventsOptions = new ObserveEventsOptions(
@@ -253,8 +253,7 @@ final class ObserveEventsTest extends TestCase
             );
         }
 
-        $count = iterator_count($this->client->writeEvents($events));
-        $this->assertSame($eventCount, $count);
+        $this->assertCount($eventCount, $this->client->writeEvents($events));
 
         $eventsObserved = [];
         $observeEventsOptions = new ObserveEventsOptions(

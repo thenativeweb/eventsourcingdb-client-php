@@ -40,10 +40,10 @@ final class RunEventQlQueryTest extends TestCase
             ],
         );
 
-        iterator_count($this->client->writeEvents([
+        $this->client->writeEvents([
             $firstEvent,
             $secondEvent,
-        ]));
+        ]);
 
         $rowsRead = [];
         foreach ($this->client->runEventQlQuery('FROM e IN events PROJECT INTO e') as $row) {
