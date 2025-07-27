@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Stream;
 
 use PHPUnit\Framework\TestCase;
+use SplFileObject;
+use Thenativeweb\Eventsourcingdb\Stream\FileUpload;
 use Thenativeweb\Eventsourcingdb\Stream\Request;
 use Thenativeweb\Eventsourcingdb\Stream\Uri;
 
@@ -48,5 +50,17 @@ final class RequestTest extends TestCase
     {
         $request = new Request('GET', 'https://example.com');
         $this->assertSame('1.1', $request->getProtocolVersion());
+    }
+
+    public function testConstructorInitializesWithFileUpload(): void
+    {
+        $fileUpload = new FileUpload(new SplFileObject(__FILE__));
+        $request = new Request(
+            method: 'post',
+            uri: 'https://example.com/path',
+            body: $fileUpload,
+        );
+
+        $this->assertSame($fileUpload, $request->getBody());
     }
 }

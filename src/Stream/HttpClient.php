@@ -31,34 +31,57 @@ class HttpClient
         return $buildUri;
     }
 
-    public function get(string $uri, ?string $apiToken = null): Response
-    {
-        $header = $apiToken !== null ? ['Authorization: Bearer ' . $apiToken] : [];
-
-        $request = new Request(
-            'GET',
-            $this->buildUri($uri),
-            $header,
-        );
-
-        return $this->sendRequest($request);
-    }
-
-    public function post(string $uri, ?string $apiToken = null, null|array|object $jsonValue = null): Response
+    public function buildHeaders(?string $apiToken, null|array|object $body = null): array
     {
         $header = [];
         if ($apiToken !== null) {
             $header[] = 'Authorization: Bearer ' . $apiToken;
         }
-        if ($jsonValue !== null) {
+        if ($body !== null && !$body instanceof FileUpload) {
             $header[] = 'Content-Type: application/json';
         }
+        if ($body instanceof FileUpload) {
+            $header[] = 'Content-Type: ' . $body->getContentType();
+        }
 
+        return $header;
+    }
+
+    public function buildBody(null|array|object $file): string|FileUpload
+    {
+        if ($file === null) {
+            return '';
+        }
+
+        if ($file instanceof FileUpload) {
+            if (!$file->isReadable()) {
+                throw new InvalidArgumentException('Internal HttpClient: SplFileObject must be readable.');
+            }
+
+            return $file;
+        }
+
+        return json_encode($file);
+    }
+
+    public function get(string $uri, ?string $apiToken = null): Response
+    {
+        $request = new Request(
+            'GET',
+            $this->buildUri($uri),
+            $this->buildHeaders($apiToken),
+        );
+
+        return $this->sendRequest($request);
+    }
+
+    public function post(string $uri, ?string $apiToken = null, null|array|object $body = null): Response
+    {
         $request = new Request(
             'POST',
             $this->buildUri($uri),
-            $header,
-            json_encode($jsonValue),
+            $this->buildHeaders($apiToken, $body),
+            $this->buildBody($body),
         );
 
         return $this->sendRequest($request);
