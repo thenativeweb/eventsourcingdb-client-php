@@ -42,7 +42,11 @@ final readonly class Client
         try {
             $data = $response->getStream()->getJsonData();
         } catch (RuntimeException $runtimeException) {
-            throw new RuntimeException('Failed to ping: ' . $runtimeException->getMessage());
+            throw new RuntimeException(
+                'Failed to ping: ' . $runtimeException->getMessage(),
+                $runtimeException->getCode(),
+                $runtimeException,
+            );
         }
 
         if (!isset($data['type']) || $data['type'] !== 'io.eventsourcingdb.api.ping-received') {
@@ -68,7 +72,11 @@ final readonly class Client
         try {
             $data = $response->getStream()->getJsonData();
         } catch (RuntimeException $runtimeException) {
-            throw new RuntimeException('Failed to verify API token: ' . $runtimeException->getMessage());
+            throw new RuntimeException(
+                'Failed to verify API token: ' . $runtimeException->getMessage(),
+                $runtimeException->getCode(),
+                $runtimeException,
+            );
         }
 
         if (!isset($data['type']) || $data['type'] !== 'io.eventsourcingdb.api.api-token-verified') {
@@ -102,7 +110,11 @@ final readonly class Client
         try {
             $data = $response->getStream()->getJsonData();
         } catch (RuntimeException $runtimeException) {
-            throw new RuntimeException('Failed to read events, after writing: ' . $runtimeException->getMessage());
+            throw new RuntimeException(
+                'Failed to read events, after writing: ' . $runtimeException->getMessage(),
+                $runtimeException->getCode(),
+                $runtimeException,
+            );
         }
 
         $writtenEvents = array_map(
@@ -370,7 +382,11 @@ final readonly class Client
         try {
             $data = $response->getStream()->getJsonData();
         } catch (RuntimeException $runtimeException) {
-            throw new RuntimeException('Failed to read event type: ' . $runtimeException->getMessage());
+            throw new RuntimeException(
+                'Failed to read event type: ' . $runtimeException->getMessage(),
+                $runtimeException->getCode(),
+                $runtimeException,
+            );
         }
 
         return new EventType(
