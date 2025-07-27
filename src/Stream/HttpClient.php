@@ -33,31 +33,31 @@ class HttpClient
 
     public function buildHeaders(?string $apiToken, null|array|object $body = null): array
     {
-        $header = ['Expect:'];
+        $headers = ['Expect:'];
         if ($apiToken !== null) {
-            $header[] = 'Authorization: Bearer ' . $apiToken;
+            $headers[] = 'Authorization: Bearer ' . $apiToken;
         }
         if ($body !== null && !$body instanceof FileUpload) {
-            $header[] = 'Content-Type: application/json';
+            $headers[] = 'Content-Type: application/json';
         }
         if ($body instanceof FileUpload) {
-            $header[] = 'Content-Type: ' . $body->getContentType();
+            $headers[] = 'Content-Type: ' . $body->getContentType();
         }
 
-        return $header;
+        return $headers;
     }
 
-    public function buildBody(null|array|object $file): string|FileUpload
+    public function buildBody(null|array|object $body): string|FileUpload
     {
-        if ($file === null) {
+        if ($body === null) {
             return '';
         }
 
-        if ($file instanceof FileUpload) {
-            return $file;
+        if ($body instanceof FileUpload) {
+            return $body;
         }
 
-        return json_encode($file);
+        return json_encode($body);
     }
 
     public function get(string $uri, ?string $apiToken = null): Response
