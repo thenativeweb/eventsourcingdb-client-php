@@ -39,8 +39,11 @@ final readonly class Client
             ));
         }
 
-        $body = $response->getStream()->getContents();
-        $data = json_decode($body, true);
+        try {
+            $data = $response->getStream()->getJsonData();
+        } catch (RuntimeException $runtimeException) {
+            throw new RuntimeException('Failed to ping: ' . $runtimeException->getMessage(), $runtimeException->getCode(), $runtimeException);
+        }
 
         if (!isset($data['type']) || $data['type'] !== 'io.eventsourcingdb.api.ping-received') {
             throw new RuntimeException('Failed to ping');
@@ -62,8 +65,11 @@ final readonly class Client
             ));
         }
 
-        $body = $response->getStream()->getContents();
-        $data = json_decode($body, true);
+        try {
+            $data = $response->getStream()->getJsonData();
+        } catch (RuntimeException $runtimeException) {
+            throw new RuntimeException('Failed to verify API token: ' . $runtimeException->getMessage(), $runtimeException->getCode(), $runtimeException);
+        }
 
         if (!isset($data['type']) || $data['type'] !== 'io.eventsourcingdb.api.api-token-verified') {
             throw new RuntimeException('Failed to verify API token');
@@ -93,18 +99,10 @@ final readonly class Client
             ));
         }
 
-        $body = $response->getStream()->getContents();
-        if ($body === '') {
-            return [];
-        }
-
-        if (!json_validate($body)) {
-            throw new RuntimeException('Failed to read events, after writing.');
-        }
-
-        $data = json_decode($body, true);
-        if (!is_array($data)) {
-            throw new RuntimeException('Failed to read events, expected an array.');
+        try {
+            $data = $response->getStream()->getJsonData();
+        } catch (RuntimeException $runtimeException) {
+            throw new RuntimeException('Failed to read events, after writing: ' . $runtimeException->getMessage(), $runtimeException->getCode(), $runtimeException);
         }
 
         $writtenEvents = array_map(
@@ -349,5 +347,36 @@ final readonly class Client
                     throw new RuntimeException("Failed to handle unsupported line type {$eventLine->type}");
             }
         }
+    }
+
+    public function readEventType(string $eventType): EventType
+    {
+        $response = $this->httpClient->post(
+            '/api/v1/read-event-type',
+            $this->apiToken,
+            [
+                'eventType' => $eventType,
+            ],
+        );
+
+        $status = $response->getStatusCode();
+        if ($status !== 200) {
+            throw new RuntimeException(sprintf(
+                "Failed to read event type, got HTTP status code '%d', expected '200'",
+                $status
+            ));
+        }
+
+        try {
+            $data = $response->getStream()->getJsonData();
+        } catch (RuntimeException $runtimeException) {
+            throw new RuntimeException('Failed to read event type: ' . $runtimeException->getMessage(), $runtimeException->getCode(), $runtimeException);
+        }
+
+        return new EventType(
+            $data['eventType'],
+            $data['isPhantom'],
+            $data['schema'] ?? [],
+        );
     }
 }
