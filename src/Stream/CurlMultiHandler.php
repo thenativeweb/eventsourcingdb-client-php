@@ -76,6 +76,8 @@ class CurlMultiHandler
             throw new RuntimeException('Internal HttpClient: Failed to add cURL handle to multi handle: ' . curl_multi_strerror(curl_multi_errno($multiHandle)));
         }
 
+        $infinityLoopCount = 10;
+
         do {
             $status = curl_multi_exec($multiHandle, $isRunning);
             if ($isRunning) {
@@ -83,6 +85,11 @@ class CurlMultiHandler
             }
 
             $this->verifyCurlHandle($multiHandle);
+
+
+            if (--$infinityLoopCount === 0) {
+                throw new RuntimeException('Internal HttpClient: cURL multi exec loop exceeded maximum iterations.');
+            }
 
         } while ($this->header->isEmpty() && $isRunning && $status === CURLM_OK);
 

@@ -33,7 +33,7 @@ class HttpClient
 
     public function buildHeaders(?string $apiToken, null|array|object $body = null): array
     {
-        $header = [];
+        $header = ['Expect:'];
         if ($apiToken !== null) {
             $header[] = 'Authorization: Bearer ' . $apiToken;
         }
@@ -54,10 +54,6 @@ class HttpClient
         }
 
         if ($file instanceof FileUpload) {
-            if (!$file->isReadable()) {
-                throw new InvalidArgumentException('Internal HttpClient: SplFileObject must be readable.');
-            }
-
             return $file;
         }
 

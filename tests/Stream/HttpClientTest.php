@@ -7,6 +7,7 @@ namespace Stream;
 use ArrayIterator;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use Thenativeweb\Eventsourcingdb\Stream\FileUpload;
 use Thenativeweb\Eventsourcingdb\Stream\Header;
 use Thenativeweb\Eventsourcingdb\Stream\HttpClient;
 use Thenativeweb\Eventsourcingdb\Stream\Queue;
@@ -96,5 +97,99 @@ final class HttpClientTest extends TestCase
             'text/x-ndjson',
             false,
         ];
+    }
+
+    public function testReturnsOnlyAuthorizationHeader(): void
+    {
+        $httpClient = new HttpClient();
+        $headers = $httpClient->buildHeaders('secret');
+
+        $this->assertCount(2, $headers);
+        $this->assertContains('Expect:', $headers, 'Ignore curl response header 100-continue');
+        $this->assertContains('Authorization: Bearer secret', $headers);
+    }
+
+    public function testReturnsAuthorizationAndJsonHeaderWithArrayBody(): void
+    {
+        $httpClient = new HttpClient();
+        $headers = $httpClient->buildHeaders('secret', [
+            'foo' => 'bar',
+        ]);
+
+        $this->assertCount(3, $headers);
+        $this->assertContains('Expect:', $headers, 'Ignore curl response header 100-continue');
+        $this->assertContains('Authorization: Bearer secret', $headers);
+        $this->assertContains('Content-Type: application/json', $headers);
+    }
+
+    public function testReturnsJsonHeaderWithoutToken(): void
+    {
+        $httpClient = new HttpClient();
+        $headers = $httpClient->buildHeaders(null, [
+            'data' => 123,
+        ]);
+
+        $this->assertCount(2, $headers);
+        $this->assertContains('Expect:', $headers, 'Ignore curl response header 100-continue');
+        $this->assertContains('Content-Type: application/json', $headers);
+    }
+
+    public function testReturnsFileUploadContentType(): void
+    {
+        $mockFileUpload = $this->createMock(FileUpload::class);
+        $mockFileUpload->method('getContentType')->willReturn('application/x-ndjson');
+
+        $httpClient = new HttpClient();
+        $headers = $httpClient->buildHeaders('secret', $mockFileUpload);
+
+        $this->assertCount(3, $headers);
+        $this->assertContains('Expect:', $headers, 'Ignore curl response header 100-continue');
+        $this->assertContains('Authorization: Bearer secret', $headers);
+        $this->assertContains('Content-Type: application/x-ndjson', $headers);
+    }
+
+    public function testReturnsEmptyHeadersWhenNoArgumentsGiven(): void
+    {
+        $httpClient = new HttpClient();
+        $headers = $httpClient->buildHeaders(null);
+        $this->assertSame(['Expect:'], $headers);
+    }
+
+    public function testReturnsEmptyStringForNull(): void
+    {
+        $httpClient = new HttpClient();
+        $result = $httpClient->buildBody(null);
+        $this->assertSame('', $result);
+    }
+
+    public function testReturnsFileUploadInstanceUnchanged(): void
+    {
+        $fileUpload = $this->createMock(FileUpload::class);
+
+        $httpClient = new HttpClient();
+        $result = $httpClient->buildBody($fileUpload);
+        $this->assertSame($fileUpload, $result);
+    }
+
+    public function testReturnsJsonEncodedStringForArray(): void
+    {
+        $array = [
+            'foo' => 'bar',
+        ];
+
+        $httpClient = new HttpClient();
+        $result = $httpClient->buildBody($array);
+        $this->assertSame(json_encode($array), $result);
+    }
+
+    public function testReturnsJsonEncodedStringForObject(): void
+    {
+        $obj = (object) [
+            'baz' => 'qux',
+        ];
+
+        $httpClient = new HttpClient();
+        $result = $httpClient->buildBody($obj);
+        $this->assertSame(json_encode($obj), $result);
     }
 }

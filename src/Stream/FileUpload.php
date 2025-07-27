@@ -1,24 +1,24 @@
 <?php
 
-declare(strict_types = 1);
+declare(strict_types=1);
 
 namespace Thenativeweb\Eventsourcingdb\Stream;
 
 use InvalidArgumentException;
 use SplFileObject;
 
-final readonly class FileUpload
+class FileUpload
 {
     private const SUPPORTED_CONTENT_TYPES = [
         'application/x-ndjson',
     ];
 
     public function __construct(
-        private SplFileObject $splFileObject,
-        private string $contentType = 'application/x-ndjson',
+        private readonly SplFileObject $splFileObject,
+        private readonly string $contentType = 'application/x-ndjson',
     ) {
         if (!$splFileObject->isReadable()) {
-            throw new InvalidArgumentException('The file must be readable.');
+            throw new InvalidArgumentException("The file {$this->splFileObject->getRealPath()} must be readable.");
         }
     }
 
@@ -37,6 +37,11 @@ final readonly class FileUpload
     public function isReadable(): bool
     {
         return $this->splFileObject->isReadable();
+    }
+
+    public function getRealPath(): string
+    {
+        return $this->splFileObject->getRealPath();
     }
 
     public function getSize(): int
