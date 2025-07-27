@@ -24,7 +24,7 @@ final class CurlMultiHandlerTest extends TestCase
         return $reflectionProperty->getValue($object);
     }
 
-    public function removeLineBrake(string $line): string
+    public function removeLineBrakes(string $line): string
     {
         return preg_replace('/\r\n|\r|\n/', '', $line);
     }
@@ -116,9 +116,9 @@ final class CurlMultiHandlerTest extends TestCase
         $headerQueue = $curlMultiHandler->getHeaderQueue();
 
         $this->assertGreaterThanOrEqual(8, $headerQueue->getIterator()->count());
-        $this->assertSame('HTTP/1.1 200 OK', $this->removeLineBrake($headerQueue->read()));
-        $this->assertSame('Cache-Control: no-store, no-cache, must-revalidate, proxy-revalidate', $this->removeLineBrake($headerQueue->read()));
-        $this->assertSame('Content-Type: application/json', $this->removeLineBrake($headerQueue->read()));
+        $this->assertSame('HTTP/1.1 200 OK', $this->removeLineBrakes($headerQueue->read()));
+        $this->assertSame('Cache-Control: no-store, no-cache, must-revalidate, proxy-revalidate', $this->removeLineBrakes($headerQueue->read()));
+        $this->assertSame('Content-Type: application/json', $this->removeLineBrakes($headerQueue->read()));
     }
 
     public function testContentIteratorThrowsIfMultiHandleMissing(): void
