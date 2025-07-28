@@ -79,7 +79,11 @@ final class Container
             exit($exceptionMessage ?? 'Failed to create container');
         }
 
-        $this->container = $container->start();
+        try {
+            $this->container = $container->start();
+        }catch (Exception) {
+            $this->container = $container->start();
+        }
 
         $baseUrl = rtrim($this->getBaseUrl());
         $pingUrl = $baseUrl . '/api/v1/ping';
