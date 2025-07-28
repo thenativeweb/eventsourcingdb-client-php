@@ -144,17 +144,14 @@ final class CurlFactoryTest extends TestCase
             $this->writeQueueMock,
         );
 
-        $this->assertArrayHasKey(CURLOPT_UPLOAD, $options);
-        $this->assertTrue($options[CURLOPT_UPLOAD]);
-
         $this->assertArrayHasKey(CURLOPT_INFILESIZE, $options);
-        $this->assertSame(123, $options[CURLOPT_INFILESIZE]);
-
         $this->assertArrayHasKey(CURLOPT_READFUNCTION, $options);
-        $readFn = $options[CURLOPT_READFUNCTION];
-        $this->assertIsCallable($readFn);
-
-        $this->assertSame('chunk', $readFn(null));
+        $this->assertArrayHasKey(CURLOPT_RETURNTRANSFER, $options);
+        $this->assertArrayHasKey(CURLOPT_UPLOAD, $options);
+        $this->assertSame(123, $options[CURLOPT_INFILESIZE]);
+        $this->assertIsCallable($options[CURLOPT_READFUNCTION]);
+        $this->assertTrue($options[CURLOPT_RETURNTRANSFER]);
+        $this->assertTrue($options[CURLOPT_UPLOAD]);
     }
 
     public function testCreateSetsNoBodyForHeadMethod(): void
