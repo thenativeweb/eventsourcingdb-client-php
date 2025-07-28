@@ -81,7 +81,7 @@ final class Container
 
         try {
             $this->container = $container->start();
-        }catch (Exception) {
+        } catch (Exception) {
             $this->container = $container->start();
         }
 
