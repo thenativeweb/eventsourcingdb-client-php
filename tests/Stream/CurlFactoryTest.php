@@ -122,7 +122,7 @@ final class CurlFactoryTest extends TestCase
         $this->assertSame($body, $options[CURLOPT_POSTFIELDS]);
     }
 
-    public function testCreateSetsPostFieldsIfBodyFileUpload(): void
+    public function testCreateSetsReadFunctionIfBodyFileUpload(): void
     {
         $fileUpload = $this->createMock(FileUpload::class);
         $fileUpload->method('getSize')->willReturn(123);
