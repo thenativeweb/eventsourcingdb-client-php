@@ -28,9 +28,9 @@
     "ext-curl": "*"
   },
   "require-dev": {
-    "phpstan/phpstan": "2.1.17",
+    "phpstan/phpstan": "2.1.20",
     "phpunit/phpunit": "11.5.21",
-    "rector/rector": "2.1.1",
+    "rector/rector": "2.1.2",
     "symfony/http-client": "7.3.1",
     "symplify/easy-coding-standard": "12.5.20",
     "testcontainers/testcontainers": "1.0.3"
