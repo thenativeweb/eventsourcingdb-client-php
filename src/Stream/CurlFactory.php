@@ -68,7 +68,7 @@ class CurlFactory
             $options[CURLOPT_TIMEOUT] = $timeout;
         }
 
-        if (is_string($request->getBody())) {
+        if ($request->getBody() !== null) {
             $options[CURLOPT_POSTFIELDS] = $request->getBody();
         }
 
