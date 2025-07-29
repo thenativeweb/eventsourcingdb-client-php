@@ -7,7 +7,6 @@ namespace Stream;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Thenativeweb\Eventsourcingdb\Stream\CurlFactory;
-use Thenativeweb\Eventsourcingdb\Stream\FileUpload;
 use Thenativeweb\Eventsourcingdb\Stream\Queue;
 use Thenativeweb\Eventsourcingdb\Stream\Request;
 use Thenativeweb\Eventsourcingdb\Stream\Uri;
@@ -120,38 +119,6 @@ final class CurlFactoryTest extends TestCase
         );
 
         $this->assertSame($body, $options[CURLOPT_POSTFIELDS]);
-    }
-
-    public function testCreateSetsReadFunctionIfBodyFileUpload(): void
-    {
-        $fileUpload = $this->createMock(FileUpload::class);
-        $fileUpload->method('getSize')->willReturn(123);
-        $fileUpload->method('read')->willReturn('chunk');
-
-        $this->uriMock->method('__toString')->willReturn('https://example.com/upload');
-        $this->uriMock->method('getScheme')->willReturn('https');
-
-        $this->requestMock->method('getMethod')->willReturn('POST');
-        $this->requestMock->method('getProtocolVersion')->willReturn('1.1');
-        $this->requestMock->method('getHeaders')->willReturn([]);
-        $this->requestMock->method('getUri')->willReturn($this->uriMock);
-        $this->requestMock->method('getBody')->willReturn($fileUpload);
-        $this->requestMock->method('hasHeader')->willReturn(false);
-
-        $options = CurlFactory::create(
-            $this->requestMock,
-            $this->headerQueueMock,
-            $this->writeQueueMock,
-        );
-
-        $this->assertArrayHasKey(CURLOPT_INFILESIZE, $options);
-        $this->assertArrayHasKey(CURLOPT_READFUNCTION, $options);
-        $this->assertArrayHasKey(CURLOPT_RETURNTRANSFER, $options);
-        $this->assertArrayHasKey(CURLOPT_UPLOAD, $options);
-        $this->assertSame(123, $options[CURLOPT_INFILESIZE]);
-        $this->assertIsCallable($options[CURLOPT_READFUNCTION]);
-        $this->assertTrue($options[CURLOPT_RETURNTRANSFER]);
-        $this->assertTrue($options[CURLOPT_UPLOAD]);
     }
 
     public function testCreateSetsNoBodyForHeadMethod(): void

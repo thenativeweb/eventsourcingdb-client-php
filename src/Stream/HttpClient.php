@@ -37,24 +37,17 @@ class HttpClient
         if ($apiToken !== null) {
             $headers[] = 'Authorization: Bearer ' . $apiToken;
         }
-        if ($body !== null && !$body instanceof FileUpload) {
+        if ($body !== null) {
             $headers[] = 'Content-Type: application/json';
-        }
-        if ($body instanceof FileUpload) {
-            $headers[] = 'Content-Type: ' . $body->getContentType();
         }
 
         return $headers;
     }
 
-    public function buildBody(null|array|object $body): string|FileUpload
+    public function buildBody(null|array|object $body): string
     {
         if ($body === null) {
             return '';
-        }
-
-        if ($body instanceof FileUpload) {
-            return $body;
         }
 
         return json_encode($body);

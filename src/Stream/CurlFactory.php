@@ -72,17 +72,6 @@ class CurlFactory
             $options[CURLOPT_POSTFIELDS] = $request->getBody();
         }
 
-        if ($request->getBody() instanceof FileUpload) {
-            $fileUpload = $request->getBody();
-
-            $options[CURLOPT_UPLOAD] = true;
-            $options[CURLOPT_RETURNTRANSFER] = true;
-            $options[CURLOPT_INFILESIZE] = $fileUpload->getSize();
-            $options[CURLOPT_READFUNCTION] = function () use ($fileUpload): string {
-                return $fileUpload->read();
-            };
-        }
-
         if ($request->hasHeader('Accept-Encoding')) {
             $options[CURLOPT_ENCODING] = implode(',', $request->getHeader('Accept-Encoding'));
         }
@@ -90,9 +79,6 @@ class CurlFactory
         if ($request->getMethod() === 'HEAD') {
             $options[CURLOPT_NOBODY] = true;
             unset(
-                $options[CURLOPT_UPLOAD],
-                $options[CURLOPT_INFILESIZE],
-                $options[CURLOPT_READFUNCTION],
                 $options[CURLOPT_WRITEFUNCTION],
             );
         }

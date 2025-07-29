@@ -7,7 +7,6 @@ namespace Stream;
 use ArrayIterator;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
-use Thenativeweb\Eventsourcingdb\Stream\FileUpload;
 use Thenativeweb\Eventsourcingdb\Stream\Header;
 use Thenativeweb\Eventsourcingdb\Stream\HttpClient;
 use Thenativeweb\Eventsourcingdb\Stream\Queue;
@@ -134,20 +133,6 @@ final class HttpClientTest extends TestCase
         $this->assertContains('Content-Type: application/json', $headers);
     }
 
-    public function testReturnsFileUploadContentType(): void
-    {
-        $mockFileUpload = $this->createMock(FileUpload::class);
-        $mockFileUpload->method('getContentType')->willReturn('application/x-ndjson');
-
-        $httpClient = new HttpClient();
-        $headers = $httpClient->buildHeaders('secret', $mockFileUpload);
-
-        $this->assertCount(3, $headers);
-        $this->assertContains('Expect:', $headers, 'Ignore curl response header 100-continue');
-        $this->assertContains('Authorization: Bearer secret', $headers);
-        $this->assertContains('Content-Type: application/x-ndjson', $headers);
-    }
-
     public function testReturnsEmptyHeadersWhenNoArgumentsGiven(): void
     {
         $httpClient = new HttpClient();
@@ -160,15 +145,6 @@ final class HttpClientTest extends TestCase
         $httpClient = new HttpClient();
         $result = $httpClient->buildBody(null);
         $this->assertSame('', $result);
-    }
-
-    public function testReturnsFileUploadInstanceUnchanged(): void
-    {
-        $fileUpload = $this->createMock(FileUpload::class);
-
-        $httpClient = new HttpClient();
-        $result = $httpClient->buildBody($fileUpload);
-        $this->assertSame($fileUpload, $result);
     }
 
     public function testReturnsJsonEncodedStringForArray(): void

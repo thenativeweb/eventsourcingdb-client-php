@@ -14,7 +14,7 @@ class Request
         private readonly string $method,
         string $uri,
         array $headers = [],
-        private readonly null|string|FileUpload $body = null,
+        private readonly ?string $body = null,
         private readonly string $protocolVersion = '1.1'
     ) {
         $this->uri = new Uri($uri);
@@ -36,7 +36,7 @@ class Request
         return $this->protocolVersion;
     }
 
-    public function getBody(): null|string|FileUpload
+    public function getBody(): ?string
     {
         return $this->body;
     }
