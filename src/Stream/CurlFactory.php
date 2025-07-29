@@ -34,9 +34,11 @@ class CurlFactory
         $contentType = null;
         $options[CURLOPT_HEADERFUNCTION] = function (?CurlHandle $curlHandle, string $header) use (&$queueHeader, &$contentType): int {
             $queueHeader->write($header);
+
             if (preg_match('/^Content-Type:\s*(.+)$/i', $header, $matches)) {
                 $contentType = strtolower(trim($matches[1]));
             }
+
             return strlen($header);
         };
 
