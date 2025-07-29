@@ -450,8 +450,9 @@ foreach($eventTypes as $eventType) {
 }
 ```
 
-### Listing A Specific Event Type
-To list a specific event type, call the `readEventType` function with the event type as an argument. The function returns an detailed event type, which includes the schema:
+### Listing a Specific Event Type
+
+To list a specific event type, call the `readEventType` function with the event type as an argument. The function returns the detailed event type, which includes the schema:
 
 ```php
 $eventType = $client->readEventType('io.eventsourcingdb.library.book-acquired');
