@@ -24,6 +24,14 @@ final class CurlMultiHandlerTest extends TestCase
         return $reflectionProperty->getValue($object);
     }
 
+    public function setPropertyValue(object $object, string $propertyName, mixed $propertyValue): void
+    {
+        $reflectionClass = new ReflectionClass($object);
+        $reflectionProperty = $reflectionClass->getProperty($propertyName);
+        $reflectionProperty->setAccessible(true);
+        $reflectionProperty->setValue($object, $propertyValue);
+    }
+
     public function removeLineBrakes(string $line): string
     {
         return preg_replace('/\r\n|\r|\n/', '', $line);
@@ -74,13 +82,13 @@ final class CurlMultiHandlerTest extends TestCase
 
         $this->assertInstanceOf(Queue::class, $this->getPropertyValue($curlMultiHandler, 'header'));
         $this->assertInstanceOf(Queue::class, $this->getPropertyValue($curlMultiHandler, 'write'));
-        $this->assertNotNull($this->getPropertyValue($curlMultiHandler, 'handle'));
+        $this->assertNotNull($this->getPropertyValue($curlMultiHandler, 'curlHandle'));
     }
 
     public function testExecuteThrowsIfHandleMissing(): void
     {
         $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('Internal HttpClient: No handle to execute.');
+        $this->expectExceptionMessage('Internal HttpClient: No handle available.');
 
         $curlMultiHandler = new CurlMultiHandler();
         $curlMultiHandler->execute();
@@ -121,12 +129,24 @@ final class CurlMultiHandlerTest extends TestCase
         $this->assertSame('Content-Type: application/json', $this->removeLineBrakes($headerQueue->read()));
     }
 
+    public function testContentIteratorThrowsIfHandleMissing(): void
+    {
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Internal HttpClient: No handle available.');
+
+        $curlMultiHandler = new CurlMultiHandler();
+        iterator_count($curlMultiHandler->contentIterator());
+    }
+
     public function testContentIteratorThrowsIfMultiHandleMissing(): void
     {
         $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('Internal HttpClient: No multi handle to execute.');
+        $this->expectExceptionMessage('Internal HttpClient: No multi handle available.');
 
         $curlMultiHandler = new CurlMultiHandler();
+
+        $this->setPropertyValue($curlMultiHandler, 'curlHandle', curl_init());
+
         iterator_count($curlMultiHandler->contentIterator());
     }
 
@@ -137,10 +157,8 @@ final class CurlMultiHandlerTest extends TestCase
 
         $curlMultiHandler = new CurlMultiHandler();
 
-        $reflectionClass = new ReflectionClass($curlMultiHandler);
-        $reflectionProperty = $reflectionClass->getProperty('multiHandle');
-        $reflectionProperty->setAccessible(true);
-        $reflectionProperty->setValue($curlMultiHandler, curl_multi_init());
+        $this->setPropertyValue($curlMultiHandler, 'curlHandle', curl_init());
+        $this->setPropertyValue($curlMultiHandler, 'curlMultiHandle', curl_multi_init());
 
         iterator_count($curlMultiHandler->contentIterator());
     }

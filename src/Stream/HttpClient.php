@@ -50,7 +50,12 @@ class HttpClient
             return '';
         }
 
-        return json_encode($body);
+        $json = json_encode($body);
+        if ($json === false) {
+            throw new InvalidArgumentException('Internal HttpClient: Failed to encode body to JSON: ' . json_last_error_msg());
+        }
+
+        return $json;
     }
 
     public function get(string $uri, ?string $apiToken = null): Response

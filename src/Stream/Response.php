@@ -88,6 +88,10 @@ class Response
 
     public function getStream(): Stream
     {
+        if (!$this->stream instanceof Stream) {
+            throw new InvalidArgumentException('Internal HttpClient: No stream available in response.');
+        }
+
         return $this->stream;
     }
 
