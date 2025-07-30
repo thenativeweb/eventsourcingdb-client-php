@@ -1,5 +1,10 @@
 parameters:
-    level: 5
+    level: 8
     checkMissingCallableSignature: true
     paths:
         - src
+    ignoreErrors:
+        -
+            identifier: missingType.generics
+        -
+            identifier: missingType.iterableValue

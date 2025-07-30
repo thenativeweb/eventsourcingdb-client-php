@@ -10,8 +10,8 @@ use RuntimeException;
 
 class CurlMultiHandler
 {
-    private ?CurlHandle $handle = null;
-    private ?CurlMultiHandle $multiHandle = null;
+    private ?CurlHandle $curlHandle = null;
+    private ?CurlMultiHandle $curlMultiHandle = null;
     private float $abortIn = 0.0;
     private float $iteratorTime;
     private ?Queue $header = null;
@@ -43,7 +43,7 @@ class CurlMultiHandler
 
     public function addHandle(Request $request): void
     {
-        $handle = curl_init();
+        $curlHandle = curl_init();
 
         $this->header = new Queue(maxSize: 100);
         $this->write = new Queue();
@@ -54,50 +54,41 @@ class CurlMultiHandler
             $this->write,
         );
 
-        if (!curl_setopt_array($handle, $options)) {
-            throw new RuntimeException('Internal HttpClient: Failed to set cURL options: ' . curl_error($handle));
+        if (!curl_setopt_array($curlHandle, $options)) {
+            throw new RuntimeException('Internal HttpClient: Failed to set cURL options: ' . curl_error($curlHandle));
         }
 
-        $this->handle = $handle;
+        $this->curlHandle = $curlHandle;
     }
 
     public function execute(): void
     {
-        if (!$this->handle instanceof CurlHandle) {
-            throw new RuntimeException('Internal HttpClient: No handle to execute.');
-        }
+        $curlHandle = $this->curlHandle();
+        $queue = $this->getHeaderQueue();
 
-        if (!$this->header instanceof Queue) {
-            throw new RuntimeException('Internal HttpClient: No header queue available.');
-        }
-
-        $multiHandle = curl_multi_init();
-        if (curl_multi_add_handle($multiHandle, $this->handle) !== CURLM_OK) {
-            throw new RuntimeException('Internal HttpClient: Failed to add cURL handle to multi handle: ' . curl_multi_strerror(curl_multi_errno($multiHandle)));
+        $curlMultiHandle = curl_multi_init();
+        if (curl_multi_add_handle($curlMultiHandle, $curlHandle) !== CURLM_OK) {
+            throw new RuntimeException('Internal HttpClient: Failed to add cURL handle to multi handle: ' . curl_multi_strerror(curl_multi_errno($curlMultiHandle)));
         }
 
         do {
-            $status = curl_multi_exec($multiHandle, $isRunning);
+            $status = curl_multi_exec($curlMultiHandle, $isRunning);
             if ($isRunning) {
-                curl_multi_select($multiHandle);
+                curl_multi_select($curlMultiHandle);
             }
 
-            $this->verifyCurlHandle($multiHandle);
+            $this->verifyCurlHandle($curlMultiHandle);
 
-        } while ($this->header->isEmpty() && $isRunning && $status === CURLM_OK);
+        } while ($queue->isEmpty() && $isRunning && $status === CURLM_OK);
 
-        $this->multiHandle = $multiHandle;
+        $this->curlMultiHandle = $curlMultiHandle;
     }
 
     public function contentIterator(): iterable
     {
-        if (!$this->multiHandle instanceof CurlMultiHandle) {
-            throw new RuntimeException('Internal HttpClient: No multi handle to execute.');
-        }
-
-        if (!$this->write instanceof Queue) {
-            throw new RuntimeException('Internal HttpClient: No write queue available.');
-        }
+        $curlHandle = $this->curlHandle();
+        $curlMultiHandle = $this->curlMultiHandle();
+        $queue = $this->getWriteQueue();
 
         $this->iteratorTime = microtime(true);
 
@@ -109,31 +100,31 @@ class CurlMultiHandler
                 break;
             }
 
-            $status = curl_multi_exec($this->multiHandle, $isRunning);
+            $status = curl_multi_exec($curlMultiHandle, $isRunning);
             if ($isRunning) {
-                curl_multi_select($this->multiHandle);
+                curl_multi_select($curlMultiHandle);
             }
 
-            $this->verifyCurlHandle($this->multiHandle);
+            $this->verifyCurlHandle($curlMultiHandle);
 
-            while (!$this->write->isEmpty()) {
-                yield $this->write->read();
+            while (!$queue->isEmpty()) {
+                yield $queue->read();
             }
         } while ($isRunning && $status === CURLM_OK);
 
-        curl_multi_remove_handle($this->multiHandle, $this->handle);
-        curl_multi_close($this->multiHandle);
-        curl_close($this->handle);
+        curl_multi_remove_handle($curlMultiHandle, $curlHandle);
+        curl_multi_close($curlMultiHandle);
+        curl_close($curlHandle);
 
         unset(
-            $this->handle,
-            $this->multiHandle,
+            $this->curlHandle,
+            $this->curlMultiHandle,
             $this->header,
             $this->write,
         );
 
-        $this->handle = null;
-        $this->multiHandle = null;
+        $this->curlHandle = null;
+        $this->curlMultiHandle = null;
         $this->header = null;
         $this->write = null;
     }
@@ -145,13 +136,31 @@ class CurlMultiHandler
             return;
         }
 
-        $handle = $info['handle'] ?? null;
-        if (!$handle instanceof CurlHandle) {
+        $curlHandle = $info['handle'] ?? null;
+        if (!$curlHandle instanceof CurlHandle) {
             throw new RuntimeException('Internal HttpClient: cURL handle info read returned an invalid handle.');
         }
 
-        if (curl_errno($handle) !== 0) {
-            throw new RuntimeException('Internal HttpClient: cURL handle execution failed with error: ' . curl_error($handle));
+        if (curl_errno($curlHandle) !== 0) {
+            throw new RuntimeException('Internal HttpClient: cURL handle execution failed with error: ' . curl_error($curlHandle));
         }
+    }
+
+    private function curlHandle(): CurlHandle
+    {
+        if (!$this->curlHandle instanceof CurlHandle) {
+            throw new RuntimeException('Internal HttpClient: No handle available.');
+        }
+
+        return $this->curlHandle;
+    }
+
+    private function curlMultiHandle(): CurlMultiHandle
+    {
+        if (!$this->curlMultiHandle instanceof CurlMultiHandle) {
+            throw new RuntimeException('Internal HttpClient: No multi handle available.');
+        }
+
+        return $this->curlMultiHandle;
     }
 }
