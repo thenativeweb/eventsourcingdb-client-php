@@ -31,34 +31,46 @@ class HttpClient
         return $buildUri;
     }
 
+    public function buildHeaders(?string $apiToken, null|array|object $body = null): array
+    {
+        $headers = ['Expect:'];
+        if ($apiToken !== null) {
+            $headers[] = 'Authorization: Bearer ' . $apiToken;
+        }
+        if ($body !== null) {
+            $headers[] = 'Content-Type: application/json';
+        }
+
+        return $headers;
+    }
+
+    public function buildBody(null|array|object $body): string
+    {
+        if ($body === null) {
+            return '';
+        }
+
+        return json_encode($body);
+    }
+
     public function get(string $uri, ?string $apiToken = null): Response
     {
-        $header = $apiToken !== null ? ['Authorization: Bearer ' . $apiToken] : [];
-
         $request = new Request(
             'GET',
             $this->buildUri($uri),
-            $header,
+            $this->buildHeaders($apiToken),
         );
 
         return $this->sendRequest($request);
     }
 
-    public function post(string $uri, ?string $apiToken = null, null|array|object $jsonValue = null): Response
+    public function post(string $uri, ?string $apiToken = null, null|array|object $body = null): Response
     {
-        $header = [];
-        if ($apiToken !== null) {
-            $header[] = 'Authorization: Bearer ' . $apiToken;
-        }
-        if ($jsonValue !== null) {
-            $header[] = 'Content-Type: application/json';
-        }
-
         $request = new Request(
             'POST',
             $this->buildUri($uri),
-            $header,
-            json_encode($jsonValue),
+            $this->buildHeaders($apiToken, $body),
+            $this->buildBody($body),
         );
 
         return $this->sendRequest($request);

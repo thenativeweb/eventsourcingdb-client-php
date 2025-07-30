@@ -62,4 +62,14 @@ final class QueueTest extends TestCase
         $items = iterator_to_array($queue);
         $this->assertSame(['first', 'second'], $items);
     }
+
+    public function testWriteTabAndLineBreak(): void
+    {
+        $queue = new Queue();
+        $queue->write("\n");
+        $queue->write("\t");
+        $queue->write("\t\n");
+
+        $this->assertTrue($queue->isEmpty());
+    }
 }

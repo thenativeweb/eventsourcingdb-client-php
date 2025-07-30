@@ -450,6 +450,14 @@ foreach($eventTypes as $eventType) {
 }
 ```
 
+### Listing a Specific Event Type
+
+To list a specific event type, call the `readEventType` function with the event type as an argument. The function returns the detailed event type, which includes the schema:
+
+```php
+$eventType = $client->readEventType('io.eventsourcingdb.library.book-acquired');
+```
+
 ### Using Testcontainers
 
 Import the `Container` class, call the `start` function to run a test container, get a client, run your test code, and finally call the `stop` function to stop the test container:

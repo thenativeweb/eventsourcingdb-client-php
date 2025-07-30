@@ -94,14 +94,14 @@ final class WriteEventsTest extends TestCase
 
         $this->expectExceptionMessage("Failed to write events, got HTTP status code '409', expected '200'");
 
-        iterator_to_array($this->client->writeEvents(
+        $this->client->writeEvents(
             [
                 $secondEvent,
             ],
             [
                 new IsSubjectPristine('/test'),
             ],
-        ));
+        );
     }
 
     public function testSupportsTheIsSubjectOnEventIdPrecondition(): void
@@ -129,14 +129,14 @@ final class WriteEventsTest extends TestCase
         );
 
         $this->expectExceptionMessage("Failed to write events, got HTTP status code '409', expected '200'");
-        iterator_to_array($this->client->writeEvents(
+        $this->client->writeEvents(
             [
                 $secondEvent,
             ],
             [
                 new IsSubjectOnEventId('/test', '1'),
             ],
-        ));
+        );
     }
 
     public function testSupportsTheIsEventQlTruePrecondition(): void
@@ -164,13 +164,13 @@ final class WriteEventsTest extends TestCase
         );
 
         $this->expectExceptionMessage("Failed to write events, got HTTP status code '409', expected '200'");
-        iterator_to_array($this->client->writeEvents(
+        $this->client->writeEvents(
             [
                 $secondEvent,
             ],
             [
                 new IsEventQlTrue('FROM e IN events PROJECT INTO COUNT() == 0'),
             ],
-        ));
+        );
     }
 }

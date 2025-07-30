@@ -32,7 +32,7 @@ class Queue implements IteratorAggregate
 
     public function write(string $data): void
     {
-        if ($data === '') {
+        if (trim($data) === '') {
             return;
         }
 
