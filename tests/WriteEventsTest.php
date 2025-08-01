@@ -5,7 +5,7 @@ declare(strict_types=1);
 use PHPUnit\Framework\TestCase;
 use Thenativeweb\Eventsourcingdb\CloudEvent;
 use Thenativeweb\Eventsourcingdb\EventCandidate;
-use Thenativeweb\Eventsourcingdb\IsEventQlTrue;
+use Thenativeweb\Eventsourcingdb\IsEventQlQueryTrue;
 use Thenativeweb\Eventsourcingdb\IsSubjectOnEventId;
 use Thenativeweb\Eventsourcingdb\IsSubjectPristine;
 use Thenativeweb\Eventsourcingdb\Tests\ClientTestTrait;
@@ -139,7 +139,7 @@ final class WriteEventsTest extends TestCase
         );
     }
 
-    public function testSupportsTheIsEventQlTruePrecondition(): void
+    public function testSupportsTheIsEventQlQueryTruePrecondition(): void
     {
         $firstEvent = new EventCandidate(
             source: 'https://www.eventsourcingdb.io',
@@ -169,7 +169,7 @@ final class WriteEventsTest extends TestCase
                 $secondEvent,
             ],
             [
-                new IsEventQlTrue('FROM e IN events PROJECT INTO COUNT() == 0'),
+                new IsEventQlQueryTrue('FROM e IN events PROJECT INTO COUNT() == 0'),
             ],
         );
     }

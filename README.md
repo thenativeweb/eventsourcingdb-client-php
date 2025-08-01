@@ -95,17 +95,17 @@ $writtenEvents = $client->writeEvents([
 
 *Note that according to the CloudEvents standard, event IDs must be of type string.*
 
-#### Using the `isEventQlTrue` precondition
+#### Using the `isEventQlQueryTrue` precondition
 
-If you want to write events depending on an EventQL query, use the `IsEventQlTrue` function to create a precondition:
+If you want to write events depending on an EventQL query, use the `IsEventQlQueryTrue` function to create a precondition:
 
 ```php
-use Thenativeweb\Eventsourcingdb\IsEventQlTrue;
+use Thenativeweb\Eventsourcingdb\IsEventQlQueryTrue;
 
 $writtenEvents = $client->writeEvents([
   // events
 ], [
-  new IsEventQlTrue("FROM e IN events WHERE e.type == 'io.eventsourcingdb.library.book-borrowed' PROJECT INTO COUNT() < 10")
+  new IsEventQlQueryTrue("FROM e IN events WHERE e.type == 'io.eventsourcingdb.library.book-borrowed' PROJECT INTO COUNT() < 10")
 ]);
 ```
 
