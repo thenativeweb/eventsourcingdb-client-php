@@ -6,7 +6,7 @@ namespace Thenativeweb\Eventsourcingdb;
 
 use JsonSerializable;
 
-final readonly class IsEventQlTrue implements JsonSerializable
+final readonly class IsEventQlQueryTrue implements JsonSerializable
 {
     public function __construct(
         public string $query,
@@ -16,7 +16,7 @@ final readonly class IsEventQlTrue implements JsonSerializable
     public function jsonSerialize(): array
     {
         return [
-            'type' => 'isEventQlTrue',
+            'type' => 'isEventQlQueryTrue',
             'payload' => [
                 'query' => $this->query,
             ],
