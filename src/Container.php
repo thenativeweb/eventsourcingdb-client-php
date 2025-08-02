@@ -107,14 +107,14 @@ final class Container
 
     public function getHost(): string
     {
-        $this->ensureRunning();
-        return $this->container->getHost();
+        $startedGenericContainer = $this->runningContainer();
+        return $startedGenericContainer->getHost();
     }
 
     public function getMappedPort(): int
     {
-        $this->ensureRunning();
-        return $this->container->getMappedPort($this->internalPort);
+        $startedGenericContainer = $this->runningContainer();
+        return $startedGenericContainer->getMappedPort($this->internalPort);
     }
 
     public function getBaseUrl(): string
@@ -148,10 +148,12 @@ final class Container
         return new Client($baseUrl, $this->apiToken);
     }
 
-    private function ensureRunning(): void
+    private function runningContainer(): StartedGenericContainer
     {
         if (!$this->container instanceof StartedGenericContainer) {
             throw new RuntimeException('Container must be running');
         }
+
+        return $this->container;
     }
 }
