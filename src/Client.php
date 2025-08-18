@@ -118,7 +118,7 @@ final readonly class Client
         }
 
         $writtenEvents = array_map(
-            static fn ($item): CloudEvent => new CloudEvent(
+            static fn (array $item): CloudEvent => new CloudEvent(
                 $item['specversion'],
                 $item['id'],
                 new DateTimeImmutable($item['time']),
