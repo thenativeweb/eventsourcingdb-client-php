@@ -122,6 +122,7 @@ final readonly class Client
                 $item['specversion'],
                 $item['id'],
                 new DateTimeImmutable($item['time']),
+                $item['time'],
                 $item['source'],
                 $item['subject'],
                 $item['type'],
@@ -131,6 +132,7 @@ final readonly class Client
                 $item['predecessorhash'],
                 $item['traceparent'] ?? null,
                 $item['tracestate'] ?? null,
+                $item['signature'] ?? null,
             ),
             $data,
         );
@@ -164,6 +166,7 @@ final readonly class Client
                         $eventLine->payload['specversion'],
                         $eventLine->payload['id'],
                         new DateTimeImmutable($eventLine->payload['time']),
+                        $eventLine->payload['time'],
                         $eventLine->payload['source'],
                         $eventLine->payload['subject'],
                         $eventLine->payload['type'],
@@ -173,6 +176,7 @@ final readonly class Client
                         $eventLine->payload['predecessorhash'],
                         $eventLine->payload['traceparent'] ?? null,
                         $eventLine->payload['tracestate'] ?? null,
+                        $eventLine->payload['signature'] ?? null,
                     );
                     yield $cloudEvent;
 
@@ -249,6 +253,7 @@ final readonly class Client
                         $eventLine->payload['specversion'],
                         $eventLine->payload['id'],
                         new DateTimeImmutable($eventLine->payload['time']),
+                        $eventLine->payload['time'],
                         $eventLine->payload['source'],
                         $eventLine->payload['subject'],
                         $eventLine->payload['type'],
@@ -258,6 +263,7 @@ final readonly class Client
                         $eventLine->payload['predecessorhash'],
                         $eventLine->payload['traceparent'] ?? null,
                         $eventLine->payload['tracestate'] ?? null,
+                        $eventLine->payload['signature'] ?? null,
                     );
                     yield $cloudEvent;
 
