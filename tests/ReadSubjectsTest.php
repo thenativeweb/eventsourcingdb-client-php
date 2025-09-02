@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use PHPUnit\Framework\TestCase;
 use Thenativeweb\Eventsourcingdb\EventCandidate;
-use Thenativeweb\Eventsourcingdb\Tests\ClientTestTrait;
+use Thenativeweb\Eventsourcingdb\Tests\Trait\ClientTestTrait;
 
 final class ReadSubjectsTest extends TestCase
 {

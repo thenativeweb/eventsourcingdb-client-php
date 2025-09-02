@@ -8,7 +8,7 @@ use Thenativeweb\Eventsourcingdb\EventCandidate;
 use Thenativeweb\Eventsourcingdb\IsEventQlQueryTrue;
 use Thenativeweb\Eventsourcingdb\IsSubjectOnEventId;
 use Thenativeweb\Eventsourcingdb\IsSubjectPristine;
-use Thenativeweb\Eventsourcingdb\Tests\ClientTestTrait;
+use Thenativeweb\Eventsourcingdb\Tests\Trait\ClientTestTrait;
 
 final class WriteEventsTest extends TestCase
 {

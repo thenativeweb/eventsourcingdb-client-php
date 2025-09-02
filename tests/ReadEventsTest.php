@@ -11,7 +11,7 @@ use Thenativeweb\Eventsourcingdb\Order;
 use Thenativeweb\Eventsourcingdb\ReadEventsOptions;
 use Thenativeweb\Eventsourcingdb\ReadFromLatestEvent;
 use Thenativeweb\Eventsourcingdb\ReadIfEventIsMissing;
-use Thenativeweb\Eventsourcingdb\Tests\ClientTestTrait;
+use Thenativeweb\Eventsourcingdb\Tests\Trait\ClientTestTrait;
 
 final class ReadEventsTest extends TestCase
 {

@@ -10,7 +10,7 @@ use Thenativeweb\Eventsourcingdb\EventCandidate;
 use Thenativeweb\Eventsourcingdb\ObserveEventsOptions;
 use Thenativeweb\Eventsourcingdb\ObserveFromLatestEvent;
 use Thenativeweb\Eventsourcingdb\ObserveIfEventIsMissing;
-use Thenativeweb\Eventsourcingdb\Tests\ClientTestTrait;
+use Thenativeweb\Eventsourcingdb\Tests\Trait\ClientTestTrait;
 
 final class ObserveEventsTest extends TestCase
 {

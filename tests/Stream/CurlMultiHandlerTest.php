@@ -5,32 +5,17 @@ declare(strict_types=1);
 namespace Stream;
 
 use PHPUnit\Framework\TestCase;
-use ReflectionClass;
 use RuntimeException;
 use Thenativeweb\Eventsourcingdb\Stream\CurlMultiHandler;
 use Thenativeweb\Eventsourcingdb\Stream\Queue;
 use Thenativeweb\Eventsourcingdb\Stream\Request;
-use Thenativeweb\Eventsourcingdb\Tests\ClientTestTrait;
+use Thenativeweb\Eventsourcingdb\Tests\Trait\ClientTestTrait;
+use Thenativeweb\Eventsourcingdb\Tests\Trait\ReflectionTestTrait;
 
 final class CurlMultiHandlerTest extends TestCase
 {
     use ClientTestTrait;
-
-    public function getPropertyValue(object $object, string $propertyName): mixed
-    {
-        $reflectionClass = new ReflectionClass($object);
-        $reflectionProperty = $reflectionClass->getProperty($propertyName);
-        $reflectionProperty->setAccessible(true);
-        return $reflectionProperty->getValue($object);
-    }
-
-    public function setPropertyValue(object $object, string $propertyName, mixed $propertyValue): void
-    {
-        $reflectionClass = new ReflectionClass($object);
-        $reflectionProperty = $reflectionClass->getProperty($propertyName);
-        $reflectionProperty->setAccessible(true);
-        $reflectionProperty->setValue($object, $propertyValue);
-    }
+    use ReflectionTestTrait;
 
     public function removeLineBrakes(string $line): string
     {

@@ -8,7 +8,7 @@ use Exception;
 use RuntimeException;
 use Testcontainers\Container\GenericContainer;
 use Testcontainers\Container\StartedGenericContainer;
-use Thenativeweb\Eventsourcingdb\Stream\HttpClient;
+use Thenativeweb\Eventsourcingdb\TestContainer\WaitForHttp;
 
 final class Container
 {
@@ -16,13 +16,8 @@ final class Container
     private string $imageTag = 'latest';
     private int $internalPort = 3000;
     private string $apiToken = 'secret';
+    private ?SigningKey $signingKey = null;
     private ?StartedGenericContainer $container = null;
-    private HttpClient $httpClient;
-
-    public function __construct()
-    {
-        $this->httpClient = new HttpClient();
-    }
 
     public function withImageTag(string $tag): self
     {
@@ -33,6 +28,13 @@ final class Container
     public function withApiToken(string $token): self
     {
         $this->apiToken = $token;
+        return $this;
+    }
+
+    public function withSigningKey(): self
+    {
+        $this->signingKey = new SigningKey();
+
         return $this;
     }
 
@@ -47,61 +49,41 @@ final class Container
      */
     public function start(): void
     {
-        $container = null;
-        $retryCount = 5;
-        while ($retryCount) {
-            try {
-                $container =
-                    (new GenericContainer("{$this->imageName}:{$this->imageTag}"))
-                        ->withExposedPorts($this->internalPort)
-                        ->withCommand([
-                            'run',
-                            '--api-token', $this->apiToken,
-                            '--data-directory-temporary',
-                            '--http-enabled',
-                            '--https-enabled=false',
-                        ]);
+        $command = [
+            'run',
+            '--api-token',
+            $this->apiToken,
+            '--data-directory-temporary',
+            '--http-enabled',
+            '--https-enabled=false',
+            '--with-ui',
+        ];
+        $content = [];
 
-            } catch (Exception $exception) {
-                --$retryCount;
+        if ($this->signingKey instanceof SigningKey) {
+            $command[] = '--signing-key-file';
+            $command[] = '/etc/esdb/signing-key.pem';
 
-                $exceptionMessage = $exception->getMessage();
-
-                sleep(6);
-            }
-
-            if ($container instanceof GenericContainer) {
-                break;
-            }
+            $content[] = [
+                'content' => $this->signingKey->privateKeyPem,
+                'target' => '/etc/esdb/signing-key.pem',
+                'mode' => 0o777,
+            ];
         }
 
-        if (!$container instanceof GenericContainer) {
-            exit($exceptionMessage ?? 'Failed to create container');
-        }
+        $container =
+            (new GenericContainer("{$this->imageName}:{$this->imageTag}"))
+                ->withExposedPorts($this->internalPort)
+                ->withCommand($command)
+                ->withCopyContentToContainer($content)
+                ->withWait((new WaitForHttp($this->internalPort, 20000))->withPath('/api/v1/ping'))
+        ;
 
         try {
             $this->container = $container->start();
         } catch (Exception) {
             usleep(100_000);
             $this->container = $container->start();
-        }
-
-        $baseUrl = rtrim($this->getBaseUrl());
-        $pingUrl = $baseUrl . '/api/v1/ping';
-
-        while (true) {
-            try {
-                $response = $this->httpClient->get($pingUrl);
-            } catch (Exception) {
-                usleep(100_000);
-                continue;
-            }
-
-            $status = $response->getStatusCode();
-
-            if ($status === 200) {
-                break;
-            }
         }
     }
 
@@ -127,6 +109,24 @@ final class Container
     public function getApiToken(): string
     {
         return $this->apiToken;
+    }
+
+    public function getSigningKey(): SigningKey
+    {
+        if (!$this->signingKey instanceof SigningKey) {
+            throw new RuntimeException('Signing key not set.');
+        }
+
+        return $this->signingKey;
+    }
+
+    public function getVerificationKey(): string
+    {
+        if (!$this->signingKey instanceof SigningKey) {
+            throw new RuntimeException('Signing key not set.');
+        }
+
+        return $this->signingKey->ed25519->publicKey;
     }
 
     public function isRunning(): bool
