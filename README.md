@@ -477,7 +477,7 @@ The function first verifies the event's hash, and then checks the signature. If 
 ```php
 $verificationKey = // an ed25519 public key
 
-$event->verifySignature(verificationKey);
+$event->verifySignature($verificationKey);
 ```
 
 
