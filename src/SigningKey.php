@@ -6,7 +6,9 @@ namespace Thenativeweb\Eventsourcingdb;
 
 use RuntimeException;
 
-if (PHP_VERSION_ID < 80400) {
+define('LESS_THAN_PHP_VERSION_84', PHP_VERSION_ID < 80400);
+
+if (LESS_THAN_PHP_VERSION_84) {
     define('OPENSSL_KEYTYPE_ED25519', 5);
 }
 
@@ -27,7 +29,7 @@ final class SigningKey
 
     public function __construct()
     {
-        if (PHP_VERSION_ID < 80400) {
+        if (LESS_THAN_PHP_VERSION_84) {
             $keypair = sodium_crypto_sign_keypair();
             $secretKey = sodium_crypto_sign_secretkey($keypair);
 
@@ -50,7 +52,7 @@ final class SigningKey
         ]);
 
         if ($privateKeyRes === false) {
-            throw new RuntimeException('Failed to generate Ed25519 key pair');
+            throw new RuntimeException('Failed to generate Ed25519 key pair.');
         }
 
         openssl_pkey_export($privateKeyRes, $privateKeyPem, null, [

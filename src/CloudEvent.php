@@ -70,7 +70,7 @@ final readonly class CloudEvent
         $signaturePrefix = 'esdb:signature:v1:';
 
         if (!str_starts_with($this->signature, $signaturePrefix)) {
-            throw new RuntimeException("Signature must start with '{$signaturePrefix}'");
+            throw new RuntimeException("Signature must start with '{$signaturePrefix}'.");
         }
 
         $signatureHex = substr($this->signature, strlen($signaturePrefix));
@@ -81,7 +81,7 @@ final readonly class CloudEvent
         }
 
         if ($signatureBytes === '') {
-            throw new RuntimeException('Signature cannot be empty.');
+            throw new RuntimeException('Signature must not be empty.');
         }
 
         $isSignatureValid = sodium_crypto_sign_verify_detached($signatureBytes, $this->hash, $verificationKey);

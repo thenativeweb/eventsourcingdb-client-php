@@ -543,7 +543,6 @@ $verificationKey = $container->getVerificationKey();
 
 The `signingKey` can be used when configuring the container to sign outgoing events. The `verificationKey` can be passed to `verifySignature` when verifying events read from the database.
 
-
 #### Configuring the Client Manually
 
 In case you need to set up the client yourself, use the following functions to get details on the container:

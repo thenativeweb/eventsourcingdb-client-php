@@ -56,7 +56,6 @@ final class Container
             '--data-directory-temporary',
             '--http-enabled',
             '--https-enabled=false',
-            '--with-ui',
         ];
         $content = [];
 

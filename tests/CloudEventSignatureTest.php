@@ -89,12 +89,29 @@ final class CloudEventSignatureTest extends TestCase
 
         $this->assertNotNull($writtenEvent->signature);
 
+        $tamperedCloudEvent = new CloudEvent(
+            specVersion: $writtenEvent->specVersion,
+            id: $writtenEvent->id,
+            time: $writtenEvent->time,
+            timeFromServer: $this->getPropertyValue($writtenEvent, 'timeFromServer'),
+            source: $writtenEvent->source,
+            subject: $writtenEvent->subject,
+            type: $writtenEvent->type,
+            dataContentType: $writtenEvent->dataContentType,
+            data: $writtenEvent->data,
+            hash: hash('sha256', 'invalid hash'),
+            predecessorHash: $writtenEvent->predecessorHash,
+            traceParent: $writtenEvent->traceParent,
+            traceState: $writtenEvent->traceState,
+            signature: $writtenEvent->signature,
+        );
+
         $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('Signature verification failed.');
+        $this->expectExceptionMessage('Failed to verify hash.');
 
-        $signingKey = new SigningKey();
+        $verificationKey = $container->getVerificationKey();
 
-        $writtenEvent->verifySignature($signingKey->ed25519->publicKey);
+        $tamperedCloudEvent->verifySignature($verificationKey);
     }
 
     public function testThrowsAnErrorIfTheSignatureVerificationFails(): void
@@ -130,7 +147,7 @@ final class CloudEventSignatureTest extends TestCase
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('Signature verification failed.');
 
-        $cloudEvent = new CloudEvent(
+        $tamperedCloudEvent = new CloudEvent(
             specVersion: $writtenEvent->specVersion,
             id: $writtenEvent->id,
             time: $writtenEvent->time,
@@ -149,7 +166,7 @@ final class CloudEventSignatureTest extends TestCase
 
         $signingKey = new SigningKey();
 
-        $cloudEvent->verifySignature($signingKey->ed25519->publicKey);
+        $tamperedCloudEvent->verifySignature($signingKey->ed25519->publicKey);
     }
 
     public function testVerifiesTheSignature(): void

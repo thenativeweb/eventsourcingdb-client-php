@@ -12,23 +12,11 @@ use Testcontainers\Wait\BaseWaitStrategy;
 class WaitForHttp extends BaseWaitStrategy
 {
     protected HttpMethod $method = HttpMethod::GET;
-
     protected string $path = '/';
-
     protected string $protocol = 'http';
-
     protected int $expectedStatusCode = 200;
-
     protected bool $allowInsecure = false;
-
-    /**
-     * @var array<string, string>
-     */
     protected array $headers = [];
-
-    /**
-     * @var int Timeout in milliseconds for reading the response
-     */
     protected int $readTimeout = 1000;
 
     public function __construct(
@@ -39,9 +27,6 @@ class WaitForHttp extends BaseWaitStrategy
         parent::__construct($timeout, $pollInterval);
     }
 
-    /**
-     * @param HttpMethod|value-of<HttpMethod> $method
-     */
     public function withMethod(HttpMethod | string $method): self
     {
         if (is_string($method)) {
@@ -81,9 +66,6 @@ class WaitForHttp extends BaseWaitStrategy
         return $this;
     }
 
-    /**
-     * @param array<string, string> $headers
-     */
     public function withHeaders(array $headers): self
     {
         $this->headers = $headers;

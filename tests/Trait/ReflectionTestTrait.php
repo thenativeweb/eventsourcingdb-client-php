@@ -15,6 +15,7 @@ trait ReflectionTestTrait
         $reflectionProperty->setAccessible(true);
         $reflectionProperty->setValue($object, $propertyValue);
     }
+
     protected function getPropertyValue(object $object, string $propertyName): mixed
     {
         $reflectionClass = new ReflectionClass($object);

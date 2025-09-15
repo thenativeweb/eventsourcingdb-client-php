@@ -58,7 +58,7 @@ final class CloudEventTest extends TestCase
 
         $writtenEvent = $writtenEvents[0];
 
-        $cloudEvent = new CloudEvent(
+        $tamperedCloudEvent = new CloudEvent(
             specVersion: $writtenEvent->specVersion,
             id: $writtenEvent->id,
             time: $writtenEvent->time,
@@ -76,6 +76,6 @@ final class CloudEventTest extends TestCase
         );
 
         $this->expectException(RuntimeException::class);
-        $cloudEvent->verifyHash();
+        $tamperedCloudEvent->verifyHash();
     }
 }

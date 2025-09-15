@@ -28,7 +28,7 @@
     "ext-curl": "*",
     "ext-openssl": "*",
     "ext-sodium": "*",
-    "testcontainers/testcontainers": "^1.0"
+    "testcontainers/testcontainers": "1.0.3"
   },
   "require-dev": {
     "phpstan/phpstan": "2.1.25",

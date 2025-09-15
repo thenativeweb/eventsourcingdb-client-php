@@ -132,7 +132,7 @@ final readonly class Client
                 $item['predecessorhash'],
                 $item['traceparent'] ?? null,
                 $item['tracestate'] ?? null,
-                $item['signature'] ?? null,
+                $item['signature'],
             ),
             $data,
         );
@@ -176,7 +176,7 @@ final readonly class Client
                         $eventLine->payload['predecessorhash'],
                         $eventLine->payload['traceparent'] ?? null,
                         $eventLine->payload['tracestate'] ?? null,
-                        $eventLine->payload['signature'] ?? null,
+                        $eventLine->payload['signature'],
                     );
                     yield $cloudEvent;
 
@@ -263,7 +263,7 @@ final readonly class Client
                         $eventLine->payload['predecessorhash'],
                         $eventLine->payload['traceparent'] ?? null,
                         $eventLine->payload['tracestate'] ?? null,
-                        $eventLine->payload['signature'] ?? null,
+                        $eventLine->payload['signature'],
                     );
                     yield $cloudEvent;
 
