@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Thenativeweb\Eventsourcingdb\Tests;
+namespace Thenativeweb\Eventsourcingdb\Tests\Trait;
 
 use Thenativeweb\Eventsourcingdb\Client;
 use Thenativeweb\Eventsourcingdb\Container;
