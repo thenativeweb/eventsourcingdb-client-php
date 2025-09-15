@@ -28,7 +28,6 @@
     "ext-curl": "*",
     "ext-openssl": "*",
     "ext-sodium": "*",
-    "symfony/http-client": "^7.3",
     "testcontainers/testcontainers": "^1.0"
   },
   "require-dev": {
@@ -59,7 +58,7 @@
   },
   "config": {
     "allow-plugins": {
-      "php-http/discovery": true
+      "php-http/discovery": false
     },
     "sort-packages": true
   }
