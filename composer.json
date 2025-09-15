@@ -28,6 +28,7 @@
     "ext-curl": "*",
     "ext-openssl": "*",
     "ext-sodium": "*",
+    "symfony/http-client": "^7.3",
     "testcontainers/testcontainers": "^1.0"
   },
   "require-dev": {
@@ -46,7 +47,7 @@
       "vendor/bin/rector process",
       "vendor/bin/ecs check --fix"
     ],
-    "stan": "vendor/bin/phpstan analyze",
+    "stan": "vendor/bin/phpstan analyze --memory-limit 512M",
     "qa": [
       "@analyze",
       "@test"
