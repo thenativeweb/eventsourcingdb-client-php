@@ -7,14 +7,33 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  php-matrix:
+    name: 'Generate PHP Version Matrix'
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v5
+      - name: Use PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: 'latest'
+      - name: Fetch PHP Versions
+        id: set-matrix
+        run: |
+          php .github/scripts/version_matrix.php > matrix.json
+          echo "matrix=$(cat matrix.json)" >> $GITHUB_OUTPUT
+
   qa:
+    needs: [ php-matrix ]
     name: QA
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
     strategy:
       matrix:
-        version: [ '8.2', '8.3', '8.4', 'latest' ]
+        version: ${{ fromJson(needs.php-matrix.outputs.matrix) }}
 
     steps:
     - name: Clone repository
