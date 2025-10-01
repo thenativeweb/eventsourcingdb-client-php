@@ -85,10 +85,7 @@ class WaitForHttp extends BaseWaitStrategy
 
             $containerAddress = $startedTestContainer->getHost();
 
-            $storage = iterator_to_array($startedTestContainer->getBoundPorts());
-            $port = array_key_exists($this->port . '/tcp', $storage) ? $storage[$this->port . '/tcp'][0]->getHostPort() : $this->port;
-
-            $url = sprintf('%s://%s:%d%s', $this->protocol, $containerAddress, $port, $this->path);
+            $url = sprintf('%s://%s:%d%s', $this->protocol, $containerAddress, $startedTestContainer->getMappedPort($this->port), $this->path);
             $responseCode = $this->makeHttpRequest($url);
 
             if ($responseCode === $this->expectedStatusCode) {

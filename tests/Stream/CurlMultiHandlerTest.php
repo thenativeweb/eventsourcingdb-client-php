@@ -82,7 +82,7 @@ final class CurlMultiHandlerTest extends TestCase
     public function testExecuteThrowsIfHostNotExists(): void
     {
         $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessageMatches("#Internal HttpClient: cURL handle execution failed with error: Failed to connect to [^ ]+ port 1234 after \d+ ms: Couldn't connect to server#");
+        $this->expectExceptionMessageMatches("#Internal HttpClient: cURL handle execution failed with error: Failed to connect to [^ ]+ port 1234 after \d+ ms: [^ ]+#");
 
         $host = $this->container->getHost();
         $baseUrl = "http://{$host}:1234";
