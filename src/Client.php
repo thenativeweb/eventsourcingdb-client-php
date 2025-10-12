@@ -27,16 +27,6 @@ final readonly class Client
         $this->httpClient->abortIn($seconds);
     }
 
-    private function isValidServerHeader(\Thenativeweb\Eventsourcingdb\Stream\Response $response): bool
-    {
-        $serverHeader = $response->getHeader('Server');
-
-        if ($serverHeader === []) {
-            return false;
-        }
-        return str_starts_with($serverHeader[0], 'EventSourcingDB/');
-    }
-
     public function ping(): void
     {
         $response = $this->httpClient->get('/api/v1/ping');
@@ -434,5 +424,15 @@ final readonly class Client
             $data['isPhantom'],
             $data['schema'] ?? [],
         );
+    }
+
+    private function isValidServerHeader(\Thenativeweb\Eventsourcingdb\Stream\Response $response): bool
+    {
+        $serverHeader = $response->getHeader('Server');
+
+        if ($serverHeader === []) {
+            return false;
+        }
+        return str_starts_with($serverHeader[0], 'EventSourcingDB/');
     }
 }
