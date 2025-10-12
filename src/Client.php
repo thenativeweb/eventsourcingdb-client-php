@@ -9,8 +9,6 @@ use RuntimeException;
 use Thenativeweb\Eventsourcingdb\Stream\HttpClient;
 use Thenativeweb\Eventsourcingdb\Stream\NdJson;
 
-use function Thenativeweb\Eventsourcingdb\isValidServerHeader;
-
 final readonly class Client
 {
     private string $apiToken;
