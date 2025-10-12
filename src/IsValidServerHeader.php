@@ -13,10 +13,5 @@ function isValidServerHeader(Response $response): bool
     if ($serverHeader === []) {
         return false;
     }
-
-    if (!str_starts_with($serverHeader[0], 'EventSourcingDB/')) {
-        return false;
-    }
-
-    return true;
+    return str_starts_with($serverHeader[0], 'EventSourcingDB/');
 }
