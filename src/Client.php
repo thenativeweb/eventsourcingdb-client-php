@@ -9,6 +9,8 @@ use RuntimeException;
 use Thenativeweb\Eventsourcingdb\Stream\HttpClient;
 use Thenativeweb\Eventsourcingdb\Stream\NdJson;
 
+use function Thenativeweb\Eventsourcingdb\isValidServerHeader;
+
 final readonly class Client
 {
     private string $apiToken;
@@ -30,6 +32,9 @@ final readonly class Client
     public function ping(): void
     {
         $response = $this->httpClient->get('/api/v1/ping');
+        if (!isValidServerHeader($response)) {
+            throw new RuntimeException('Server must be EventSourcingDB.');
+        }
         $status = $response->getStatusCode();
 
         if ($status !== 200) {
@@ -60,6 +65,9 @@ final readonly class Client
             '/api/v1/verify-api-token',
             $this->apiToken,
         );
+        if (!isValidServerHeader($response)) {
+            throw new RuntimeException('Server must be EventSourcingDB.');
+        }
         $status = $response->getStatusCode();
 
         if ($status !== 200) {
@@ -98,6 +106,9 @@ final readonly class Client
             $this->apiToken,
             $requestBody,
         );
+        if (!isValidServerHeader($response)) {
+            throw new RuntimeException('Server must be EventSourcingDB.');
+        }
         $status = $response->getStatusCode();
 
         if ($status !== 200) {
@@ -150,6 +161,9 @@ final readonly class Client
                 'options' => $readEventsOptions,
             ],
         );
+        if (!isValidServerHeader($response)) {
+            throw new RuntimeException('Server must be EventSourcingDB.');
+        }
         $status = $response->getStatusCode();
 
         if ($status !== 200) {
@@ -198,7 +212,9 @@ final readonly class Client
                 'query' => $query,
             ],
         );
-
+        if (!isValidServerHeader($response)) {
+            throw new RuntimeException('Server must be EventSourcingDB.');
+        }
         $status = $response->getStatusCode();
 
         if ($status !== 200) {
@@ -235,7 +251,9 @@ final readonly class Client
                 'options' => $observeEventsOptions,
             ],
         );
-
+        if (!isValidServerHeader($response)) {
+            throw new RuntimeException('Server must be EventSourcingDB.');
+        }
         $status = $response->getStatusCode();
         if ($status !== 200) {
             throw new RuntimeException(sprintf(
@@ -286,7 +304,9 @@ final readonly class Client
                 'schema' => $schema,
             ],
         );
-
+        if (!isValidServerHeader($response)) {
+            throw new RuntimeException('Server must be EventSourcingDB.');
+        }
         $status = $response->getStatusCode();
         if ($status !== 200) {
             throw new RuntimeException(sprintf(
@@ -305,7 +325,9 @@ final readonly class Client
                 'baseSubject' => $baseSubject,
             ],
         );
-
+        if (!isValidServerHeader($response)) {
+            throw new RuntimeException('Server must be EventSourcingDB.');
+        }
         $status = $response->getStatusCode();
         if ($status !== 200) {
             throw new RuntimeException(sprintf(
@@ -337,7 +359,9 @@ final readonly class Client
             '/api/v1/read-event-types',
             $this->apiToken,
         );
-
+        if (!isValidServerHeader($response)) {
+            throw new RuntimeException('Server must be EventSourcingDB.');
+        }
         $status = $response->getStatusCode();
         if ($status !== 200) {
             throw new RuntimeException(sprintf(
@@ -376,7 +400,9 @@ final readonly class Client
                 'eventType' => $eventType,
             ],
         );
-
+        if (!isValidServerHeader($response)) {
+            throw new RuntimeException('Server must be EventSourcingDB.');
+        }
         $status = $response->getStatusCode();
         if ($status !== 200) {
             throw new RuntimeException(sprintf(
