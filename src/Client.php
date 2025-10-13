@@ -30,6 +30,9 @@ final readonly class Client
     public function ping(): void
     {
         $response = $this->httpClient->get('/api/v1/ping');
+        if (!$this->isValidServerHeader($response)) {
+            throw new RuntimeException('Server must be EventSourcingDB.');
+        }
         $status = $response->getStatusCode();
 
         if ($status !== 200) {
@@ -60,6 +63,9 @@ final readonly class Client
             '/api/v1/verify-api-token',
             $this->apiToken,
         );
+        if (!$this->isValidServerHeader($response)) {
+            throw new RuntimeException('Server must be EventSourcingDB.');
+        }
         $status = $response->getStatusCode();
 
         if ($status !== 200) {
@@ -98,6 +104,9 @@ final readonly class Client
             $this->apiToken,
             $requestBody,
         );
+        if (!$this->isValidServerHeader($response)) {
+            throw new RuntimeException('Server must be EventSourcingDB.');
+        }
         $status = $response->getStatusCode();
 
         if ($status !== 200) {
@@ -150,6 +159,9 @@ final readonly class Client
                 'options' => $readEventsOptions,
             ],
         );
+        if (!$this->isValidServerHeader($response)) {
+            throw new RuntimeException('Server must be EventSourcingDB.');
+        }
         $status = $response->getStatusCode();
 
         if ($status !== 200) {
@@ -198,7 +210,9 @@ final readonly class Client
                 'query' => $query,
             ],
         );
-
+        if (!$this->isValidServerHeader($response)) {
+            throw new RuntimeException('Server must be EventSourcingDB.');
+        }
         $status = $response->getStatusCode();
 
         if ($status !== 200) {
@@ -235,7 +249,9 @@ final readonly class Client
                 'options' => $observeEventsOptions,
             ],
         );
-
+        if (!$this->isValidServerHeader($response)) {
+            throw new RuntimeException('Server must be EventSourcingDB.');
+        }
         $status = $response->getStatusCode();
         if ($status !== 200) {
             throw new RuntimeException(sprintf(
@@ -286,7 +302,9 @@ final readonly class Client
                 'schema' => $schema,
             ],
         );
-
+        if (!$this->isValidServerHeader($response)) {
+            throw new RuntimeException('Server must be EventSourcingDB.');
+        }
         $status = $response->getStatusCode();
         if ($status !== 200) {
             throw new RuntimeException(sprintf(
@@ -305,7 +323,9 @@ final readonly class Client
                 'baseSubject' => $baseSubject,
             ],
         );
-
+        if (!$this->isValidServerHeader($response)) {
+            throw new RuntimeException('Server must be EventSourcingDB.');
+        }
         $status = $response->getStatusCode();
         if ($status !== 200) {
             throw new RuntimeException(sprintf(
@@ -337,7 +357,9 @@ final readonly class Client
             '/api/v1/read-event-types',
             $this->apiToken,
         );
-
+        if (!$this->isValidServerHeader($response)) {
+            throw new RuntimeException('Server must be EventSourcingDB.');
+        }
         $status = $response->getStatusCode();
         if ($status !== 200) {
             throw new RuntimeException(sprintf(
@@ -376,7 +398,9 @@ final readonly class Client
                 'eventType' => $eventType,
             ],
         );
-
+        if (!$this->isValidServerHeader($response)) {
+            throw new RuntimeException('Server must be EventSourcingDB.');
+        }
         $status = $response->getStatusCode();
         if ($status !== 200) {
             throw new RuntimeException(sprintf(
@@ -400,5 +424,15 @@ final readonly class Client
             $data['isPhantom'],
             $data['schema'] ?? [],
         );
+    }
+
+    private function isValidServerHeader(\Thenativeweb\Eventsourcingdb\Stream\Response $response): bool
+    {
+        $serverHeader = $response->getHeader('Server');
+
+        if ($serverHeader === []) {
+            return false;
+        }
+        return str_starts_with($serverHeader[0], 'EventSourcingDB/');
     }
 }
