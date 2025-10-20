@@ -79,6 +79,20 @@ $writtenEvents = $client->writeEvents([
 ]);
 ```
 
+#### Using the `isSubjectPopulated` precondition
+
+If you only want to write events in case a subject (such as `/books/42`) already has at least one event, import the `IsSubjectPopulated` class, use it to create a precondition, and pass it in an array as the second argument:
+
+```php
+use Thenativeweb\Eventsourcingdb\IsSubjectPopulated;
+
+$writtenEvents = $client->writeEvents([
+  // events
+], [
+  new IsSubjectPopulated('/books/42'),
+]);
+```
+
 #### Using the `isSubjectOnEventId` precondition
 
 If you only want to write events in case the last event of a subject (such as `/books/42`) has a specific ID (e.g., `0`), import the `IsSubjectOnEventId` class, use it to create a precondition, and pass it in an array as the second argument:

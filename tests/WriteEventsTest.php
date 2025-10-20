@@ -3,10 +3,12 @@
 declare(strict_types=1);
 
 use PHPUnit\Framework\TestCase;
+use RuntimeException;
 use Thenativeweb\Eventsourcingdb\CloudEvent;
 use Thenativeweb\Eventsourcingdb\EventCandidate;
 use Thenativeweb\Eventsourcingdb\IsEventQlQueryTrue;
 use Thenativeweb\Eventsourcingdb\IsSubjectOnEventId;
+use Thenativeweb\Eventsourcingdb\IsSubjectPopulated;
 use Thenativeweb\Eventsourcingdb\IsSubjectPristine;
 use Thenativeweb\Eventsourcingdb\Tests\Trait\ClientTestTrait;
 
@@ -102,6 +104,62 @@ final class WriteEventsTest extends TestCase
                 new IsSubjectPristine('/test'),
             ],
         );
+    }
+
+    public function testSupportsTheIsSubjectPopulatedPrecondition(): void
+    {
+        $firstEvent = new EventCandidate(
+            source: 'https://www.eventsourcingdb.io',
+            subject: '/test',
+            type: 'io.eventsourcingdb.test',
+            data: [
+                'value' => 23,
+            ],
+        );
+
+        $secondEvent = new EventCandidate(
+            source: 'https://www.eventsourcingdb.io',
+            subject: '/test',
+            type: 'io.eventsourcingdb.test',
+            data: [
+                'value' => 42,
+            ],
+        );
+
+        try {
+            $this->client->writeEvents(
+                [
+                    $secondEvent,
+                ],
+                [
+                    new IsSubjectPopulated('/test'),
+                ],
+            );
+            $this->fail('Expected the isSubjectPopulated precondition to reject writing to an empty subject.');
+        } catch (RuntimeException $runtimeException) {
+            $this->assertSame(
+                "Failed to write events, got HTTP status code '409', expected '200'",
+                $runtimeException->getMessage(),
+            );
+        }
+
+        $this->client->writeEvents([
+            $firstEvent,
+        ]);
+
+        $writtenEvents = $this->client->writeEvents(
+            [
+                $secondEvent,
+            ],
+            [
+                new IsSubjectPopulated('/test'),
+            ],
+        );
+
+        $this->assertCount(1, $writtenEvents);
+        $this->assertInstanceOf(CloudEvent::class, $writtenEvents[0]);
+        $this->assertSame('1', $writtenEvents[0]->id);
+        $this->assertSame(42, $writtenEvents[0]->data['value']);
     }
 
     public function testSupportsTheIsSubjectOnEventIdPrecondition(): void
