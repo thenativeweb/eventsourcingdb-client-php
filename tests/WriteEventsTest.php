@@ -107,7 +107,7 @@ final class WriteEventsTest extends TestCase
 
     public function testRejectsWritingToEmptySubjectWhenUsingTheIsSubjectPopulatedPrecondition(): void
     {
-        $secondEvent = new EventCandidate(
+        $eventCandidate = new EventCandidate(
             source: 'https://www.eventsourcingdb.io',
             subject: '/test',
             type: 'io.eventsourcingdb.test',
@@ -120,7 +120,7 @@ final class WriteEventsTest extends TestCase
 
         $this->client->writeEvents(
             [
-                $secondEvent,
+                $eventCandidate,
             ],
             [
                 new IsSubjectPopulated('/test'),
