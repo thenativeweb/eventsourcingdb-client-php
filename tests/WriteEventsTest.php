@@ -46,7 +46,7 @@ final class WriteEventsTest extends TestCase
             ],
         );
 
-        $eventCandidate = new EventCandidate(
+        $secondEvent = new EventCandidate(
             source: 'https://www.eventsourcingdb.io',
             subject: '/test',
             type: 'io.eventsourcingdb.test',
@@ -120,7 +120,7 @@ final class WriteEventsTest extends TestCase
 
         $this->client->writeEvents(
             [
-                $eventCandidate,
+                $secondEvent,
             ],
             [
                 new IsSubjectPopulated('/test'),
