@@ -57,26 +57,28 @@ final class Container
             '--http-enabled',
             '--https-enabled=false',
         ];
-        $content = [];
+
+        $container = (new GenericContainer("{$this->imageName}:{$this->imageTag}"))
+            ->withExposedPorts($this->internalPort)
+            ->withCommand($command);
 
         if ($this->signingKey instanceof SigningKey) {
-            $command[] = '--signing-key-file';
-            $command[] = '/etc/esdb/signing-key.pem';
+            // Create a temporary file with the signing key
+            $tempFile = tempnam(sys_get_temp_dir(), 'esdb_signing_key_');
+            if ($tempFile === false) {
+                throw new RuntimeException('Failed to create temporary file for signing key.');
+            }
+            file_put_contents($tempFile, $this->signingKey->privateKeyPem);
 
-            $content[] = [
-                'content' => $this->signingKey->privateKeyPem,
-                'target' => '/etc/esdb/signing-key.pem',
-                'mode' => 0o777,
-            ];
+            // Mount the temp file into the container
+            $command[] = '--signing-key-file';
+            $command[] = '/tmp/signing-key.pem';
+            $container = $container
+                ->withCommand($command)
+                ->withMount($tempFile, '/tmp/signing-key.pem');
         }
 
-        $container =
-            (new GenericContainer("{$this->imageName}:{$this->imageTag}"))
-                ->withExposedPorts($this->internalPort)
-                ->withCommand($command)
-                ->withCopyContentToContainer($content)
-                ->withWait((new WaitForHttp($this->internalPort, 20000))->withPath('/api/v1/ping'))
-        ;
+        $container = $container->withWait((new WaitForHttp($this->internalPort, 20000))->withPath('/api/v1/ping'));
 
         try {
             $this->container = $container->start();
