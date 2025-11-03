@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Thenativeweb\Eventsourcingdb\Tests;
 
+use Exception;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 use Thenativeweb\Eventsourcingdb\CloudEvent;
