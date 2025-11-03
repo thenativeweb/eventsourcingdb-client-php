@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "f741ba4cb9f3b4296474c50db2490b73",
+    "content-hash": "99ee7a4b5c1565d60ca53c6eb3f40fc2",
     "packages": [
         {
             "name": "beluga-php/docker-php",
@@ -3091,16 +3091,16 @@
         },
         {
             "name": "rector/rector",
-            "version": "2.2.6",
+            "version": "2.2.5",
             "source": {
                 "type": "git",
                 "url": "https://github.com/rectorphp/rector.git",
-                "reference": "5c5bbc956b9a056a26cb593379253104b7ed9c2d"
+                "reference": "63729e17f54b5b7eb7e0f28d1e41ddcb0e2925bb"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/rectorphp/rector/zipball/5c5bbc956b9a056a26cb593379253104b7ed9c2d",
-                "reference": "5c5bbc956b9a056a26cb593379253104b7ed9c2d",
+                "url": "https://api.github.com/repos/rectorphp/rector/zipball/63729e17f54b5b7eb7e0f28d1e41ddcb0e2925bb",
+                "reference": "63729e17f54b5b7eb7e0f28d1e41ddcb0e2925bb",
                 "shasum": ""
             },
             "require": {
@@ -3139,7 +3139,7 @@
             ],
             "support": {
                 "issues": "https://github.com/rectorphp/rector/issues",
-                "source": "https://github.com/rectorphp/rector/tree/2.2.6"
+                "source": "https://github.com/rectorphp/rector/tree/2.2.5"
             },
             "funding": [
                 {
@@ -3147,7 +3147,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2025-10-27T11:35:56+00:00"
+            "time": "2025-10-24T00:56:28+00:00"
         },
         {
             "name": "sebastian/cli-parser",
