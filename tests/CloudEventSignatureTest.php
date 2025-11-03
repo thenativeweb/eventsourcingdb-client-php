@@ -38,7 +38,7 @@ final class CloudEventSignatureTest extends TestCase
             type: 'io.eventsourcingdb.test',
             data: [
                 'value' => 23,
-            ],
+            ]
         );
 
         $writtenEvents = $client->writeEvents([
@@ -76,7 +76,7 @@ final class CloudEventSignatureTest extends TestCase
             type: 'io.eventsourcingdb.test',
             data: [
                 'value' => 23,
-            ],
+            ]
         );
 
         $writtenEvents = $client->writeEvents([
@@ -131,7 +131,7 @@ final class CloudEventSignatureTest extends TestCase
             type: 'io.eventsourcingdb.test',
             data: [
                 'value' => 23,
-            ],
+            ]
         );
 
         $writtenEvents = $client->writeEvents([
@@ -186,7 +186,7 @@ final class CloudEventSignatureTest extends TestCase
             type: 'io.eventsourcingdb.test',
             data: [
                 'value' => 23,
-            ],
+            ]
         );
 
         $writtenEvents = $client->writeEvents([

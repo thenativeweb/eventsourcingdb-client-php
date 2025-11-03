@@ -17,8 +17,8 @@ final class RegisterEventSchemaTest extends TestCase
             'properties' => [
                 'value' => [
                     'type' => 'number',
-                ],
-            ],
+                ]
+            ]
             'required' => ['value'],
             'additionalProperties' => false,
         ];
@@ -36,8 +36,8 @@ final class RegisterEventSchemaTest extends TestCase
             'properties' => [
                 'value' => [
                     'type' => 'number',
-                ],
-            ],
+                ]
+            ]
             'required' => ['value'],
             'additionalProperties' => false,
         ];

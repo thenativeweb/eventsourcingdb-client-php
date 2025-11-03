@@ -21,7 +21,7 @@ final class CloudEventTest extends TestCase
             type: 'io.eventsourcingdb.test',
             data: [
                 'value' => 23,
-            ],
+            ]
         );
 
         $writtenEvents = $this->client->writeEvents([
@@ -47,7 +47,7 @@ final class CloudEventTest extends TestCase
             type: 'io.eventsourcingdb.test',
             data: [
                 'value' => 23,
-            ],
+            ]
         );
 
         $writtenEvents = $this->client->writeEvents([

@@ -28,7 +28,7 @@ final class RunEventQlQueryTest extends TestCase
             type: 'io.eventsourcingdb.test',
             data: [
                 'value' => 23,
-            ],
+            ]
         );
 
         $secondEvent = new EventCandidate(
@@ -37,7 +37,7 @@ final class RunEventQlQueryTest extends TestCase
             type: 'io.eventsourcingdb.test',
             data: [
                 'value' => 42,
-            ],
+            ]
         );
 
         $this->client->writeEvents([

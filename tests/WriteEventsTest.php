@@ -23,7 +23,7 @@ final class WriteEventsTest extends TestCase
             type: 'io.eventsourcingdb.test',
             data: [
                 'value' => 42,
-            ],
+            ]
         );
 
         $writtenEvents = $this->client->writeEvents([
@@ -43,7 +43,7 @@ final class WriteEventsTest extends TestCase
             type: 'io.eventsourcingdb.test',
             data: [
                 'value' => 23,
-            ],
+            ]
         );
 
         $secondEvent = new EventCandidate(
@@ -52,7 +52,7 @@ final class WriteEventsTest extends TestCase
             type: 'io.eventsourcingdb.test',
             data: [
                 'value' => 42,
-            ],
+            ]
         );
 
         $writtenEvents = $this->client->writeEvents([
@@ -77,7 +77,7 @@ final class WriteEventsTest extends TestCase
             type: 'io.eventsourcingdb.test',
             data: [
                 'value' => 23,
-            ],
+            ]
         );
 
         $this->client->writeEvents([
@@ -90,7 +90,7 @@ final class WriteEventsTest extends TestCase
             type: 'io.eventsourcingdb.test',
             data: [
                 'value' => 42,
-            ],
+            ]
         );
 
         $this->expectExceptionMessage("Failed to write events, got HTTP status code '409', expected '200'");
@@ -98,10 +98,10 @@ final class WriteEventsTest extends TestCase
         $this->client->writeEvents(
             [
                 $secondEvent,
-            ],
+            ]
             [
                 new IsSubjectPristine('/test'),
-            ],
+            ]
         );
     }
 
@@ -113,7 +113,7 @@ final class WriteEventsTest extends TestCase
             type: 'io.eventsourcingdb.test',
             data: [
                 'value' => 42,
-            ],
+            ]
         );
 
         $this->expectExceptionMessage("Failed to write events, got HTTP status code '409', expected '200'");
@@ -121,10 +121,10 @@ final class WriteEventsTest extends TestCase
         $this->client->writeEvents(
             [
                 $eventCandidate,
-            ],
+            ]
             [
                 new IsSubjectPopulated('/test'),
-            ],
+            ]
         );
     }
 
@@ -136,7 +136,7 @@ final class WriteEventsTest extends TestCase
             type: 'io.eventsourcingdb.test',
             data: [
                 'value' => 23,
-            ],
+            ]
         );
 
         $secondEvent = new EventCandidate(
@@ -145,7 +145,7 @@ final class WriteEventsTest extends TestCase
             type: 'io.eventsourcingdb.test',
             data: [
                 'value' => 42,
-            ],
+            ]
         );
 
         $this->client->writeEvents([
@@ -155,10 +155,10 @@ final class WriteEventsTest extends TestCase
         $writtenEvents = $this->client->writeEvents(
             [
                 $secondEvent,
-            ],
+            ]
             [
                 new IsSubjectPopulated('/test'),
-            ],
+            ]
         );
 
         $this->assertCount(1, $writtenEvents);
@@ -175,7 +175,7 @@ final class WriteEventsTest extends TestCase
             type: 'io.eventsourcingdb.test',
             data: [
                 'value' => 23,
-            ],
+            ]
         );
 
         $this->client->writeEvents([
@@ -188,17 +188,17 @@ final class WriteEventsTest extends TestCase
             type: 'io.eventsourcingdb.test',
             data: [
                 'value' => 42,
-            ],
+            ]
         );
 
         $this->expectExceptionMessage("Failed to write events, got HTTP status code '409', expected '200'");
         $this->client->writeEvents(
             [
                 $secondEvent,
-            ],
+            ]
             [
                 new IsSubjectOnEventId('/test', '1'),
-            ],
+            ]
         );
     }
 
@@ -210,7 +210,7 @@ final class WriteEventsTest extends TestCase
             type: 'io.eventsourcingdb.test',
             data: [
                 'value' => 23,
-            ],
+            ]
         );
 
         $this->client->writeEvents([
@@ -223,17 +223,17 @@ final class WriteEventsTest extends TestCase
             type: 'io.eventsourcingdb.test',
             data: [
                 'value' => 42,
-            ],
+            ]
         );
 
         $this->expectExceptionMessage("Failed to write events, got HTTP status code '409', expected '200'");
         $this->client->writeEvents(
             [
                 $secondEvent,
-            ],
+            ]
             [
                 new IsEventQlQueryTrue('FROM e IN events PROJECT INTO COUNT() == 0'),
-            ],
+            ]
         );
     }
 }

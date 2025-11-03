@@ -37,7 +37,7 @@ final class ReadEventsTest extends TestCase
             type: 'io.eventsourcingdb.test',
             data: [
                 'value' => 23,
-            ],
+            ]
         );
 
         $secondEvent = new EventCandidate(
@@ -46,7 +46,7 @@ final class ReadEventsTest extends TestCase
             type: 'io.eventsourcingdb.test',
             data: [
                 'value' => 42,
-            ],
+            ]
         );
 
         $this->client->writeEvents([
@@ -72,7 +72,7 @@ final class ReadEventsTest extends TestCase
             type: 'io.eventsourcingdb.test',
             data: [
                 'value' => 23,
-            ],
+            ]
         );
 
         $secondEvent = new EventCandidate(
@@ -81,7 +81,7 @@ final class ReadEventsTest extends TestCase
             type: 'io.eventsourcingdb.test',
             data: [
                 'value' => 42,
-            ],
+            ]
         );
 
         $this->client->writeEvents([
@@ -107,7 +107,7 @@ final class ReadEventsTest extends TestCase
             type: 'io.eventsourcingdb.test',
             data: [
                 'value' => 23,
-            ],
+            ]
         );
 
         $secondEvent = new EventCandidate(
@@ -116,7 +116,7 @@ final class ReadEventsTest extends TestCase
             type: 'io.eventsourcingdb.test',
             data: [
                 'value' => 42,
-            ],
+            ]
         );
 
         $this->client->writeEvents([
@@ -151,7 +151,7 @@ final class ReadEventsTest extends TestCase
             type: 'io.eventsourcingdb.test',
             data: [
                 'value' => 23,
-            ],
+            ]
         );
 
         $secondEvent = new EventCandidate(
@@ -160,7 +160,7 @@ final class ReadEventsTest extends TestCase
             type: 'io.eventsourcingdb.test',
             data: [
                 'value' => 42,
-            ],
+            ]
         );
 
         $this->client->writeEvents([
@@ -195,7 +195,7 @@ final class ReadEventsTest extends TestCase
             type: 'io.eventsourcingdb.test',
             data: [
                 'value' => 23,
-            ],
+            ]
         );
 
         $secondEvent = new EventCandidate(
@@ -204,7 +204,7 @@ final class ReadEventsTest extends TestCase
             type: 'io.eventsourcingdb.test',
             data: [
                 'value' => 42,
-            ],
+            ]
         );
 
         $this->client->writeEvents([
@@ -236,7 +236,7 @@ final class ReadEventsTest extends TestCase
             type: 'io.eventsourcingdb.test',
             data: [
                 'value' => 23,
-            ],
+            ]
         );
 
         $secondEvent = new EventCandidate(
@@ -245,7 +245,7 @@ final class ReadEventsTest extends TestCase
             type: 'io.eventsourcingdb.test',
             data: [
                 'value' => 42,
-            ],
+            ]
         );
 
         $this->client->writeEvents([
@@ -277,7 +277,7 @@ final class ReadEventsTest extends TestCase
             type: 'io.eventsourcingdb.test.foo',
             data: [
                 'value' => 23,
-            ],
+            ]
         );
 
         $secondEvent = new EventCandidate(
@@ -286,7 +286,7 @@ final class ReadEventsTest extends TestCase
             type: 'io.eventsourcingdb.test.bar',
             data: [
                 'value' => 42,
-            ],
+            ]
         );
 
         $this->client->writeEvents([
