@@ -58,6 +58,11 @@ final class Container
             '--https-enabled=false',
         ];
 
+        if ($this->signingKey instanceof SigningKey) {
+            $command[] = '--signing-key-file';
+            $command[] = '/tmp/signing-key.pem';
+        }
+
         $container = (new GenericContainer("{$this->imageName}:{$this->imageTag}"))
             ->withExposedPorts($this->internalPort)
             ->withCommand($command);
@@ -71,11 +76,7 @@ final class Container
             file_put_contents($tempFile, $this->signingKey->privateKeyPem);
 
             // Mount the temp file into the container
-            $command[] = '--signing-key-file';
-            $command[] = '/tmp/signing-key.pem';
-            $container = $container
-                ->withCommand($command)
-                ->withMount($tempFile, '/tmp/signing-key.pem');
+            $container = $container->withMount($tempFile, '/tmp/signing-key.pem');
         }
 
         $container = $container->withWait((new WaitForHttp($this->internalPort, 20000))->withPath('/api/v1/ping'));
