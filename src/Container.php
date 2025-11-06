@@ -18,6 +18,7 @@ final class Container
     private string $apiToken = 'secret';
     private ?SigningKey $signingKey = null;
     private ?StartedGenericContainer $container = null;
+    private ?string $tempSigningKeyFile = null;
 
     public function withImageTag(string $tag): self
     {
@@ -68,15 +69,14 @@ final class Container
             ->withCommand($command);
 
         if ($this->signingKey instanceof SigningKey) {
-            // Create a temporary file with the signing key
-            $tempFile = tempnam(sys_get_temp_dir(), 'esdb_signing_key_');
-            if ($tempFile === false) {
-                throw new RuntimeException('Failed to create temporary file for signing key.');
-            }
-            file_put_contents($tempFile, $this->signingKey->privateKeyPem);
+            // Create a temporary file with the signing key in the current directory
+            // Using current directory instead of sys_get_temp_dir() for better CI compatibility
+            $this->tempSigningKeyFile = getcwd() . '/.esdb_signing_key_' . uniqid();
+            file_put_contents($this->tempSigningKeyFile, $this->signingKey->privateKeyPem);
+            chmod($this->tempSigningKeyFile, 0o644);
 
             // Mount the temp file into the container
-            $container = $container->withMount($tempFile, '/tmp/signing-key.pem');
+            $container = $container->withMount($this->tempSigningKeyFile, '/tmp/signing-key.pem');
         }
 
         $container = $container->withWait((new WaitForHttp($this->internalPort, 20000))->withPath('/api/v1/ping'));
@@ -141,6 +141,12 @@ final class Container
         if ($this->container instanceof StartedGenericContainer) {
             $this->container->stop();
             $this->container = null;
+        }
+
+        // Clean up temporary signing key file
+        if ($this->tempSigningKeyFile !== null && file_exists($this->tempSigningKeyFile)) {
+            unlink($this->tempSigningKeyFile);
+            $this->tempSigningKeyFile = null;
         }
     }
 
