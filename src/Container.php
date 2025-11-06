@@ -61,7 +61,7 @@ final class Container
 
         if ($this->signingKey instanceof SigningKey) {
             $command[] = '--signing-key-file';
-            $command[] = '/tmp/signing-key.pem';
+            $command[] = '/etc/esdb/signing-key.pem';
         }
 
         $container = (new GenericContainer("{$this->imageName}:{$this->imageTag}"))
@@ -70,13 +70,13 @@ final class Container
 
         if ($this->signingKey instanceof SigningKey) {
             // Create a temporary file with the signing key in the current directory
-            // Using current directory instead of sys_get_temp_dir() for better CI compatibility
+            // Using current directory instead of sys_get_temp_dir() for better Docker mount compatibility in CI
             $this->tempSigningKeyFile = getcwd() . '/.esdb_signing_key_' . uniqid();
             file_put_contents($this->tempSigningKeyFile, $this->signingKey->privateKeyPem);
             chmod($this->tempSigningKeyFile, 0o644);
 
-            // Mount the temp file into the container
-            $container = $container->withMount($this->tempSigningKeyFile, '/tmp/signing-key.pem');
+            // Mount the temp file into the container at the originally intended location
+            $container = $container->withMount($this->tempSigningKeyFile, '/etc/esdb/signing-key.pem');
         }
 
         $container = $container->withWait((new WaitForHttp($this->internalPort, 20000))->withPath('/api/v1/ping'));
