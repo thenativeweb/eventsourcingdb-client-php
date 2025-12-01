@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Rector\CodeQuality\Rector\FunctionLike\SimplifyUselessVariableRector;
+use Rector\CodingStyle\Rector\ClassLike\NewlineBetweenClassLikeStmtsRector;
 use Rector\CodingStyle\Rector\Encapsed\EncapsedStringsToSprintfRector;
 use Rector\CodingStyle\Rector\Stmt\NewlineAfterStatementRector;
 use Rector\Naming\Rector\Class_\RenamePropertyToMatchTypeRector;
@@ -37,4 +38,5 @@ return RectorConfig::configure()
         NewlineAfterStatementRector::class,
         RenamePropertyToMatchTypeRector::class,
         SimplifyUselessVariableRector::class,
+        NewlineBetweenClassLikeStmtsRector::class,
     ]);
