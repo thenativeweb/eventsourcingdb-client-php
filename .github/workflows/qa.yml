@@ -14,11 +14,11 @@ jobs:
 
     strategy:
       matrix:
-        version: [ '8.2', '8.3', '8.4', 'latest' ]
+        version: [ '8.2', '8.3', '8.4', '8.5', 'latest' ]
 
     steps:
     - name: Clone repository
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
     - name: Use PHP
       uses: shivammathur/setup-php@v2
       with:

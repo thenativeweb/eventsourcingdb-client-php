@@ -18,6 +18,7 @@ final class Container
     private string $apiToken = 'secret';
     private ?SigningKey $signingKey = null;
     private ?StartedGenericContainer $container = null;
+    private ?string $tempSigningKeyFile = null;
 
     public function withImageTag(string $tag): self
     {
@@ -57,26 +58,25 @@ final class Container
             '--http-enabled',
             '--https-enabled=false',
         ];
-        $content = [];
 
         if ($this->signingKey instanceof SigningKey) {
             $command[] = '--signing-key-file';
             $command[] = '/etc/esdb/signing-key.pem';
-
-            $content[] = [
-                'content' => $this->signingKey->privateKeyPem,
-                'target' => '/etc/esdb/signing-key.pem',
-                'mode' => 0o777,
-            ];
         }
 
-        $container =
-            (new GenericContainer("{$this->imageName}:{$this->imageTag}"))
-                ->withExposedPorts($this->internalPort)
-                ->withCommand($command)
-                ->withCopyContentToContainer($content)
-                ->withWait((new WaitForHttp($this->internalPort, 20000))->withPath('/api/v1/ping'))
-        ;
+        $container = (new GenericContainer("{$this->imageName}:{$this->imageTag}"))
+            ->withExposedPorts($this->internalPort)
+            ->withCommand($command);
+
+        if ($this->signingKey instanceof SigningKey) {
+            $this->tempSigningKeyFile = getcwd() . '/.esdb_signing_key_' . uniqid();
+            file_put_contents($this->tempSigningKeyFile, $this->signingKey->privateKeyPem);
+            chmod($this->tempSigningKeyFile, 0o644);
+
+            $container = $container->withMount($this->tempSigningKeyFile, '/etc/esdb/signing-key.pem');
+        }
+
+        $container = $container->withWait((new WaitForHttp($this->internalPort, 20000))->withPath('/api/v1/ping'));
 
         try {
             $this->container = $container->start();
@@ -138,6 +138,11 @@ final class Container
         if ($this->container instanceof StartedGenericContainer) {
             $this->container->stop();
             $this->container = null;
+        }
+
+        if ($this->tempSigningKeyFile !== null && file_exists($this->tempSigningKeyFile)) {
+            unlink($this->tempSigningKeyFile);
+            $this->tempSigningKeyFile = null;
         }
     }
 
