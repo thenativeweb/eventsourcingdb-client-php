@@ -8,7 +8,7 @@ use Exception;
 use RuntimeException;
 use Testcontainers\Container\GenericContainer;
 use Testcontainers\Container\StartedGenericContainer;
-use Thenativeweb\Eventsourcingdb\TestContainer\WaitForHttp;
+use Testcontainers\Wait\WaitForHttp;
 
 final class Container
 {
