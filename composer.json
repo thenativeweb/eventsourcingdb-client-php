@@ -34,7 +34,7 @@
     "phpstan/phpstan": "2.1.33",
     "phpunit/phpunit": "11.5.21",
     "rector/rector": "2.3.0",
-    "symplify/easy-coding-standard": "13.0.0"
+    "symplify/easy-coding-standard": "13.0.4"
   },
   "scripts": {
     "analyze": [
