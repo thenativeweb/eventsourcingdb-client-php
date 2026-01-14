@@ -11,8 +11,8 @@ use Thenativeweb\Eventsourcingdb\CloudEvent;
 use Thenativeweb\Eventsourcingdb\Container;
 use Thenativeweb\Eventsourcingdb\EventCandidate;
 use Thenativeweb\Eventsourcingdb\SigningKey;
-use Thenativeweb\Eventsourcingdb\Tests\Trait\ReflectionTestTrait;
 use function Thenativeweb\Eventsourcingdb\Tests\Fn\getImageVersionFromDockerfile;
+use Thenativeweb\Eventsourcingdb\Tests\Trait\ReflectionTestTrait;
 
 final class CloudEventSignatureTest extends TestCase
 {
