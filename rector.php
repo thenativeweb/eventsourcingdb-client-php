@@ -7,6 +7,7 @@ use Rector\CodingStyle\Rector\ClassLike\NewlineBetweenClassLikeStmtsRector;
 use Rector\CodingStyle\Rector\Encapsed\EncapsedStringsToSprintfRector;
 use Rector\CodingStyle\Rector\Stmt\NewlineAfterStatementRector;
 use Rector\Naming\Rector\Class_\RenamePropertyToMatchTypeRector;
+use Rector\PHPUnit\CodeQuality\Rector\ClassMethod\BareCreateMockAssignToDirectUseRector;
 use Rector\Config\RectorConfig;
 use Rector\ValueObject\PhpVersion;
 
@@ -39,4 +40,5 @@ return RectorConfig::configure()
         RenamePropertyToMatchTypeRector::class,
         SimplifyUselessVariableRector::class,
         NewlineBetweenClassLikeStmtsRector::class,
+        BareCreateMockAssignToDirectUseRector::class,
     ]);
