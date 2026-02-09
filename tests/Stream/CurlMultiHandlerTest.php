@@ -60,7 +60,7 @@ final class CurlMultiHandlerTest extends TestCase
 
     public function testAddHandleSetsQueuesAndHandle(): void
     {
-        $request = $this->createMock(Request::class);
+        $request = $this->createStub(Request::class);
 
         $curlMultiHandler = new CurlMultiHandler();
         $curlMultiHandler->addHandle($request);
