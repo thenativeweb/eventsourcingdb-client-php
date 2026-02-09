@@ -29,7 +29,7 @@ final class ResponseTest extends TestCase
 
     public function testGetStreamReturnsProvidedStream(): void
     {
-        $stream = $this->createMock(Stream::class);
+        $stream = $this->createStub(Stream::class);
         $response = new Response(200, [], $stream);
 
         $this->assertSame($stream, $response->getStream());
