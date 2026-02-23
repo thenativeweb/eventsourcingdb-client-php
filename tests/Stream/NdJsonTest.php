@@ -28,13 +28,13 @@ final class NdJsonTest extends TestCase
             ],
         ]) . "\n";
         $json3 = json_encode([
-                'type' => 'row',
-                'payload' => 'io.test.v1',
-            ]) . "\n";
+            'type' => 'row',
+            'payload' => 'io.test.v1',
+        ]) . "\n";
         $json4 = json_encode([
-                'type' => 'row',
-                'payload' => 4,
-            ]) . "\n";
+            'type' => 'row',
+            'payload' => 4,
+        ]) . "\n";
 
         $stream = $this->createMock(Stream::class);
         $stream->method('getIterator')
