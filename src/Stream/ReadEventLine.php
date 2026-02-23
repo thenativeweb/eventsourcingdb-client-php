@@ -8,7 +8,7 @@ final readonly class ReadEventLine
 {
     public function __construct(
         public string $type,
-        public array $payload,
+        public int|string|array $payload,
     ) {
     }
 }
