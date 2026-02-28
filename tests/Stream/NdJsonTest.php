@@ -35,14 +35,22 @@ final class NdJsonTest extends TestCase
             'type' => 'row',
             'payload' => 4,
         ]) . "\n";
+        $json5 = json_encode([
+            'type' => 'row',
+            'payload' => 1.2,
+        ]) . "\n";
+        $json6 = json_encode([
+            'type' => 'row',
+            'payload' => true,
+        ]) . "\n";
 
         $stream = $this->createMock(Stream::class);
         $stream->method('getIterator')
-            ->willReturn(new ArrayIterator([$json1, $json2, $json3, $json4]));
+            ->willReturn(new ArrayIterator([$json1, $json2, $json3, $json4, $json5, $json6]));
 
         $events = iterator_to_array(NdJson::readStream($stream));
 
-        $this->assertCount(4, $events);
+        $this->assertCount(6, $events);
         $this->assertInstanceOf(ReadEventLine::class, $events[0]);
         $this->assertSame('row', $events[0]->type);
         $this->assertSame([
@@ -62,6 +70,14 @@ final class NdJsonTest extends TestCase
         $this->assertInstanceOf(ReadEventLine::class, $events[3]);
         $this->assertSame('row', $events[3]->type);
         $this->assertSame(4, $events[3]->payload);
+
+        $this->assertInstanceOf(ReadEventLine::class, $events[4]);
+        $this->assertSame('row', $events[4]->type);
+        $this->assertEqualsWithDelta(1.2, $events[4]->payload, PHP_FLOAT_EPSILON);
+
+        $this->assertInstanceOf(ReadEventLine::class, $events[5]);
+        $this->assertSame('row', $events[5]->type);
+        $this->assertTrue($events[5]->payload);
     }
 
     public function testReadStreamSkipsEmptyLines(): void
