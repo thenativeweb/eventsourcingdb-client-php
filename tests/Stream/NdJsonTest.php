@@ -16,36 +16,68 @@ final class NdJsonTest extends TestCase
     public function testReadStreamYieldsEventLines(): void
     {
         $json1 = json_encode([
-            'type' => 'event1',
+            'type' => 'row',
             'payload' => [
                 'foo' => 'bar',
             ],
         ]) . "\n";
         $json2 = json_encode([
-            'type' => 'event2',
+            'type' => 'row',
             'payload' => [
                 'baz' => 'qux',
             ],
         ]) . "\n";
+        $json3 = json_encode([
+            'type' => 'row',
+            'payload' => 'io.test.v1',
+        ]) . "\n";
+        $json4 = json_encode([
+            'type' => 'row',
+            'payload' => 4,
+        ]) . "\n";
+        $json5 = json_encode([
+            'type' => 'row',
+            'payload' => 1.2,
+        ]) . "\n";
+        $json6 = json_encode([
+            'type' => 'row',
+            'payload' => true,
+        ]) . "\n";
 
         $stream = $this->createMock(Stream::class);
         $stream->method('getIterator')
-            ->willReturn(new ArrayIterator([$json1, $json2]));
+            ->willReturn(new ArrayIterator([$json1, $json2, $json3, $json4, $json5, $json6]));
 
         $events = iterator_to_array(NdJson::readStream($stream));
 
-        $this->assertCount(2, $events);
+        $this->assertCount(6, $events);
         $this->assertInstanceOf(ReadEventLine::class, $events[0]);
-        $this->assertSame('event1', $events[0]->type);
+        $this->assertSame('row', $events[0]->type);
         $this->assertSame([
             'foo' => 'bar',
         ], $events[0]->payload);
 
         $this->assertInstanceOf(ReadEventLine::class, $events[1]);
-        $this->assertSame('event2', $events[1]->type);
+        $this->assertSame('row', $events[1]->type);
         $this->assertSame([
             'baz' => 'qux',
         ], $events[1]->payload);
+
+        $this->assertInstanceOf(ReadEventLine::class, $events[2]);
+        $this->assertSame('row', $events[2]->type);
+        $this->assertSame('io.test.v1', $events[2]->payload);
+
+        $this->assertInstanceOf(ReadEventLine::class, $events[3]);
+        $this->assertSame('row', $events[3]->type);
+        $this->assertSame(4, $events[3]->payload);
+
+        $this->assertInstanceOf(ReadEventLine::class, $events[4]);
+        $this->assertSame('row', $events[4]->type);
+        $this->assertEqualsWithDelta(1.2, $events[4]->payload, PHP_FLOAT_EPSILON);
+
+        $this->assertInstanceOf(ReadEventLine::class, $events[5]);
+        $this->assertSame('row', $events[5]->type);
+        $this->assertTrue($events[5]->payload);
     }
 
     public function testReadStreamSkipsEmptyLines(): void
