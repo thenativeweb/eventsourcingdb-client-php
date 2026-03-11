@@ -6,37 +6,6 @@ namespace Thenativeweb\Eventsourcingdb;
 
 use JsonSerializable;
 
-enum Order: string
-{
-    case CHRONOLOGICAL = 'chronological';
-    case ANTICHRONOLOGICAL = 'antichronological';
-}
-
-enum ReadIfEventIsMissing: string
-{
-    case READ_NOTHING = 'read-nothing';
-    case READ_EVERYTHING = 'read-everything';
-}
-
-final readonly class ReadFromLatestEvent implements JsonSerializable
-{
-    public function __construct(
-        public string $subject,
-        public string $type,
-        public ReadIfEventIsMissing $ifEventIsMissing,
-    ) {
-    }
-
-    public function jsonSerialize(): array
-    {
-        return [
-            'subject' => $this->subject,
-            'type' => $this->type,
-            'ifEventIsMissing' => $this->ifEventIsMissing->value,
-        ];
-    }
-}
-
 final readonly class ReadEventsOptions implements JsonSerializable
 {
     public function __construct(

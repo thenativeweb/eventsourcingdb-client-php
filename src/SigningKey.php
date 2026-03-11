@@ -12,15 +12,6 @@ if (LESS_THAN_PHP_VERSION_84) {
     define('OPENSSL_KEYTYPE_ED25519', 5);
 }
 
-final readonly class Ed25519
-{
-    public function __construct(
-        public string $privateKey,
-        public string $publicKey,
-    ) {
-    }
-}
-
 final class SigningKey
 {
     public string $privateKeyPem;
