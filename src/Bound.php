@@ -6,12 +6,6 @@ namespace Thenativeweb\Eventsourcingdb;
 
 use JsonSerializable;
 
-enum BoundType: string
-{
-    case INCLUSIVE = 'inclusive';
-    case EXCLUSIVE = 'exclusive';
-}
-
 final readonly class Bound implements JsonSerializable
 {
     public function __construct(
