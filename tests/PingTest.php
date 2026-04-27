@@ -24,6 +24,8 @@ final class PingTest extends TestCase
         $client = new Client("http://non-existent-host:{$port}", $this->container->getApiToken());
 
         $this->expectException(\Throwable::class);
+        $this->expectExceptionMessage('Internal HttpClient: cURL handle execution failed with error: Could not resolve host: non-existent-host');
+
         $client->ping();
     }
 }

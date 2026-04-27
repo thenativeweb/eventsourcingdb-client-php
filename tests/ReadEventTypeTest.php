@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Thenativeweb\Eventsourcingdb\Tests;
 
 use PHPUnit\Framework\TestCase;
+use RuntimeException;
 use Thenativeweb\Eventsourcingdb\EventCandidate;
 use Thenativeweb\Eventsourcingdb\EventType;
 use Thenativeweb\Eventsourcingdb\Tests\Trait\ClientTestTrait;
@@ -15,14 +16,18 @@ final class ReadEventTypeTest extends TestCase
 
     public function testFailsIfTheEventTypeDoesNotExist(): void
     {
-        $this->expectExceptionMessage("Failed to read event type, got HTTP status code '404', expected '200'");
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage("Failed to read event type, event type 'non.existent.eventType' not found");
+        $this->expectExceptionCode(404);
 
         $this->client->readEventType('non.existent.eventType');
     }
 
     public function testFailsIfTheEventTypeIsMalformed(): void
     {
-        $this->expectExceptionMessage("Failed to read event type, got HTTP status code '400', expected '200'");
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage("Failed to read event type, invalid event type: 'malformed.eventType.'");
+        $this->expectExceptionCode(400);
 
         $this->client->readEventType('malformed.eventType.');
     }

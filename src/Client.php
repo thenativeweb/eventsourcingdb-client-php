@@ -8,6 +8,7 @@ use DateTimeImmutable;
 use RuntimeException;
 use Thenativeweb\Eventsourcingdb\Stream\HttpClient;
 use Thenativeweb\Eventsourcingdb\Stream\NdJson;
+use Thenativeweb\Eventsourcingdb\Stream\Response;
 
 final readonly class Client
 {
@@ -30,17 +31,9 @@ final readonly class Client
     public function ping(): void
     {
         $response = $this->httpClient->get('/api/v1/ping');
-        if (!$this->isValidServerHeader($response)) {
-            throw new RuntimeException('Server must be EventSourcingDB.');
-        }
-        $status = $response->getStatusCode();
 
-        if ($status !== 200) {
-            throw new RuntimeException(sprintf(
-                "Failed to ping, got HTTP status code '%d', expected '200'",
-                $status
-            ));
-        }
+        $this->throwIfNotValidServerHeader($response);
+        $this->throwIfNotSuccessStatusCode($response, 'Failed to ping');
 
         try {
             $data = $response->getStream()->getJsonData();
@@ -63,17 +56,9 @@ final readonly class Client
             '/api/v1/verify-api-token',
             $this->apiToken,
         );
-        if (!$this->isValidServerHeader($response)) {
-            throw new RuntimeException('Server must be EventSourcingDB.');
-        }
-        $status = $response->getStatusCode();
 
-        if ($status !== 200) {
-            throw new RuntimeException(sprintf(
-                "Failed to verify API token, got HTTP status code '%d', expected '200'",
-                $status
-            ));
-        }
+        $this->throwIfNotValidServerHeader($response);
+        $this->throwIfNotSuccessStatusCode($response, 'Failed to verify API token');
 
         try {
             $data = $response->getStream()->getJsonData();
@@ -104,17 +89,9 @@ final readonly class Client
             $this->apiToken,
             $requestBody,
         );
-        if (!$this->isValidServerHeader($response)) {
-            throw new RuntimeException('Server must be EventSourcingDB.');
-        }
-        $status = $response->getStatusCode();
 
-        if ($status !== 200) {
-            throw new RuntimeException(sprintf(
-                "Failed to write events, got HTTP status code '%d', expected '200'",
-                $status
-            ));
-        }
+        $this->throwIfNotValidServerHeader($response);
+        $this->throwIfNotSuccessStatusCode($response, 'Failed to write events');
 
         try {
             $data = $response->getStream()->getJsonData();
@@ -159,17 +136,9 @@ final readonly class Client
                 'options' => $readEventsOptions,
             ],
         );
-        if (!$this->isValidServerHeader($response)) {
-            throw new RuntimeException('Server must be EventSourcingDB.');
-        }
-        $status = $response->getStatusCode();
 
-        if ($status !== 200) {
-            throw new RuntimeException(sprintf(
-                "Failed to read events, got HTTP status code '%d', expected '200'",
-                $status
-            ));
-        }
+        $this->throwIfNotValidServerHeader($response);
+        $this->throwIfNotSuccessStatusCode($response, 'Failed to read events');
 
         foreach (NdJson::readStream($response->getStream()) as $eventLine) {
             switch ($eventLine->type) {
@@ -210,17 +179,9 @@ final readonly class Client
                 'query' => $query,
             ],
         );
-        if (!$this->isValidServerHeader($response)) {
-            throw new RuntimeException('Server must be EventSourcingDB.');
-        }
-        $status = $response->getStatusCode();
 
-        if ($status !== 200) {
-            throw new RuntimeException(sprintf(
-                "Failed to run EventQL query, got HTTP status code '%d', expected '200'",
-                $status
-            ));
-        }
+        $this->throwIfNotValidServerHeader($response);
+        $this->throwIfNotSuccessStatusCode($response, 'Failed to run EventQL query');
 
         foreach (NdJson::readStream($response->getStream()) as $eventLine) {
             switch ($eventLine->type) {
@@ -249,16 +210,9 @@ final readonly class Client
                 'options' => $observeEventsOptions,
             ],
         );
-        if (!$this->isValidServerHeader($response)) {
-            throw new RuntimeException('Server must be EventSourcingDB.');
-        }
-        $status = $response->getStatusCode();
-        if ($status !== 200) {
-            throw new RuntimeException(sprintf(
-                "Failed to observe events, got HTTP status code '%d', expected '200'",
-                $status
-            ));
-        }
+
+        $this->throwIfNotValidServerHeader($response);
+        $this->throwIfNotSuccessStatusCode($response, 'Failed to observe events');
 
         foreach (NdJson::readStream($response->getStream()) as $eventLine) {
             switch ($eventLine->type) {
@@ -302,16 +256,9 @@ final readonly class Client
                 'schema' => $schema,
             ],
         );
-        if (!$this->isValidServerHeader($response)) {
-            throw new RuntimeException('Server must be EventSourcingDB.');
-        }
-        $status = $response->getStatusCode();
-        if ($status !== 200) {
-            throw new RuntimeException(sprintf(
-                "Failed to register event schema, got HTTP status code '%d', expected '200'",
-                $status
-            ));
-        }
+
+        $this->throwIfNotValidServerHeader($response);
+        $this->throwIfNotSuccessStatusCode($response, 'Failed to register event schema');
     }
 
     public function readSubjects(string $baseSubject): iterable
@@ -323,16 +270,9 @@ final readonly class Client
                 'baseSubject' => $baseSubject,
             ],
         );
-        if (!$this->isValidServerHeader($response)) {
-            throw new RuntimeException('Server must be EventSourcingDB.');
-        }
-        $status = $response->getStatusCode();
-        if ($status !== 200) {
-            throw new RuntimeException(sprintf(
-                "Failed to read subjects, got HTTP status code '%d', expected '200'",
-                $status
-            ));
-        }
+
+        $this->throwIfNotValidServerHeader($response);
+        $this->throwIfNotSuccessStatusCode($response, 'Failed to read subjects');
 
         foreach (NdJson::readStream($response->getStream()) as $eventLine) {
             switch ($eventLine->type) {
@@ -357,16 +297,9 @@ final readonly class Client
             '/api/v1/read-event-types',
             $this->apiToken,
         );
-        if (!$this->isValidServerHeader($response)) {
-            throw new RuntimeException('Server must be EventSourcingDB.');
-        }
-        $status = $response->getStatusCode();
-        if ($status !== 200) {
-            throw new RuntimeException(sprintf(
-                "Failed to read event types, got HTTP status code '%d', expected '200'",
-                $status
-            ));
-        }
+
+        $this->throwIfNotValidServerHeader($response);
+        $this->throwIfNotSuccessStatusCode($response, 'Failed to read event types');
 
         foreach (NdJson::readStream($response->getStream()) as $eventLine) {
             switch ($eventLine->type) {
@@ -398,16 +331,9 @@ final readonly class Client
                 'eventType' => $eventType,
             ],
         );
-        if (!$this->isValidServerHeader($response)) {
-            throw new RuntimeException('Server must be EventSourcingDB.');
-        }
-        $status = $response->getStatusCode();
-        if ($status !== 200) {
-            throw new RuntimeException(sprintf(
-                "Failed to read event type, got HTTP status code '%d', expected '200'",
-                $status
-            ));
-        }
+
+        $this->throwIfNotValidServerHeader($response);
+        $this->throwIfNotSuccessStatusCode($response, 'Failed to read event type');
 
         try {
             $data = $response->getStream()->getJsonData();
@@ -426,13 +352,31 @@ final readonly class Client
         );
     }
 
-    private function isValidServerHeader(\Thenativeweb\Eventsourcingdb\Stream\Response $response): bool
+    private function throwIfNotValidServerHeader(Response $response): void
     {
         $serverHeader = $response->getHeader('Server');
 
         if ($serverHeader === []) {
-            return false;
+            throw new RuntimeException('Server Header is empty.');
         }
-        return str_starts_with($serverHeader[0], 'EventSourcingDB/');
+
+        if (!str_starts_with($serverHeader[0], 'EventSourcingDB/')) {
+            throw new RuntimeException('Server must be EventSourcingDB.');
+        }
+    }
+
+    private function throwIfNotSuccessStatusCode(Response $response, string $scope): void
+    {
+        $status = $response->getStatusCode();
+        if ($status !== 200) {
+            throw new RuntimeException(
+                message: sprintf(
+                    '%s, %s',
+                    $scope,
+                    $response->getStream()->getContents(),
+                ),
+                code: $status,
+            );
+        }
     }
 }
