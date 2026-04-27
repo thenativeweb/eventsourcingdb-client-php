@@ -48,7 +48,8 @@ final class RegisterEventSchemaTest extends TestCase
         $this->client->registerEventSchema($eventType, $schema);
 
         $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage("Failed to register event schema, got HTTP status code '409', expected '200'");
+        $this->expectExceptionMessage('Failed to register event schema, schema conflict: schema already exists');
+        $this->expectExceptionCode(409);
 
         $this->client->registerEventSchema($eventType, $schema);
     }

@@ -26,6 +26,88 @@ final class CloudEventSignatureTest extends TestCase
         parent::tearDown();
     }
 
+    public function testThrowsAnErrorIfVerificationKeyIsEmpty(): void
+    {
+        $imageVersion = getImageVersionFromDockerfile();
+        $container = (new Container())
+            ->withImageTag($imageVersion)
+            ->withSigningKey();
+        $container->start();
+        $this->container = $container;
+
+        $client = $container->getClient();
+
+        $writtenEvents = $client->writeEvents([
+            new EventCandidate(
+                source: 'https://www.eventsourcingdb.io',
+                subject: '/test',
+                type: 'io.eventsourcingdb.test',
+                data: [
+                    'value' => 23,
+                ],
+            ),
+        ]);
+
+        $this->assertCount(1, $writtenEvents);
+        $this->assertNotNull($writtenEvents[0]->signature);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Verification key must not be empty.');
+
+        $writtenEvents[0]->verifySignature('');
+    }
+
+    public function testThrowsAnErrorIfSignatureHasInvalidLength(): void
+    {
+        $imageVersion = getImageVersionFromDockerfile();
+        $container = (new Container())
+            ->withImageTag($imageVersion)
+            ->withSigningKey();
+        $container->start();
+        $this->container = $container;
+
+        $client = $container->getClient();
+
+        $writtenEvents = $client->writeEvents([
+            new EventCandidate(
+                source: 'https://www.eventsourcingdb.io',
+                subject: '/test',
+                type: 'io.eventsourcingdb.test',
+                data: [
+                    'value' => 23,
+                ],
+            ),
+        ]);
+
+        $this->assertCount(1, $writtenEvents);
+
+        $writtenEvent = $writtenEvents[0];
+
+        $this->assertNotNull($writtenEvent->signature);
+
+        $tamperedCloudEvent = new CloudEvent(
+            specVersion: $writtenEvent->specVersion,
+            id: $writtenEvent->id,
+            time: $writtenEvent->time,
+            timeFromServer: $this->getPropertyValue($writtenEvent, 'timeFromServer'),
+            source: $writtenEvent->source,
+            subject: $writtenEvent->subject,
+            type: $writtenEvent->type,
+            dataContentType: $writtenEvent->dataContentType,
+            data: $writtenEvent->data,
+            hash: $writtenEvent->hash,
+            predecessorHash: $writtenEvent->predecessorHash,
+            traceParent: $writtenEvent->traceParent,
+            traceState: $writtenEvent->traceState,
+            signature: 'esdb:signature:v1:deadbeef',
+        );
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Signature has an invalid length: expected 64 bytes, got 4 bytes.');
+
+        $tamperedCloudEvent->verifySignature($container->getVerificationKey());
+    }
+
     public function testThrowsAnErrorIfTheSignatureIsNull(): void
     {
         $imageVersion = getImageVersionFromDockerfile();

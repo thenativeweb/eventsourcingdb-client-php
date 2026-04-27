@@ -24,7 +24,11 @@ final class VerifyApiTokenTest extends TestCase
         $baseUrl = $this->container->getBaseUrl();
         $apiToken = $this->container->getApiToken() . '-invalid';
         $client = new Client($baseUrl, $apiToken);
+
         $this->expectException(\Throwable::class);
+        $this->expectExceptionMessage('Failed to verify API token, unauthorized');
+        $this->expectExceptionCode(401);
+
         $client->verifyApiToken();
     }
 }

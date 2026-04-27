@@ -80,8 +80,12 @@ final readonly class CloudEvent
             throw new RuntimeException('Failed to decode signature from hex.');
         }
 
-        if ($signatureBytes === '') {
-            throw new RuntimeException('Signature must not be empty.');
+        if (strlen($signatureBytes) !== SODIUM_CRYPTO_SIGN_BYTES) {
+            throw new RuntimeException(sprintf(
+                'Signature has an invalid length: expected %d bytes, got %d bytes.',
+                SODIUM_CRYPTO_SIGN_BYTES,
+                strlen($signatureBytes),
+            ));
         }
 
         $isSignatureValid = sodium_crypto_sign_verify_detached($signatureBytes, $this->hash, $verificationKey);

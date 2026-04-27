@@ -79,6 +79,8 @@ final class CloudEventTest extends TestCase
         );
 
         $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Failed to verify hash');
+
         $tamperedCloudEvent->verifyHash();
     }
 }

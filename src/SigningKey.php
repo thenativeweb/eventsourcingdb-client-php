@@ -14,9 +14,9 @@ if (LESS_THAN_PHP_VERSION_84) {
 
 final class SigningKey
 {
-    public string $privateKeyPem;
-    public string $publicKeyPem;
-    public Ed25519 $ed25519;
+    public readonly string $privateKeyPem;
+    public readonly string $publicKeyPem;
+    public readonly Ed25519 $ed25519;
 
     public function __construct()
     {
@@ -25,7 +25,7 @@ final class SigningKey
             $secretKey = sodium_crypto_sign_secretkey($keypair);
 
             $privateKey = substr($secretKey, 0, 32);
-            $publicKey = substr($secretKey, 32, 32);
+            $publicKey = sodium_crypto_sign_publickey($keypair);
 
             $this->privateKeyPem = $this->generatePem($privateKey, 'PRIVATE KEY');
             $this->publicKeyPem = $this->generatePem($publicKey, 'PUBLIC KEY');

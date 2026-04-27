@@ -95,7 +95,9 @@ final class WriteEventsTest extends TestCase
             ],
         );
 
-        $this->expectExceptionMessage("Failed to write events, got HTTP status code '409', expected '200'");
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Failed to write events, state conflict: precondition failed');
+        $this->expectExceptionCode(409);
 
         $this->client->writeEvents(
             [
@@ -118,7 +120,9 @@ final class WriteEventsTest extends TestCase
             ],
         );
 
-        $this->expectExceptionMessage("Failed to write events, got HTTP status code '409', expected '200'");
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Failed to write events, state conflict: precondition failed');
+        $this->expectExceptionCode(409);
 
         $this->client->writeEvents(
             [
@@ -193,7 +197,10 @@ final class WriteEventsTest extends TestCase
             ],
         );
 
-        $this->expectExceptionMessage("Failed to write events, got HTTP status code '409', expected '200'");
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Failed to write events, state conflict: precondition failed');
+        $this->expectExceptionCode(409);
+
         $this->client->writeEvents(
             [
                 $secondEvent,
@@ -228,7 +235,10 @@ final class WriteEventsTest extends TestCase
             ],
         );
 
-        $this->expectExceptionMessage("Failed to write events, got HTTP status code '409', expected '200'");
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Failed to write events, state conflict: precondition failed');
+        $this->expectExceptionCode(409);
+
         $this->client->writeEvents(
             [
                 $secondEvent,
