@@ -28,7 +28,7 @@ return RectorConfig::configure()
         instanceOf: true,
         earlyReturn: true,
         rectorPreset: true,
-        phpunitCodeQuality: true
+        phpunitCodeQuality: true,
     )
     ->withPaths([
         __DIR__ . '/src',
