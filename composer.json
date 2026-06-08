@@ -33,7 +33,7 @@
   "require-dev": {
     "phpstan/phpstan": "2.2.2",
     "phpunit/phpunit": "11.5.50",
-    "rector/rector": "2.4.4",
+    "rector/rector": "2.4.5",
     "symplify/easy-coding-standard": "13.1.5"
   },
   "scripts": {
