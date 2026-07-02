@@ -6,6 +6,9 @@ namespace Thenativeweb\Eventsourcingdb\Stream;
 
 use InvalidArgumentException;
 
+/**
+ * @see \Thenativeweb\Eventsourcingdb\Tests\Stream\HttpClientTest
+ */
 class HttpClient
 {
     private const SUPPORTED_METHODS = ['GET', 'POST'];

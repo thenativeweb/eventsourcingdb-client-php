@@ -7,6 +7,9 @@ namespace Thenativeweb\Eventsourcingdb;
 use DateTimeImmutable;
 use RuntimeException;
 
+/**
+ * @see \Thenativeweb\Eventsourcingdb\Tests\CloudEventTest
+ */
 final readonly class CloudEvent
 {
     public function __construct(

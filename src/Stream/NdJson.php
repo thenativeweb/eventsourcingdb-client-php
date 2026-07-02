@@ -6,6 +6,9 @@ namespace Thenativeweb\Eventsourcingdb\Stream;
 
 use RuntimeException;
 
+/**
+ * @see \Thenativeweb\Eventsourcingdb\Tests\Stream\NdJsonTest
+ */
 final readonly class NdJson
 {
     public static function readStream(Stream $stream): iterable

@@ -8,6 +8,9 @@ use CurlHandle;
 use CurlMultiHandle;
 use RuntimeException;
 
+/**
+ * @see \Thenativeweb\Eventsourcingdb\Tests\Stream\CurlMultiHandlerTest
+ */
 class CurlMultiHandler
 {
     private ?CurlHandle $curlHandle = null;

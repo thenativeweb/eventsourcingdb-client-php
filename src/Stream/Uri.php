@@ -7,6 +7,9 @@ namespace Thenativeweb\Eventsourcingdb\Stream;
 use InvalidArgumentException;
 use Stringable;
 
+/**
+ * @see \Thenativeweb\Eventsourcingdb\Tests\Stream\UriTest
+ */
 class Uri implements Stringable
 {
     private array $parseUrl;
