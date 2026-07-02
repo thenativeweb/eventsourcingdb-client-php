@@ -6,6 +6,9 @@ namespace Thenativeweb\Eventsourcingdb\Stream;
 
 use CurlHandle;
 
+/**
+ * @see \Thenativeweb\Eventsourcingdb\Tests\Stream\CurlFactoryTest
+ */
 class CurlFactory
 {
     public static function create(

@@ -6,6 +6,9 @@ namespace Thenativeweb\Eventsourcingdb\Stream;
 
 use InvalidArgumentException;
 
+/**
+ * @see \Thenativeweb\Eventsourcingdb\Tests\Stream\ResponseTest
+ */
 class Response
 {
     use MessageTrait;

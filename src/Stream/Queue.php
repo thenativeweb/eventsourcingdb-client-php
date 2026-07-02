@@ -8,6 +8,9 @@ use ArrayIterator;
 use IteratorAggregate;
 use Traversable;
 
+/**
+ * @see \Thenativeweb\Eventsourcingdb\Tests\Stream\QueueTest
+ */
 class Queue implements IteratorAggregate
 {
     public function __construct(

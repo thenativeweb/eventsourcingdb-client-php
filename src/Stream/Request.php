@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Thenativeweb\Eventsourcingdb\Stream;
 
+/**
+ * @see \Thenativeweb\Eventsourcingdb\Tests\Stream\RequestTest
+ */
 class Request
 {
     use MessageTrait;

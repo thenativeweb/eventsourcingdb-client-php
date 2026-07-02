@@ -9,6 +9,9 @@ use RuntimeException;
 use Stringable;
 use Traversable;
 
+/**
+ * @see \Thenativeweb\Eventsourcingdb\Tests\Stream\StreamTest
+ */
 readonly class Stream implements IteratorAggregate, Stringable
 {
     public function __construct(
