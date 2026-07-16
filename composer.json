@@ -31,10 +31,10 @@
     "testcontainers/testcontainers": "^1.0.10"
   },
   "require-dev": {
-    "phpstan/phpstan": "2.2.3",
+    "phpstan/phpstan": "2.2.5",
     "phpunit/phpunit": "11.5.50",
-    "rector/rector": "2.5.2",
-    "symplify/easy-coding-standard": "13.2.3"
+    "rector/rector": "2.5.4",
+    "symplify/easy-coding-standard": "13.2.6"
   },
   "scripts": {
     "analyze": [
