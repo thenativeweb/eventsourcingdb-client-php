@@ -27,16 +27,22 @@ final class CurlFactoryTest extends TestCase
         $this->writeQueueMock = $this->createMock(Queue::class);
         $this->uriMock = $this->createMock(Uri::class);
 
-        $this->requestMock->method('getUri')->willReturn($this->uriMock);
+        $this->requestMock->method('getUri')
+            ->willReturn($this->uriMock);
     }
 
     public function testCreateReturnsDefaultOptionsForHttp10(): void
     {
-        $this->requestMock->method('getProtocolVersion')->willReturn('1.0');
-        $this->requestMock->method('getMethod')->willReturnCallback(static fn (): string => 'GET');
-        $this->requestMock->method('getHeaders')->willReturn(['X-Test: value']);
-        $this->uriMock->method('__toString')->willReturn('http://example.com');
-        $this->uriMock->method('getScheme')->willReturn('http');
+        $this->requestMock->method('getProtocolVersion')
+            ->willReturn('1.0');
+        $this->requestMock->method('getMethod')
+            ->willReturnCallback(static fn (): string => 'GET');
+        $this->requestMock->method('getHeaders')
+            ->willReturn(['X-Test: value']);
+        $this->uriMock->method('__toString')
+            ->willReturn('http://example.com');
+        $this->uriMock->method('getScheme')
+            ->willReturn('http');
 
         $options = CurlFactory::create(
             $this->requestMock,
@@ -58,9 +64,12 @@ final class CurlFactoryTest extends TestCase
 
     public function testCreateSetsHttpVersion20(): void
     {
-        $this->requestMock->method('getProtocolVersion')->willReturn('2.0');
-        $this->uriMock->method('__toString')->willReturn('http://example.com');
-        $this->uriMock->method('getScheme')->willReturn('http');
+        $this->requestMock->method('getProtocolVersion')
+            ->willReturn('2.0');
+        $this->uriMock->method('__toString')
+            ->willReturn('http://example.com');
+        $this->uriMock->method('getScheme')
+            ->willReturn('http');
 
         $options = CurlFactory::create(
             $this->requestMock,
@@ -73,9 +82,12 @@ final class CurlFactoryTest extends TestCase
 
     public function testCreateSetsSslOptionsForHttps(): void
     {
-        $this->requestMock->method('getProtocolVersion')->willReturn('1.1');
-        $this->uriMock->method('__toString')->willReturn('https://example.com');
-        $this->uriMock->method('getScheme')->willReturn('https');
+        $this->requestMock->method('getProtocolVersion')
+            ->willReturn('1.1');
+        $this->uriMock->method('__toString')
+            ->willReturn('https://example.com');
+        $this->uriMock->method('getScheme')
+            ->willReturn('https');
 
         $options = CurlFactory::create(
             $this->requestMock,
@@ -90,9 +102,12 @@ final class CurlFactoryTest extends TestCase
 
     public function testCreateSetsTimeout(): void
     {
-        $this->requestMock->method('getProtocolVersion')->willReturn('1.1');
-        $this->uriMock->method('__toString')->willReturn('http://example.com');
-        $this->uriMock->method('getScheme')->willReturn('http');
+        $this->requestMock->method('getProtocolVersion')
+            ->willReturn('1.1');
+        $this->uriMock->method('__toString')
+            ->willReturn('http://example.com');
+        $this->uriMock->method('getScheme')
+            ->willReturn('http');
 
         $options = CurlFactory::create(
             $this->requestMock,
@@ -108,9 +123,12 @@ final class CurlFactoryTest extends TestCase
     {
         $body = '{"key":"value"}';
 
-        $this->requestMock->method('getBody')->willReturnCallback(static fn (): string => $body);
-        $this->uriMock->method('__toString')->willReturn('http://example.com');
-        $this->uriMock->method('getScheme')->willReturn('http');
+        $this->requestMock->method('getBody')
+            ->willReturnCallback(static fn (): string => $body);
+        $this->uriMock->method('__toString')
+            ->willReturn('http://example.com');
+        $this->uriMock->method('getScheme')
+            ->willReturn('http');
 
         $options = CurlFactory::create(
             $this->requestMock,
@@ -123,9 +141,12 @@ final class CurlFactoryTest extends TestCase
 
     public function testCreateSetsNoBodyForHeadMethod(): void
     {
-        $this->requestMock->method('getMethod')->willReturnCallback(static fn (): string => 'HEAD');
-        $this->uriMock->method('__toString')->willReturn('http://example.com');
-        $this->uriMock->method('getScheme')->willReturn('http');
+        $this->requestMock->method('getMethod')
+            ->willReturnCallback(static fn (): string => 'HEAD');
+        $this->uriMock->method('__toString')
+            ->willReturn('http://example.com');
+        $this->uriMock->method('getScheme')
+            ->willReturn('http');
 
         $options = CurlFactory::create(
             $this->requestMock,
@@ -139,8 +160,10 @@ final class CurlFactoryTest extends TestCase
 
     public function testHeaderFunctionWritesToQueue(): void
     {
-        $this->uriMock->method('__toString')->willReturn('http://example.com');
-        $this->uriMock->method('getScheme')->willReturn('http');
+        $this->uriMock->method('__toString')
+            ->willReturn('http://example.com');
+        $this->uriMock->method('getScheme')
+            ->willReturn('http');
 
         $this->headerQueueMock->expects($this->once())
             ->method('write')
@@ -159,8 +182,10 @@ final class CurlFactoryTest extends TestCase
 
     public function testWriteFunctionWritesToQueue(): void
     {
-        $this->uriMock->method('__toString')->willReturn('http://example.com');
-        $this->uriMock->method('getScheme')->willReturn('http');
+        $this->uriMock->method('__toString')
+            ->willReturn('http://example.com');
+        $this->uriMock->method('getScheme')
+            ->willReturn('http');
 
         $this->writeQueueMock->expects($this->once())
             ->method('write')
@@ -181,8 +206,10 @@ final class CurlFactoryTest extends TestCase
     {
         $acceptEncoding = ['gzip', 'deflate'];
 
-        $this->requestMock->method('hasHeader')->willReturn(true);
-        $this->requestMock->method('getHeader')->willReturn($acceptEncoding);
+        $this->requestMock->method('hasHeader')
+            ->willReturn(true);
+        $this->requestMock->method('getHeader')
+            ->willReturn($acceptEncoding);
 
         $options = CurlFactory::create(
             $this->requestMock,

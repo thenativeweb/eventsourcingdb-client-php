@@ -36,7 +36,8 @@ final readonly class Client
         $this->throwIfNotSuccessStatusCode($response, 'Failed to ping');
 
         try {
-            $data = $response->getStream()->getJsonData();
+            $data = $response->getStream()
+                ->getJsonData();
         } catch (RuntimeException $runtimeException) {
             throw new RuntimeException(
                 'Failed to ping: ' . $runtimeException->getMessage(),
@@ -61,7 +62,8 @@ final readonly class Client
         $this->throwIfNotSuccessStatusCode($response, 'Failed to verify API token');
 
         try {
-            $data = $response->getStream()->getJsonData();
+            $data = $response->getStream()
+                ->getJsonData();
         } catch (RuntimeException $runtimeException) {
             throw new RuntimeException(
                 'Failed to verify API token: ' . $runtimeException->getMessage(),
@@ -94,7 +96,8 @@ final readonly class Client
         $this->throwIfNotSuccessStatusCode($response, 'Failed to write events');
 
         try {
-            $data = $response->getStream()->getJsonData();
+            $data = $response->getStream()
+                ->getJsonData();
         } catch (RuntimeException $runtimeException) {
             throw new RuntimeException(
                 'Failed to read events, after writing: ' . $runtimeException->getMessage(),
@@ -336,7 +339,8 @@ final readonly class Client
         $this->throwIfNotSuccessStatusCode($response, 'Failed to read event type');
 
         try {
-            $data = $response->getStream()->getJsonData();
+            $data = $response->getStream()
+                ->getJsonData();
         } catch (RuntimeException $runtimeException) {
             throw new RuntimeException(
                 'Failed to read event type: ' . $runtimeException->getMessage(),
@@ -373,7 +377,8 @@ final readonly class Client
                 message: sprintf(
                     '%s, %s',
                     $scope,
-                    $response->getStream()->getContents(),
+                    $response->getStream()
+                        ->getContents(),
                 ),
                 code: $status,
             );
