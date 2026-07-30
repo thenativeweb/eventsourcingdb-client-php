@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "446846afaa03ea554d7e42871d460a6f",
+    "content-hash": "81e5c586b8bdb1d36bcc897882ff43ba",
     "packages": [
         {
             "name": "beluga-php/docker-php",
@@ -4237,16 +4237,16 @@
         },
         {
             "name": "symplify/easy-coding-standard",
-            "version": "13.2.7",
+            "version": "13.2.17",
             "source": {
                 "type": "git",
                 "url": "https://github.com/ecsphp/ecs.git",
-                "reference": "735c742244ae3b3b067d5aae3d1dd4b7a48759f7"
+                "reference": "f5f8131520fb7d3efcf348b72205372ea619fe0e"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/ecsphp/ecs/zipball/735c742244ae3b3b067d5aae3d1dd4b7a48759f7",
-                "reference": "735c742244ae3b3b067d5aae3d1dd4b7a48759f7",
+                "url": "https://api.github.com/repos/ecsphp/ecs/zipball/f5f8131520fb7d3efcf348b72205372ea619fe0e",
+                "reference": "f5f8131520fb7d3efcf348b72205372ea619fe0e",
                 "shasum": ""
             },
             "require": {
@@ -4281,9 +4281,9 @@
                 "static analysis"
             ],
             "support": {
-                "source": "https://github.com/ecsphp/ecs/tree/13.2.7"
+                "source": "https://github.com/ecsphp/ecs/tree/13.2.17"
             },
-            "time": "2026-07-11T07:53:39+00:00"
+            "time": "2026-07-22T20:02:43+00:00"
         },
         {
             "name": "theseer/tokenizer",
