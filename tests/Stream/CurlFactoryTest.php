@@ -13,10 +13,10 @@ use Thenativeweb\Eventsourcingdb\Stream\Uri;
 
 final class CurlFactoryTest extends TestCase
 {
-    private MockObject $requestMock;
-    private MockObject $headerQueueMock;
-    private MockObject $writeQueueMock;
-    private MockObject $uriMock;
+    private MockObject&Request $requestMock;
+    private MockObject&Queue $headerQueueMock;
+    private MockObject&Queue $writeQueueMock;
+    private MockObject&Uri $uriMock;
 
     protected function setUp(): void
     {
