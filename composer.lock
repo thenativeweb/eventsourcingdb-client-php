@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "2c6f6468134a96a05bc3994358a860b0",
+    "content-hash": "214a0b0c2e680e44c6c2a498137b5b8e",
     "packages": [
         {
             "name": "beluga-php/docker-php",
@@ -2619,11 +2619,11 @@
         },
         {
             "name": "phpstan/phpstan",
-            "version": "2.2.8",
+            "version": "2.2.9",
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/e285254e60f33c21902efef4a926ca0987c06804",
-                "reference": "e285254e60f33c21902efef4a926ca0987c06804",
+                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/13d6b4f347bad222da436580c8304fa6f83e6bd0",
+                "reference": "13d6b4f347bad222da436580c8304fa6f83e6bd0",
                 "shasum": ""
             },
             "require": {
@@ -2679,7 +2679,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-08-04T22:21:45+00:00"
+            "time": "2026-08-22T07:38:16+00:00"
         },
         {
             "name": "phpunit/php-code-coverage",
@@ -3139,16 +3139,16 @@
         },
         {
             "name": "rector/rector",
-            "version": "2.6.1",
+            "version": "2.6.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/rectorphp/rector.git",
-                "reference": "b8e68f058bca43e01a2e1caa51ef022d6551ed95"
+                "reference": "7e46709996a4b3dc59e1d6ecbb6a38ace335bd58"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/rectorphp/rector/zipball/b8e68f058bca43e01a2e1caa51ef022d6551ed95",
-                "reference": "b8e68f058bca43e01a2e1caa51ef022d6551ed95",
+                "url": "https://api.github.com/repos/rectorphp/rector/zipball/7e46709996a4b3dc59e1d6ecbb6a38ace335bd58",
+                "reference": "7e46709996a4b3dc59e1d6ecbb6a38ace335bd58",
                 "shasum": ""
             },
             "require": {
@@ -3187,7 +3187,7 @@
             ],
             "support": {
                 "issues": "https://github.com/rectorphp/rector/issues",
-                "source": "https://github.com/rectorphp/rector/tree/2.6.1"
+                "source": "https://github.com/rectorphp/rector/tree/2.6.3"
             },
             "funding": [
                 {
@@ -3195,7 +3195,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-08-03T17:30:34+00:00"
+            "time": "2026-08-18T22:01:18+00:00"
         },
         {
             "name": "sebastian/cli-parser",
@@ -4237,24 +4237,24 @@
         },
         {
             "name": "symplify/easy-coding-standard",
-            "version": "13.2.17",
+            "version": "13.2.19",
             "source": {
                 "type": "git",
                 "url": "https://github.com/ecsphp/ecs.git",
-                "reference": "f5f8131520fb7d3efcf348b72205372ea619fe0e"
+                "reference": "a2af21c295837302b095180659971029a8294200"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/ecsphp/ecs/zipball/f5f8131520fb7d3efcf348b72205372ea619fe0e",
-                "reference": "f5f8131520fb7d3efcf348b72205372ea619fe0e",
+                "url": "https://api.github.com/repos/ecsphp/ecs/zipball/a2af21c295837302b095180659971029a8294200",
+                "reference": "a2af21c295837302b095180659971029a8294200",
                 "shasum": ""
             },
             "require": {
                 "php": ">=7.2"
             },
             "conflict": {
-                "friendsofphp/php-cs-fixer": "<3.95.1",
-                "phpcsstandards/php_codesniffer": "<4.0.1",
+                "friendsofphp/php-cs-fixer": "<3.95.20",
+                "phpcsstandards/php_codesniffer": "<4.0.4",
                 "symplify/coding-standard": "<13.0"
             },
             "suggest": {
@@ -4281,9 +4281,9 @@
                 "static analysis"
             ],
             "support": {
-                "source": "https://github.com/ecsphp/ecs/tree/13.2.17"
+                "source": "https://github.com/ecsphp/ecs/tree/13.2.19"
             },
-            "time": "2026-07-22T20:02:43+00:00"
+            "time": "2026-08-24T17:02:37+00:00"
         },
         {
             "name": "theseer/tokenizer",
