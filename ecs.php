@@ -11,7 +11,6 @@ return ECSConfig::configure()
     ->withPreparedSets(
         psr12: true,
         common: false,
-        symplify: false,
         arrays: true,
         comments: true,
         docblocks: true,
