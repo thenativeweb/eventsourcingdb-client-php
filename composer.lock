@@ -4,24 +4,24 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "d4995d0e51085af05f83b29601d367c2",
+    "content-hash": "22f9601c862bed5ffa5fae7a2b5f5560",
     "packages": [
         {
             "name": "beluga-php/docker-php",
-            "version": "v1.45.6",
+            "version": "v1.45.8",
             "source": {
                 "type": "git",
                 "url": "https://github.com/beluga-php/docker-php.git",
-                "reference": "2eaf579e19ed08e8d3360bee545ad85f18deadc0"
+                "reference": "83d008d67bdfdd6a7db306585995d647dc855b4b"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/beluga-php/docker-php/zipball/2eaf579e19ed08e8d3360bee545ad85f18deadc0",
-                "reference": "2eaf579e19ed08e8d3360bee545ad85f18deadc0",
+                "url": "https://api.github.com/repos/beluga-php/docker-php/zipball/83d008d67bdfdd6a7db306585995d647dc855b4b",
+                "reference": "83d008d67bdfdd6a7db306585995d647dc855b4b",
                 "shasum": ""
             },
             "require": {
-                "beluga-php/docker-php-api": "7.1.45.*",
+                "beluga-php/docker-php-api": ">=7.1.45.5 <7.1.46",
                 "nyholm/psr7": "^1.8",
                 "php": ">=8.1",
                 "php-http/client-common": "^2.7",
@@ -68,7 +68,7 @@
             "description": "A Docker PHP client",
             "support": {
                 "issues": "https://github.com/beluga-php/docker-php/issues",
-                "source": "https://github.com/beluga-php/docker-php/tree/v1.45.6"
+                "source": "https://github.com/beluga-php/docker-php/tree/v1.45.8"
             },
             "funding": [
                 {
@@ -76,20 +76,20 @@
                     "type": "github"
                 }
             ],
-            "time": "2025-12-27T21:42:50+00:00"
+            "time": "2026-09-07T11:27:10+00:00"
         },
         {
             "name": "beluga-php/docker-php-api",
-            "version": "v7.1.45.4",
+            "version": "v7.1.45.5",
             "source": {
                 "type": "git",
                 "url": "https://github.com/beluga-php/docker-php-api.git",
-                "reference": "8f3ed3b9a69e161489e07664b99eb73258e7eef2"
+                "reference": "5d1bca566322d489f6daba6c26ec6b85f621ee39"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/beluga-php/docker-php-api/zipball/8f3ed3b9a69e161489e07664b99eb73258e7eef2",
-                "reference": "8f3ed3b9a69e161489e07664b99eb73258e7eef2",
+                "url": "https://api.github.com/repos/beluga-php/docker-php-api/zipball/5d1bca566322d489f6daba6c26ec6b85f621ee39",
+                "reference": "5d1bca566322d489f6daba6c26ec6b85f621ee39",
                 "shasum": ""
             },
             "require": {
@@ -107,9 +107,9 @@
                 "psr/http-message": "^2.0",
                 "psr/http-message-implementation": "*",
                 "symfony/deprecation-contracts": "^3.3",
-                "symfony/options-resolver": "^6.3 || ^7.0 || ^8.0",
-                "symfony/serializer": "^6.3 || ^7.0 || ^8.0",
-                "symfony/validator": "^6.3 || ^7.0 || ^8.0"
+                "symfony/options-resolver": "^6.4 || ^7.0 || ^8.0",
+                "symfony/serializer": "^6.4 || ^7.0 || ^8.0",
+                "symfony/validator": "^6.4 || ^7.0 || ^8.0"
             },
             "conflict": {
                 "docker-php/docker-php-api": "*"
@@ -117,7 +117,7 @@
             "require-dev": {
                 "ergebnis/composer-normalize": "^2.42",
                 "friendsofphp/php-cs-fixer": "^3.8",
-                "jane-php/open-api-3": "^7.4",
+                "jane-php/open-api-3": "^7.14",
                 "roave/security-advisories": "dev-latest"
             },
             "type": "library",
@@ -145,7 +145,7 @@
             "description": "Docker API generated files from OpenAPI Specification",
             "support": {
                 "issues": "https://github.com/beluga-php/docker-php-api/issues",
-                "source": "https://github.com/beluga-php/docker-php-api/tree/v7.1.45.4"
+                "source": "https://github.com/beluga-php/docker-php-api/tree/v7.1.45.5"
             },
             "funding": [
                 {
@@ -153,7 +153,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-01-09T13:29:42+00:00"
+            "time": "2026-09-04T14:53:13+00:00"
         },
         {
             "name": "clue/stream-filter",
@@ -223,16 +223,16 @@
         },
         {
             "name": "jane-php/json-schema-runtime",
-            "version": "v7.12.0",
+            "version": "v7.14.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/janephp/json-schema-runtime.git",
-                "reference": "a2d37723af6a9f2cebd140e593623733d9b2121c"
+                "reference": "f695bc68b6c7cbc5b076cee659630a0a98b3186d"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/janephp/json-schema-runtime/zipball/a2d37723af6a9f2cebd140e593623733d9b2121c",
-                "reference": "a2d37723af6a9f2cebd140e593623733d9b2121c",
+                "url": "https://api.github.com/repos/janephp/json-schema-runtime/zipball/f695bc68b6c7cbc5b076cee659630a0a98b3186d",
+                "reference": "f695bc68b6c7cbc5b076cee659630a0a98b3186d",
                 "shasum": ""
             },
             "require": {
@@ -278,13 +278,13 @@
             ],
             "description": "Jane runtime Library",
             "support": {
-                "source": "https://github.com/janephp/json-schema-runtime/tree/v7.12.0"
+                "source": "https://github.com/janephp/json-schema-runtime/tree/v7.14.3"
             },
-            "time": "2026-07-09T15:07:13+00:00"
+            "time": "2026-08-29T20:56:33+00:00"
         },
         {
             "name": "jane-php/open-api-runtime",
-            "version": "v7.12.0",
+            "version": "v7.14.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/janephp/open-api-runtime.git",
@@ -341,7 +341,7 @@
             ],
             "description": "Jane OpenAPI Runtime Library, dependencies and utility class for a library generated by jane/openapi",
             "support": {
-                "source": "https://github.com/janephp/open-api-runtime/tree/v7.12.0"
+                "source": "https://github.com/janephp/open-api-runtime/tree/v7.14.3"
             },
             "time": "2026-03-26T13:31:24+00:00"
         },
@@ -1335,16 +1335,16 @@
         },
         {
             "name": "symfony/filesystem",
-            "version": "v7.4.11",
+            "version": "v7.4.18",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/filesystem.git",
-                "reference": "d721ea61b4a5fba8c5b6e7c1feda19efea144b50"
+                "reference": "90d412aa5277c6819db39e7605aa46b1019e3232"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/filesystem/zipball/d721ea61b4a5fba8c5b6e7c1feda19efea144b50",
-                "reference": "d721ea61b4a5fba8c5b6e7c1feda19efea144b50",
+                "url": "https://api.github.com/repos/symfony/filesystem/zipball/90d412aa5277c6819db39e7605aa46b1019e3232",
+                "reference": "90d412aa5277c6819db39e7605aa46b1019e3232",
                 "shasum": ""
             },
             "require": {
@@ -1381,7 +1381,7 @@
             "description": "Provides basic utilities for the filesystem",
             "homepage": "https://symfony.com",
             "support": {
-                "source": "https://github.com/symfony/filesystem/tree/v7.4.11"
+                "source": "https://github.com/symfony/filesystem/tree/v7.4.18"
             },
             "funding": [
                 {
@@ -1401,7 +1401,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-05-11T16:38:44+00:00"
+            "time": "2026-08-23T10:03:40+00:00"
         },
         {
             "name": "symfony/options-resolver",
@@ -1728,16 +1728,16 @@
         },
         {
             "name": "symfony/polyfill-php83",
-            "version": "v1.38.2",
+            "version": "v1.41.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/polyfill-php83.git",
-                "reference": "796a26abb75ce49f3a84433cd81bf1009d73d5f8"
+                "reference": "5ea99087fb99c273a9b9236ed4c31e78b16103c6"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/polyfill-php83/zipball/796a26abb75ce49f3a84433cd81bf1009d73d5f8",
-                "reference": "796a26abb75ce49f3a84433cd81bf1009d73d5f8",
+                "url": "https://api.github.com/repos/symfony/polyfill-php83/zipball/5ea99087fb99c273a9b9236ed4c31e78b16103c6",
+                "reference": "5ea99087fb99c273a9b9236ed4c31e78b16103c6",
                 "shasum": ""
             },
             "require": {
@@ -1784,7 +1784,7 @@
                 "shim"
             ],
             "support": {
-                "source": "https://github.com/symfony/polyfill-php83/tree/v1.38.2"
+                "source": "https://github.com/symfony/polyfill-php83/tree/v1.41.0"
             },
             "funding": [
                 {
@@ -1804,7 +1804,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-05-27T06:51:48+00:00"
+            "time": "2026-07-01T12:47:55+00:00"
         },
         {
             "name": "symfony/polyfill-php84",
@@ -1888,16 +1888,16 @@
         },
         {
             "name": "symfony/process",
-            "version": "v7.4.13",
+            "version": "v7.4.19",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/process.git",
-                "reference": "f5804be144caceb570f6747519999636b664f24c"
+                "reference": "ed0ae095b86994d370d5791612e55984f15aa30e"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/process/zipball/f5804be144caceb570f6747519999636b664f24c",
-                "reference": "f5804be144caceb570f6747519999636b664f24c",
+                "url": "https://api.github.com/repos/symfony/process/zipball/ed0ae095b86994d370d5791612e55984f15aa30e",
+                "reference": "ed0ae095b86994d370d5791612e55984f15aa30e",
                 "shasum": ""
             },
             "require": {
@@ -1929,7 +1929,7 @@
             "description": "Executes commands in sub-processes",
             "homepage": "https://symfony.com",
             "support": {
-                "source": "https://github.com/symfony/process/tree/v7.4.13"
+                "source": "https://github.com/symfony/process/tree/v7.4.19"
             },
             "funding": [
                 {
@@ -1949,20 +1949,20 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-05-23T16:05:06+00:00"
+            "time": "2026-09-02T12:38:34+00:00"
         },
         {
             "name": "symfony/serializer",
-            "version": "v7.4.14",
+            "version": "v7.4.19",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/serializer.git",
-                "reference": "55acb01b9c8a5211dfbaf68c314d90d0ed2cc3d1"
+                "reference": "d631b82e0db971444651c4e6a076040d20878caa"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/serializer/zipball/55acb01b9c8a5211dfbaf68c314d90d0ed2cc3d1",
-                "reference": "55acb01b9c8a5211dfbaf68c314d90d0ed2cc3d1",
+                "url": "https://api.github.com/repos/symfony/serializer/zipball/d631b82e0db971444651c4e6a076040d20878caa",
+                "reference": "d631b82e0db971444651c4e6a076040d20878caa",
                 "shasum": ""
             },
             "require": {
@@ -1976,7 +1976,7 @@
                 "phpdocumentor/type-resolver": "<1.5.1",
                 "symfony/dependency-injection": "<6.4",
                 "symfony/property-access": "<6.4.31|>=7.0,<7.4.2|>=8.0,<8.0.2",
-                "symfony/property-info": "<6.4",
+                "symfony/property-info": "<6.4.43",
                 "symfony/type-info": "<7.2.5",
                 "symfony/uid": "<6.4",
                 "symfony/validator": "<6.4",
@@ -1998,7 +1998,7 @@
                 "symfony/messenger": "^6.4|^7.0|^8.0",
                 "symfony/mime": "^6.4|^7.0|^8.0",
                 "symfony/property-access": "^6.4.31|^7.4.2|^8.0.2",
-                "symfony/property-info": "^6.4|^7.0|^8.0",
+                "symfony/property-info": "^6.4.43|^7.4.15|^8.0.15",
                 "symfony/translation-contracts": "^2.5|^3",
                 "symfony/type-info": "^7.2.5|^8.0",
                 "symfony/uid": "^6.4|^7.0|^8.0",
@@ -2033,7 +2033,7 @@
             "description": "Handles serializing and deserializing data structures, including object graphs, into array structures or other formats like XML and JSON.",
             "homepage": "https://symfony.com",
             "support": {
-                "source": "https://github.com/symfony/serializer/tree/v7.4.14"
+                "source": "https://github.com/symfony/serializer/tree/v7.4.19"
             },
             "funding": [
                 {
@@ -2053,7 +2053,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-06-27T08:31:18+00:00"
+            "time": "2026-09-08T13:28:43+00:00"
         },
         {
             "name": "symfony/translation-contracts",
@@ -2139,16 +2139,16 @@
         },
         {
             "name": "symfony/validator",
-            "version": "v7.4.14",
+            "version": "v7.4.19",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/validator.git",
-                "reference": "306d904336166d001751759351d40d5e82312596"
+                "reference": "a6d275d96d107fb2000dae04ab23b2e0c29ceb66"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/validator/zipball/306d904336166d001751759351d40d5e82312596",
-                "reference": "306d904336166d001751759351d40d5e82312596",
+                "url": "https://api.github.com/repos/symfony/validator/zipball/a6d275d96d107fb2000dae04ab23b2e0c29ceb66",
+                "reference": "a6d275d96d107fb2000dae04ab23b2e0c29ceb66",
                 "shasum": ""
             },
             "require": {
@@ -2219,7 +2219,7 @@
             "description": "Provides tools to validate values",
             "homepage": "https://symfony.com",
             "support": {
-                "source": "https://github.com/symfony/validator/tree/v7.4.14"
+                "source": "https://github.com/symfony/validator/tree/v7.4.19"
             },
             "funding": [
                 {
@@ -2239,20 +2239,20 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-06-27T06:16:12+00:00"
+            "time": "2026-09-09T19:50:33+00:00"
         },
         {
             "name": "symfony/yaml",
-            "version": "v7.4.14",
+            "version": "v7.4.18",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/yaml.git",
-                "reference": "f8f328665ace2370d1e10645b807ba1646dc7dcc"
+                "reference": "4cef939e55b8a21c5780418de0d98ab00d0736e1"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/yaml/zipball/f8f328665ace2370d1e10645b807ba1646dc7dcc",
-                "reference": "f8f328665ace2370d1e10645b807ba1646dc7dcc",
+                "url": "https://api.github.com/repos/symfony/yaml/zipball/4cef939e55b8a21c5780418de0d98ab00d0736e1",
+                "reference": "4cef939e55b8a21c5780418de0d98ab00d0736e1",
                 "shasum": ""
             },
             "require": {
@@ -2295,7 +2295,7 @@
             "description": "Loads and dumps YAML files",
             "homepage": "https://symfony.com",
             "support": {
-                "source": "https://github.com/symfony/yaml/tree/v7.4.14"
+                "source": "https://github.com/symfony/yaml/tree/v7.4.18"
             },
             "funding": [
                 {
@@ -2315,24 +2315,25 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-06-08T20:24:16+00:00"
+            "time": "2026-08-30T00:47:26+00:00"
         },
         {
             "name": "testcontainers/testcontainers",
-            "version": "1.0.10",
+            "version": "1.1.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/testcontainers/testcontainers-php.git",
-                "reference": "9c561865662772ae87acc518fbe753e78f6b541b"
+                "reference": "551f3faa2171c64c3328eb127ac68291c65e3976"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/testcontainers/testcontainers-php/zipball/9c561865662772ae87acc518fbe753e78f6b541b",
-                "reference": "9c561865662772ae87acc518fbe753e78f6b541b",
+                "url": "https://api.github.com/repos/testcontainers/testcontainers-php/zipball/551f3faa2171c64c3328eb127ac68291c65e3976",
+                "reference": "551f3faa2171c64c3328eb127ac68291c65e3976",
                 "shasum": ""
             },
             "require": {
-                "beluga-php/docker-php": "^1.45",
+                "beluga-php/docker-php": "^1.45.7",
+                "beluga-php/docker-php-api": "^7.1.45.5",
                 "ext-curl": "*",
                 "php": ">= 8.1",
                 "php-http/client-common": "^2.7"
@@ -2343,9 +2344,9 @@
                 "ext-pdo_mysql": "*",
                 "ext-pdo_pgsql": "*",
                 "friendsofphp/php-cs-fixer": "^3.92",
-                "phpstan/extension-installer": "^1.2",
-                "phpstan/phpstan": "^1.8",
-                "phpstan/phpstan-phpunit": "^1.1",
+                "phpstan/extension-installer": "^1.4",
+                "phpstan/phpstan": "^2.2",
+                "phpstan/phpstan-phpunit": "^2.0",
                 "phpunit/phpunit": "^9.5",
                 "predis/predis": "^3.0 || ^2.0"
             },
@@ -2375,9 +2376,9 @@
             ],
             "support": {
                 "issues": "https://github.com/testcontainers/testcontainers-php/issues",
-                "source": "https://github.com/testcontainers/testcontainers-php/tree/1.0.10"
+                "source": "https://github.com/testcontainers/testcontainers-php/tree/1.1.0"
             },
-            "time": "2026-07-08T14:22:53+00:00"
+            "time": "2026-09-14T12:47:36+00:00"
         }
     ],
     "packages-dev": [
