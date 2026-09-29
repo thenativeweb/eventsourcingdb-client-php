@@ -10,6 +10,9 @@ use Testcontainers\Container\GenericContainer;
 use Testcontainers\Container\StartedGenericContainer;
 use Testcontainers\Wait\WaitForHttp;
 
+/**
+ * @see \Thenativeweb\Eventsourcingdb\Tests\ContainerTest
+ */
 final class Container
 {
     private string $imageName = 'thenativeweb/eventsourcingdb';
@@ -57,6 +60,8 @@ final class Container
             '--data-directory-temporary',
             '--http-enabled',
             '--https-enabled=false',
+            '--http-port',
+            (string) $this->internalPort,
         ];
 
         if ($this->signingKey instanceof SigningKey) {
