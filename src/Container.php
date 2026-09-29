@@ -8,6 +8,7 @@ use Exception;
 use RuntimeException;
 use Testcontainers\Container\GenericContainer;
 use Testcontainers\Container\StartedGenericContainer;
+use Testcontainers\Exception\ContainerException;
 use Testcontainers\Wait\WaitForHttp;
 
 /**
@@ -84,10 +85,10 @@ final class Container
         $container = $container->withWait((new WaitForHttp($this->internalPort, 20000))->withPath('/api/v1/ping'));
 
         try {
-            $this->container = $container->start();
+            $this->container = $this->startContainer($container);
         } catch (Exception) {
             usleep(100_000);
-            $this->container = $container->start();
+            $this->container = $this->startContainer($container);
         }
     }
 
@@ -155,6 +156,18 @@ final class Container
     {
         $baseUrl = $this->getBaseUrl();
         return new Client($baseUrl, $this->apiToken);
+    }
+
+    private function startContainer(GenericContainer $genericContainer): StartedGenericContainer
+    {
+        try {
+            return $genericContainer->start();
+        } catch (ContainerException $containerException) {
+            // A container that does not become ready is left behind by
+            // Testcontainers, so it has to be removed here.
+            (new StartedGenericContainer($containerException->getContainerId()))->stop();
+            throw $containerException;
+        }
     }
 
     private function runningContainer(): StartedGenericContainer
