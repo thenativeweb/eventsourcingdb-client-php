@@ -186,7 +186,7 @@ final readonly class Client
         $this->throwIfNotValidServerHeader($response);
         $this->throwIfNotSuccessStatusCode($response, 'Failed to run EventQL query');
 
-        foreach (NdJson::readStream($response->getStream()) as $eventLine) {
+        foreach (NdJson::readStream($response->getStream()->withHeartbeatTimeout()) as $eventLine) {
             switch ($eventLine->type) {
                 case 'heartbeat':
                     break;
@@ -217,7 +217,7 @@ final readonly class Client
         $this->throwIfNotValidServerHeader($response);
         $this->throwIfNotSuccessStatusCode($response, 'Failed to observe events');
 
-        foreach (NdJson::readStream($response->getStream()) as $eventLine) {
+        foreach (NdJson::readStream($response->getStream()->withHeartbeatTimeout()) as $eventLine) {
             switch ($eventLine->type) {
                 case 'heartbeat':
                     break;
