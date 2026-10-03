@@ -7,16 +7,20 @@ namespace Thenativeweb\Eventsourcingdb\Stream;
 use CurlHandle;
 use CurlMultiHandle;
 use RuntimeException;
+use Thenativeweb\Eventsourcingdb\HeartbeatTimeoutException;
 
 /**
  * @see \Thenativeweb\Eventsourcingdb\Tests\Stream\CurlMultiHandlerTest
  */
 class CurlMultiHandler
 {
+    private const HEARTBEAT_TIMEOUT = 30.0;
+
     private ?CurlHandle $curlHandle = null;
     private ?CurlMultiHandle $curlMultiHandle = null;
     private float $abortIn = 0.0;
     private float $iteratorTime;
+    private float $heartbeatTimeout = self::HEARTBEAT_TIMEOUT;
     private ?Queue $header = null;
     private ?Queue $write = null;
 
@@ -87,13 +91,16 @@ class CurlMultiHandler
         $this->curlMultiHandle = $curlMultiHandle;
     }
 
-    public function contentIterator(): iterable
+    public function contentIterator(bool $withHeartbeatTimeout = false): iterable
     {
         $curlHandle = $this->curlHandle();
         $curlMultiHandle = $this->curlMultiHandle();
         $queue = $this->getWriteQueue();
 
+        $heartbeatTimeout = $withHeartbeatTimeout ? $this->heartbeatTimeout : INF;
+
         $this->iteratorTime = microtime(true);
+        $lineTime = $this->iteratorTime;
 
         do {
             if (
@@ -104,8 +111,16 @@ class CurlMultiHandler
             }
 
             $status = curl_multi_exec($curlMultiHandle, $isRunning);
+            if (!$queue->isEmpty()) {
+                $lineTime = microtime(true);
+            } elseif ($isRunning && (microtime(true) - $lineTime) >= $heartbeatTimeout) {
+                $this->closeHandles($curlHandle, $curlMultiHandle);
+
+                throw new HeartbeatTimeoutException("No event and no heartbeat arrived for {$heartbeatTimeout} seconds.");
+            }
+
             if ($isRunning) {
-                curl_multi_select($curlMultiHandle);
+                curl_multi_select($curlMultiHandle, max(0.0, min(1.0, $lineTime + $heartbeatTimeout - microtime(true))));
             }
 
             $this->verifyCurlHandle($curlMultiHandle);
@@ -115,6 +130,11 @@ class CurlMultiHandler
             }
         } while ($isRunning && $status === CURLM_OK);
 
+        $this->closeHandles($curlHandle, $curlMultiHandle);
+    }
+
+    private function closeHandles(CurlHandle $curlHandle, CurlMultiHandle $curlMultiHandle): void
+    {
         curl_multi_remove_handle($curlMultiHandle, $curlHandle);
         curl_multi_close($curlMultiHandle);
 

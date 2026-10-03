@@ -261,6 +261,8 @@ foreach ($rows as $row) {
 
 *Note that each row returned by the iterator is an associative array and matches the projection specified in your query.*
 
+*Note that EventSourcingDB sends a heartbeat every second while there is nothing else to send. If neither a row nor a heartbeat arrives for 30 seconds, e.g. because the connection stalled, the iterator closes the connection and throws a `HeartbeatTimeoutException`.*
+
 ### Observing Events
 
 To observe all events of a subject, call the `observeEvents` function with the subject as the first argument and an options object as the second argument. Set the `recursive` option to `false`. This ensures that only events of the given subject are returned, not events of nested subjects.
@@ -281,6 +283,8 @@ foreach ($events as $event) {
   // ...
 }
 ```
+
+*Note that EventSourcingDB sends a heartbeat every second while there are no events to send. If neither an event nor a heartbeat arrives for 30 seconds, e.g. because the connection stalled, the iterator closes the connection and throws a `HeartbeatTimeoutException`.*
 
 #### Observing From Subjects Recursively
 

@@ -15,7 +15,8 @@ use Traversable;
 readonly class Stream implements IteratorAggregate, Stringable
 {
     public function __construct(
-        private CurlMultiHandler $curlMultiHandler
+        private CurlMultiHandler $curlMultiHandler,
+        private bool $hasHeartbeatTimeout = false,
     ) {
     }
 
@@ -24,9 +25,14 @@ readonly class Stream implements IteratorAggregate, Stringable
         return $this->getContents();
     }
 
+    public function withHeartbeatTimeout(): self
+    {
+        return new self($this->curlMultiHandler, true);
+    }
+
     public function getIterator(): Traversable
     {
-        foreach ($this->curlMultiHandler->contentIterator() as $chunk) {
+        foreach ($this->curlMultiHandler->contentIterator($this->hasHeartbeatTimeout) as $chunk) {
             yield $chunk;
         }
     }
