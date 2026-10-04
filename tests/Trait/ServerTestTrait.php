@@ -60,13 +60,21 @@ trait ServerTestTrait
         return $this->readServerReport();
     }
 
-    private function response(array $lines, float $interval, float $holdFor, float $delay = 0.0): array
-    {
+    private function response(
+        array $lines,
+        float $interval,
+        float $holdFor,
+        float $delay = 0.0,
+        string $server = 'EventSourcingDB/test',
+        string $contentType = 'application/x-ndjson',
+    ): array {
         return [
             'lines' => $lines,
             'interval' => $interval,
             'holdFor' => $holdFor,
             'delay' => $delay,
+            'server' => $server,
+            'contentType' => $contentType,
         ];
     }
 
