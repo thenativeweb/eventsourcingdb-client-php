@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace Thenativeweb\Eventsourcingdb;
 
+use Docker\API\Exception\ContainerDeleteConflictException;
+use Docker\API\Exception\ContainerDeleteNotFoundException;
+use Docker\API\Model\ContainerSummary;
 use Exception;
 use RuntimeException;
 use Testcontainers\Container\GenericContainer;
 use Testcontainers\Container\StartedGenericContainer;
-use Testcontainers\Exception\ContainerException;
+use Testcontainers\ContainerClient\DockerContainerClient;
 use Testcontainers\Wait\WaitForHttp;
 
 /**
@@ -16,6 +19,9 @@ use Testcontainers\Wait\WaitForHttp;
  */
 final class Container
 {
+    private const START_LABEL = 'io.eventsourcingdb.container-start';
+    private const REMOVAL_TIMEOUT = 5;
+
     private string $imageName = 'thenativeweb/eventsourcingdb';
     private string $imageTag = 'latest';
     private int $internalPort = 3000;
@@ -70,9 +76,14 @@ final class Container
             $command[] = '/etc/esdb/signing-key.pem';
         }
 
+        $startId = bin2hex(random_bytes(16));
+
         $container = (new GenericContainer("{$this->imageName}:{$this->imageTag}"))
             ->withExposedPorts($this->internalPort)
-            ->withCommand($command);
+            ->withCommand($command)
+            ->withLabels([
+                self::START_LABEL => $startId,
+            ]);
 
         if ($this->signingKey instanceof SigningKey) {
             $this->tempSigningKeyFile = getcwd() . '/.esdb_signing_key_' . uniqid();
@@ -85,10 +96,10 @@ final class Container
         $container = $container->withWait((new WaitForHttp($this->internalPort, 20000))->withPath('/api/v1/ping'));
 
         try {
-            $this->container = $this->startContainer($container);
+            $this->container = $this->startContainer($container, $startId);
         } catch (Exception) {
             usleep(100_000);
-            $this->container = $this->startContainer($container);
+            $this->container = $this->startContainer($container, $startId);
         }
     }
 
@@ -158,15 +169,75 @@ final class Container
         return new Client($baseUrl, $this->apiToken);
     }
 
-    private function startContainer(GenericContainer $genericContainer): StartedGenericContainer
+    private function startContainer(GenericContainer $genericContainer, string $startId): StartedGenericContainer
     {
         try {
             return $genericContainer->start();
-        } catch (ContainerException $containerException) {
-            // A container that does not become ready is left behind by
-            // Testcontainers, so it has to be removed here.
-            (new StartedGenericContainer($containerException->getContainerId()))->stop();
-            throw $containerException;
+        } catch (Exception $exception) {
+            // Testcontainers leaves a container behind when anything fails
+            // after it was created, and only the ContainerException for a
+            // container that does not become ready carries its ID. If starting
+            // it fails instead, the ID is not exposed, and the retry in start()
+            // would swallow the error. So the containers of this start are
+            // looked up by their label and removed before the exception moves
+            // on. If removing them fails, PHP appends that error to the chain
+            // of the original exception, which is still the one that is thrown.
+            try {
+                $this->removeContainers($startId);
+            } finally {
+                throw $exception;
+            }
+        }
+    }
+
+    private function removeContainers(string $startId): void
+    {
+        $dockerClient = DockerContainerClient::getDockerClient();
+        $filters = json_encode([
+            'label' => [self::START_LABEL . '=' . $startId],
+        ], JSON_THROW_ON_ERROR);
+        $deadline = microtime(true) + self::REMOVAL_TIMEOUT;
+
+        while (true) {
+            $containers = $dockerClient->containerList([
+                'all' => true,
+                'filters' => $filters,
+            ]);
+            if (!is_array($containers)) {
+                throw new RuntimeException('Failed to list containers.');
+            }
+
+            if ($containers === []) {
+                return;
+            }
+
+            $containerIds = array_map(
+                static fn (ContainerSummary $containerSummary): string => (string) $containerSummary->getId(),
+                $containers,
+            );
+
+            if (microtime(true) >= $deadline) {
+                throw new RuntimeException(sprintf(
+                    'Failed to remove containers %s within %d seconds.',
+                    implode(', ', $containerIds),
+                    self::REMOVAL_TIMEOUT,
+                ));
+            }
+
+            foreach ($containerIds as $containerId) {
+                try {
+                    $dockerClient->containerDelete($containerId, [
+                        'force' => true,
+                    ]);
+                } catch (ContainerDeleteNotFoundException) {
+                    // The container is already gone.
+                } catch (ContainerDeleteConflictException) {
+                    // The container is already being removed, so it is only
+                    // waited for.
+                }
+            }
+
+            usleep(100_000);
         }
     }
 
