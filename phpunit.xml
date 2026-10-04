@@ -22,7 +22,7 @@
     </testsuite>
     <testsuite name="EsdbClient">
       <directory>tests</directory>
-      <exclude>tests/Stream</exclude>
+      <exclude>tests/Stream/</exclude>
     </testsuite>
   </testsuites>
 </phpunit>
