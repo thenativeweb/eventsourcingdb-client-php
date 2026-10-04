@@ -10,9 +10,12 @@ use PHPUnit\Framework\TestCase;
 use Thenativeweb\Eventsourcingdb\Stream\Header;
 use Thenativeweb\Eventsourcingdb\Stream\HttpClient;
 use Thenativeweb\Eventsourcingdb\Stream\Queue;
+use Thenativeweb\Eventsourcingdb\Tests\Trait\ServerTestTrait;
 
 final class HttpClientTest extends TestCase
 {
+    use ServerTestTrait;
+
     public function testBuildUriWithBaseUrl(): void
     {
         $httpClient = new HttpClient('https://example.com');
@@ -167,5 +170,24 @@ final class HttpClientTest extends TestCase
         $httpClient = new HttpClient();
         $result = $httpClient->buildBody($obj);
         $this->assertSame(json_encode($obj), $result);
+    }
+
+    public function testHandsOverTheResponseAsSoonAsTheHeadersHaveArrived(): void
+    {
+        // The server answers after a short delay, so that the client is
+        // already waiting for the response when the headers arrive.
+        $delay = 0.1;
+        $address = $this->startServer([], interval: 0.0, holdFor: 5.0, delay: $delay);
+
+        $httpClient = new HttpClient("http://{$address}");
+
+        $startTime = microtime(true);
+        $response = $httpClient->post('/api/v1/read-events', 'secret', [
+            'subject' => '/',
+        ]);
+        $processTime = microtime(true) - $startTime - $delay;
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertLessThan(0.5, $processTime, "Expected the response to be handed over right away, but it took {$processTime} seconds after the headers.");
     }
 }

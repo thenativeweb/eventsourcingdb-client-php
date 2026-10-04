@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 /*
  * Answers a single request the way EventSourcingDB answers a streaming request:
- * it sends the given lines as NDJSON, one line every interval, and afterwards
- * keeps the connection open without sending anything. It reports "closed" once
- * the client closes the connection, or ends the response and reports "ended"
- * once the hold time is over.
+ * after the given delay, it sends the headers and then the given lines as
+ * NDJSON, one line every interval, and afterwards keeps the connection open
+ * without sending anything. It reports "closed" once the client closes the
+ * connection, or ends the response and reports "ended" once the hold time is
+ * over.
  */
 
 $options = json_decode($argv[1], true, flags: JSON_THROW_ON_ERROR);
@@ -44,6 +45,8 @@ while (strlen($body) < $contentLength) {
 
     $body .= $chunk;
 }
+
+usleep((int) ($options['delay'] * 1_000_000));
 
 fwrite(
     $connection,

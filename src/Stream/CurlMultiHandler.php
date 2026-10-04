@@ -80,7 +80,7 @@ class CurlMultiHandler
 
         do {
             $status = curl_multi_exec($curlMultiHandle, $isRunning);
-            if ($isRunning) {
+            if ($queue->isEmpty() && $isRunning) {
                 curl_multi_select($curlMultiHandle);
             }
 
@@ -117,9 +117,7 @@ class CurlMultiHandler
                 $this->closeHandles($curlHandle, $curlMultiHandle);
 
                 throw new HeartbeatTimeoutException("No event and no heartbeat arrived for {$heartbeatTimeout} seconds.");
-            }
-
-            if ($isRunning) {
+            } elseif ($isRunning) {
                 curl_multi_select($curlMultiHandle, max(0.0, min(1.0, $lineTime + $heartbeatTimeout - microtime(true))));
             }
 
