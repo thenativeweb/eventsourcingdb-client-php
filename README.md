@@ -146,6 +146,8 @@ foreach ($events as $event) {
 }
 ```
 
+*Note that if you leave the `foreach` loop early, e.g. with `break`, the connection is closed once the iterator is released. If you keep the iterator in a variable, such as `$events`, the connection therefore stays open until you release the variable, e.g. with `unset($events)`.*
+
 #### Reading From Subjects Recursively
 
 If you want to read not only all the events of a subject, but also the events of all nested subjects, set the `recursive` option to `true`:
@@ -285,6 +287,8 @@ foreach ($events as $event) {
 ```
 
 *Note that EventSourcingDB sends a heartbeat every second while there are no events to send. If neither an event nor a heartbeat arrives for 30 seconds, e.g. because the connection stalled, the iterator closes the connection and throws a `HeartbeatTimeoutException`.*
+
+*Note that if you leave the `foreach` loop early, e.g. with `break`, the connection is closed once the iterator is released. If you keep the iterator in a variable, such as `$events`, the connection therefore stays open until you release the variable, e.g. with `unset($events)`.*
 
 #### Observing From Subjects Recursively
 
