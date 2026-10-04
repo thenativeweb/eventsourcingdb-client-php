@@ -37,7 +37,10 @@ trait ServerTestTrait
         ]);
     }
 
-    private function startServerWithResponses(array $responses): string
+    /**
+     * @param array{certificate: string, privateKey: string}|null $tls the files of the certificate and its private key to serve https with
+     */
+    private function startServerWithResponses(array $responses, ?array $tls = null): string
     {
         $server = proc_open(
             [
@@ -45,6 +48,7 @@ trait ServerTestTrait
                 __DIR__ . '/../Server/heartbeatServer.php',
                 json_encode([
                     'responses' => $responses,
+                    'tls' => $tls,
                 ], JSON_THROW_ON_ERROR),
             ],
             [
