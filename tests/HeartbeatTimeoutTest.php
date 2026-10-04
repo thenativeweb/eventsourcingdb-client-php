@@ -13,37 +13,15 @@ use Thenativeweb\Eventsourcingdb\HeartbeatTimeoutException;
 use Thenativeweb\Eventsourcingdb\ObserveEventsOptions;
 use Thenativeweb\Eventsourcingdb\ReadEventsOptions;
 use Thenativeweb\Eventsourcingdb\Tests\Trait\ReflectionTestTrait;
+use Thenativeweb\Eventsourcingdb\Tests\Trait\ServerTestTrait;
 
 final class HeartbeatTimeoutTest extends TestCase
 {
     use ReflectionTestTrait;
+    use ServerTestTrait;
 
     private const HEARTBEAT_TIMEOUT = 0.5;
     private const HEARTBEAT_LINE = '{"type":"heartbeat","payload":{}}';
-
-    /**
-     * @var resource|null
-     */
-    private $server;
-
-    /**
-     * @var resource|null
-     */
-    private $serverOutput;
-
-    protected function tearDown(): void
-    {
-        if (is_resource($this->serverOutput)) {
-            fclose($this->serverOutput);
-        }
-
-        if (is_resource($this->server)) {
-            proc_terminate($this->server);
-            proc_close($this->server);
-        }
-
-        parent::tearDown();
-    }
 
     public static function callsWithHeartbeats(): Iterator
     {
@@ -105,7 +83,7 @@ final class HeartbeatTimeoutTest extends TestCase
     #[DataProvider('callsWithHeartbeats')]
     public function testEndsWithAHeartbeatTimeoutIfNeitherAnEventNorAHeartbeatArrives(Closure $call): void
     {
-        $client = $this->startServer([self::HEARTBEAT_LINE], interval: 0.0, holdFor: 5.0);
+        $client = $this->startClient([self::HEARTBEAT_LINE], interval: 0.0, holdFor: 5.0);
 
         $startTime = microtime(true);
         try {
@@ -117,16 +95,15 @@ final class HeartbeatTimeoutTest extends TestCase
 
         $processTime = microtime(true) - $startTime;
 
-        // The process time includes up to one second for receiving the headers.
         $this->assertGreaterThanOrEqual(self::HEARTBEAT_TIMEOUT, $processTime);
-        $this->assertLessThan(self::HEARTBEAT_TIMEOUT + 2.0, $processTime);
+        $this->assertLessThan(self::HEARTBEAT_TIMEOUT + 1.0, $processTime);
         $this->assertSame('closed', $this->readServerReport(), 'Expected the connection to be closed.');
     }
 
     #[DataProvider('callsWithHeartbeats')]
     public function testKeepsReadingWhileHeartbeatsArrive(Closure $call): void
     {
-        $client = $this->startServer(array_fill(0, 20, self::HEARTBEAT_LINE), interval: 0.1, holdFor: 0.0);
+        $client = $this->startClient(array_fill(0, 20, self::HEARTBEAT_LINE), interval: 0.1, holdFor: 0.0);
 
         $startTime = microtime(true);
         $itemsRead = iterator_count($call($client));
@@ -140,7 +117,7 @@ final class HeartbeatTimeoutTest extends TestCase
     #[DataProvider('callsWithHeartbeats')]
     public function testDeliversItemsThatArriveWithinTheTimeout(Closure $call, string $itemLine): void
     {
-        $client = $this->startServer([self::HEARTBEAT_LINE, $itemLine, self::HEARTBEAT_LINE, $itemLine], interval: 0.1, holdFor: 0.0);
+        $client = $this->startClient([self::HEARTBEAT_LINE, $itemLine, self::HEARTBEAT_LINE, $itemLine], interval: 0.1, holdFor: 0.0);
 
         $itemsRead = iterator_count($call($client));
 
@@ -150,7 +127,7 @@ final class HeartbeatTimeoutTest extends TestCase
     #[DataProvider('callsWithHeartbeats')]
     public function testEndsWithoutAHeartbeatTimeoutIfAborted(Closure $call): void
     {
-        $client = $this->startServer([self::HEARTBEAT_LINE], interval: 0.0, holdFor: 5.0);
+        $client = $this->startClient([self::HEARTBEAT_LINE], interval: 0.0, holdFor: 5.0);
 
         $client->abortIn(0.2);
 
@@ -162,7 +139,7 @@ final class HeartbeatTimeoutTest extends TestCase
     #[DataProvider('callsWithHeartbeats')]
     public function testEndsWithoutAHeartbeatTimeoutIfTheLoopIsLeft(Closure $call, string $itemLine): void
     {
-        $client = $this->startServer([$itemLine], interval: 0.0, holdFor: 5.0);
+        $client = $this->startClient([$itemLine], interval: 0.0, holdFor: 5.0);
 
         $itemsRead = 0;
         foreach ($call($client) as $item) {
@@ -177,7 +154,7 @@ final class HeartbeatTimeoutTest extends TestCase
     #[DataProvider('callsWithoutHeartbeats')]
     public function testDoesNotApplyTheHeartbeatTimeoutToStreamsWithoutHeartbeats(Closure $call): void
     {
-        $client = $this->startServer([], interval: 0.0, holdFor: self::HEARTBEAT_TIMEOUT * 3);
+        $client = $this->startClient([], interval: 0.0, holdFor: self::HEARTBEAT_TIMEOUT * 3);
 
         $itemsRead = iterator_count($call($client));
 
@@ -185,29 +162,9 @@ final class HeartbeatTimeoutTest extends TestCase
         $this->assertSame('ended', $this->readServerReport());
     }
 
-    private function startServer(array $lines, float $interval, float $holdFor): Client
+    private function startClient(array $lines, float $interval, float $holdFor): Client
     {
-        $server = proc_open(
-            [
-                PHP_BINARY,
-                __DIR__ . '/Server/heartbeatServer.php',
-                json_encode([
-                    'lines' => $lines,
-                    'interval' => $interval,
-                    'holdFor' => $holdFor,
-                ], JSON_THROW_ON_ERROR),
-            ],
-            [
-                1 => ['pipe', 'w'],
-            ],
-            $pipes,
-        );
-        $this->assertIsResource($server);
-
-        $this->server = $server;
-        $this->serverOutput = $pipes[1];
-
-        $address = $this->readServerReport();
+        $address = $this->startServer($lines, $interval, $holdFor);
         $client = new Client("http://{$address}", 'secret');
 
         $httpClient = $this->getPropertyValue($client, 'httpClient');
@@ -215,18 +172,5 @@ final class HeartbeatTimeoutTest extends TestCase
         $this->setPropertyValue($curlMultiHandler, 'heartbeatTimeout', self::HEARTBEAT_TIMEOUT);
 
         return $client;
-    }
-
-    private function readServerReport(): string
-    {
-        $read = [$this->serverOutput];
-        $write = null;
-        $except = null;
-
-        if (stream_select($read, $write, $except, 2) !== 1) {
-            return '';
-        }
-
-        return trim((string) fgets($this->serverOutput));
     }
 }
