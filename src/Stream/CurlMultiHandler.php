@@ -96,15 +96,17 @@ class CurlMultiHandler
             throw new RuntimeException('Internal HttpClient: Failed to add cURL handle to multi handle: ' . curl_multi_strerror(curl_multi_errno($curlMultiHandle)));
         }
 
+        // The headers may arrive in several packets, so this waits for all of
+        // them, not only for the first line.
         do {
             $status = curl_multi_exec($curlMultiHandle, $isRunning);
-            if ($queue->isEmpty() && $isRunning) {
+            if (!$queue->isComplete() && $isRunning) {
                 curl_multi_select($curlMultiHandle);
             }
 
             $this->verifyCurlHandle($curlMultiHandle);
 
-        } while ($queue->isEmpty() && $isRunning && $status === CURLM_OK);
+        } while (!$queue->isComplete() && $isRunning && $status === CURLM_OK);
     }
 
     public function close(): void
