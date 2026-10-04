@@ -19,15 +19,25 @@ class CurlMultiHandler
     private ?CurlHandle $curlHandle = null;
     private ?CurlMultiHandle $curlMultiHandle = null;
     private float $abortIn = 0.0;
+    private ?CurlHandle $abortInCurlHandle = null;
     private float $iteratorTime;
     private float $heartbeatTimeout = self::HEARTBEAT_TIMEOUT;
     private ?Queue $header = null;
     private ?Queue $write = null;
 
+    /**
+     * @var array<int, CurlHandle>
+     */
+    private array $readingCurlHandles = [];
+
     public function abortIn(float $seconds): void
     {
         $this->abortIn = max($seconds, 0.0);
         $this->iteratorTime = microtime(true);
+
+        // The abort time applies to the stream being read, or, if there is
+        // none, to the next request.
+        $this->abortInCurlHandle = end($this->readingCurlHandles) ?: null;
     }
 
     public function getHeaderQueue(): Queue
@@ -66,6 +76,12 @@ class CurlMultiHandler
         }
 
         $this->curlHandle = $curlHandle;
+
+        // An abort time set while no stream was being read applies to this
+        // request.
+        if (!$this->abortInCurlHandle instanceof CurlHandle) {
+            $this->abortInCurlHandle = $curlHandle;
+        }
     }
 
     public function execute(): void
@@ -99,15 +115,21 @@ class CurlMultiHandler
 
         $heartbeatTimeout = $withHeartbeatTimeout ? $this->heartbeatTimeout : INF;
 
-        $this->iteratorTime = microtime(true);
-        $lineTime = $this->iteratorTime;
+        if ($this->abortInCurlHandle === $curlHandle) {
+            $this->iteratorTime = microtime(true);
+        }
+
+        $lineTime = microtime(true);
+
+        $this->readingCurlHandles[spl_object_id($curlHandle)] = $curlHandle;
 
         // The finally block also runs when the caller stops reading early and
         // the generator is destroyed, so the connection does not stay open.
         try {
             do {
                 if (
-                    $this->abortIn > 0
+                    $this->abortInCurlHandle === $curlHandle
+                    && $this->abortIn > 0
                     && (microtime(true) - $this->iteratorTime) >= $this->abortIn
                 ) {
                     break;
@@ -129,6 +151,13 @@ class CurlMultiHandler
                 }
             } while ($isRunning && $status === CURLM_OK);
         } finally {
+            unset($this->readingCurlHandles[spl_object_id($curlHandle)]);
+
+            if ($this->abortInCurlHandle === $curlHandle) {
+                $this->abortIn = 0.0;
+                $this->abortInCurlHandle = null;
+            }
+
             $this->closeHandles($curlHandle, $curlMultiHandle);
         }
     }

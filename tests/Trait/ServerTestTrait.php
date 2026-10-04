@@ -32,15 +32,19 @@ trait ServerTestTrait
 
     private function startServer(array $lines, float $interval, float $holdFor, float $delay = 0.0): string
     {
+        return $this->startServerWithResponses([
+            $this->response($lines, $interval, $holdFor, $delay),
+        ]);
+    }
+
+    private function startServerWithResponses(array $responses): string
+    {
         $server = proc_open(
             [
                 PHP_BINARY,
                 __DIR__ . '/../Server/heartbeatServer.php',
                 json_encode([
-                    'lines' => $lines,
-                    'interval' => $interval,
-                    'holdFor' => $holdFor,
-                    'delay' => $delay,
+                    'responses' => $responses,
                 ], JSON_THROW_ON_ERROR),
             ],
             [
@@ -54,6 +58,16 @@ trait ServerTestTrait
         $this->serverOutput = $pipes[1];
 
         return $this->readServerReport();
+    }
+
+    private function response(array $lines, float $interval, float $holdFor, float $delay = 0.0): array
+    {
+        return [
+            'lines' => $lines,
+            'interval' => $interval,
+            'holdFor' => $holdFor,
+            'delay' => $delay,
+        ];
     }
 
     private function readServerReport(): string
