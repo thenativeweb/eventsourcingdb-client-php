@@ -37,6 +37,11 @@ readonly class Stream implements IteratorAggregate, Stringable
         }
     }
 
+    public function close(): void
+    {
+        $this->curlMultiHandler->close();
+    }
+
     public function getContents(): string
     {
         return implode('', iterator_to_array($this));

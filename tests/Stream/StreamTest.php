@@ -46,6 +46,16 @@ final class StreamTest extends TestCase
         $this->assertSame('foobar', (string) $stream);
     }
 
+    public function testCloseClosesTheResponse(): void
+    {
+        $mockHandler = $this->createMock(CurlMultiHandler::class);
+        $mockHandler->expects($this->once())
+            ->method('close');
+
+        $stream = new Stream($mockHandler);
+        $stream->close();
+    }
+
     public function testThrowsExceptionOnInvalidJson(): void
     {
         $this->expectException(RuntimeException::class);

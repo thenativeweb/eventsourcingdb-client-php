@@ -90,6 +90,8 @@ class CurlMultiHandler
         $queue = $this->getHeaderQueue();
 
         $curlMultiHandle = curl_multi_init();
+        $this->curlMultiHandle = $curlMultiHandle;
+
         if (curl_multi_add_handle($curlMultiHandle, $curlHandle) !== CURLM_OK) {
             throw new RuntimeException('Internal HttpClient: Failed to add cURL handle to multi handle: ' . curl_multi_strerror(curl_multi_errno($curlMultiHandle)));
         }
@@ -103,8 +105,19 @@ class CurlMultiHandler
             $this->verifyCurlHandle($curlMultiHandle);
 
         } while ($queue->isEmpty() && $isRunning && $status === CURLM_OK);
+    }
 
-        $this->curlMultiHandle = $curlMultiHandle;
+    public function close(): void
+    {
+        $curlHandle = $this->curlHandle;
+
+        // The response of a request that is being read is closed once the
+        // reading ends.
+        if (!$curlHandle instanceof CurlHandle || isset($this->readingCurlHandles[spl_object_id($curlHandle)])) {
+            return;
+        }
+
+        $this->closeHandles($curlHandle, $this->curlMultiHandle);
     }
 
     public function contentIterator(bool $withHeartbeatTimeout = false): iterable
@@ -153,19 +166,21 @@ class CurlMultiHandler
         } finally {
             unset($this->readingCurlHandles[spl_object_id($curlHandle)]);
 
-            if ($this->abortInCurlHandle === $curlHandle) {
-                $this->abortIn = 0.0;
-                $this->abortInCurlHandle = null;
-            }
-
             $this->closeHandles($curlHandle, $curlMultiHandle);
         }
     }
 
-    private function closeHandles(CurlHandle $curlHandle, CurlMultiHandle $curlMultiHandle): void
+    private function closeHandles(CurlHandle $curlHandle, ?CurlMultiHandle $curlMultiHandle): void
     {
-        curl_multi_remove_handle($curlMultiHandle, $curlHandle);
-        curl_multi_close($curlMultiHandle);
+        if ($this->abortInCurlHandle === $curlHandle) {
+            $this->abortIn = 0.0;
+            $this->abortInCurlHandle = null;
+        }
+
+        if ($curlMultiHandle instanceof CurlMultiHandle) {
+            curl_multi_remove_handle($curlMultiHandle, $curlHandle);
+            curl_multi_close($curlMultiHandle);
+        }
 
         // The handler may already belong to a later request, for example if
         // the caller releases a stream only after starting the next one.
