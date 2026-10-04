@@ -363,7 +363,7 @@ foreach ($events as $event) {
 
 #### Aborting Observing
 
-If you need to abort observing use `abortIn` before or within the `foreach` loop. The `abortIn` method expects the abort time in seconds. However, this only works if there is currently an iteration going on:
+If you need to abort observing use `abortIn` before or within the `foreach` loop. The `abortIn` method expects the abort time in seconds. It applies only to the iteration currently going on, or, if there is none, to the next one, so later requests of the client are not aborted:
 
 ```php
 use Thenativeweb\Eventsourcingdb\ObserveEventsOptions;
@@ -430,7 +430,7 @@ foreach($subjects as $subject) {
 
 #### Aborting Listing
 
-If you need to abort listing use `abortIn` before or within the `foreach` loop. The `abortIn` method expects the abort time in seconds. However, this only works if there is currently an iteration going on:
+If you need to abort listing use `abortIn` before or within the `foreach` loop. The `abortIn` method expects the abort time in seconds. It applies only to the iteration currently going on, or, if there is none, to the next one, so later requests of the client are not aborted:
 
 ```php
 $subjects = $client->readSubjects('/');
@@ -456,7 +456,7 @@ foreach($eventTypes as $eventType) {
 
 #### Aborting Listing
 
-If you need to abort listing use `abortIn` before or within the `foreach` loop. The `abortIn` method expects the abort time in seconds. However, this only works if there is currently an iteration going on:
+If you need to abort listing use `abortIn` before or within the `foreach` loop. The `abortIn` method expects the abort time in seconds. It applies only to the iteration currently going on, or, if there is none, to the next one, so later requests of the client are not aborted:
 
 ```php
 $eventTypes = $client->readEventTypes();
