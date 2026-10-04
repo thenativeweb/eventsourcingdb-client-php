@@ -69,11 +69,6 @@ class CurlFactory
             return strlen($chunk);
         };
 
-        if ($request->getUri()->getScheme() === 'https') {
-            $options[CURLOPT_SSL_VERIFYPEER] = false;
-            $options[CURLOPT_SSL_VERIFYHOST] = false;
-        }
-
         if ($timeout !== 0) {
             $options[CURLOPT_TIMEOUT] = $timeout;
         }

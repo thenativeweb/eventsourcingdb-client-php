@@ -80,7 +80,7 @@ final class CurlFactoryTest extends TestCase
         $this->assertSame(CURL_HTTP_VERSION_2_0, $options[CURLOPT_HTTP_VERSION]);
     }
 
-    public function testCreateSetsSslOptionsForHttps(): void
+    public function testCreateKeepsTheVerificationOfTheCertificateForHttps(): void
     {
         $this->requestMock->method('getProtocolVersion')
             ->willReturn('1.1');
@@ -95,9 +95,8 @@ final class CurlFactoryTest extends TestCase
             $this->writeQueueMock,
         );
 
-        $this->assertArrayHasKey(CURLOPT_SSL_VERIFYPEER, $options);
-        $this->assertFalse($options[CURLOPT_SSL_VERIFYPEER]);
-        $this->assertFalse($options[CURLOPT_SSL_VERIFYHOST]);
+        $this->assertArrayNotHasKey(CURLOPT_SSL_VERIFYPEER, $options);
+        $this->assertArrayNotHasKey(CURLOPT_SSL_VERIFYHOST, $options);
     }
 
     public function testCreateSetsTimeout(): void

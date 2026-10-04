@@ -11,6 +11,14 @@ declare(strict_types=1);
  * without sending anything. It reports "closed" once the client closes the
  * connection, or ends the response and reports "ended" once the hold time is
  * over.
+ *
+ * If the connection ends before a request arrives, it reports "no request"
+ * instead.
+ *
+ * If a certificate is given, it serves https with it and the given private
+ * key. A client that does not trust the certificate either breaks off the TLS
+ * handshake or closes the connection right after it, so the server reports
+ * "no request" in both cases.
  */
 
 /**
@@ -22,6 +30,10 @@ function answer($connection, array $response): string
     while (!str_contains($request, "\r\n\r\n")) {
         $chunk = fread($connection, 8192);
         if ($chunk === false || $chunk === '') {
+            if ($request === '') {
+                return 'no request';
+            }
+
             exit(1);
         }
 
@@ -81,7 +93,17 @@ function answer($connection, array $response): string
 
 $options = json_decode($argv[1], true, flags: JSON_THROW_ON_ERROR);
 
-$server = stream_socket_server('tcp://127.0.0.1:0');
+$tls = $options['tls'] ?? null;
+
+$server = stream_socket_server(
+    'tcp://127.0.0.1:0',
+    context: stream_context_create([
+        'ssl' => $tls === null ? [] : [
+            'local_cert' => $tls['certificate'],
+            'local_pk' => $tls['privateKey'],
+        ],
+    ]),
+);
 if ($server === false) {
     exit(1);
 }
@@ -92,6 +114,16 @@ foreach ($options['responses'] as $response) {
     $connection = stream_socket_accept($server, 10);
     if ($connection === false) {
         exit(1);
+    }
+
+    // A handshake the client breaks off is an expected outcome, so its warning
+    // is suppressed, and the outcome is reported instead.
+    if ($tls !== null && @stream_socket_enable_crypto($connection, true, STREAM_CRYPTO_METHOD_TLS_SERVER) !== true) {
+        echo "no request\n";
+
+        fclose($connection);
+
+        continue;
     }
 
     echo answer($connection, $response) . "\n";
