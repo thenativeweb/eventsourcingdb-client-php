@@ -156,7 +156,7 @@ class CurlMultiHandler
                 } elseif ($isRunning && (microtime(true) - $lineTime) >= $heartbeatTimeout) {
                     throw new HeartbeatTimeoutException("No event and no heartbeat arrived for {$heartbeatTimeout} seconds.");
                 } elseif ($isRunning) {
-                    curl_multi_select($curlMultiHandle, max(0.0, min(1.0, $lineTime + $heartbeatTimeout - microtime(true))));
+                    curl_multi_select($curlMultiHandle, $this->selectTimeout($curlHandle, $lineTime + $heartbeatTimeout));
                 }
 
                 $this->verifyCurlHandle($curlMultiHandle);
@@ -170,6 +170,18 @@ class CurlMultiHandler
 
             $this->closeHandles($curlHandle, $curlMultiHandle);
         }
+    }
+
+    private function selectTimeout(CurlHandle $curlHandle, float $heartbeatDeadline): float
+    {
+        // Waiting for data ends after a second at the latest, or earlier at
+        // the heartbeat deadline or at the abort time of the stream being read.
+        $deadline = $heartbeatDeadline;
+        if ($this->abortInCurlHandle === $curlHandle && $this->abortIn > 0) {
+            $deadline = min($deadline, $this->iteratorTime + $this->abortIn);
+        }
+
+        return max(0.0, min(1.0, $deadline - microtime(true)));
     }
 
     private function closeHandles(CurlHandle $curlHandle, ?CurlMultiHandle $curlMultiHandle): void
