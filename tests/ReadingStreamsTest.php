@@ -199,6 +199,24 @@ final class ReadingStreamsTest extends TestCase
         $this->assertSame('ended', $this->readServerReport());
     }
 
+    #[DataProvider('streamingCalls')]
+    public function testStopsAStreamAtTheTimeAbortInSets(Closure $call): void
+    {
+        $address = $this->startServer([], interval: 0.0, holdFor: 5.0);
+        $client = new Client("http://{$address}", 'secret');
+
+        $client->abortIn(0.2);
+
+        $startTime = microtime(true);
+        $itemsRead = iterator_count($call($client));
+        $processTime = microtime(true) - $startTime;
+
+        $this->assertSame(0, $itemsRead);
+        $this->assertGreaterThanOrEqual(0.2, $processTime);
+        $this->assertLessThan(0.5, $processTime, "Expected the stream to be stopped after 0.2 seconds, but it took {$processTime} seconds.");
+        $this->assertSame('closed', $this->readServerReport(), 'Expected the connection to be closed.');
+    }
+
     public function testDoesNotApplyAbortInToALaterRequest(): void
     {
         $address = $this->startServerWithResponses([
