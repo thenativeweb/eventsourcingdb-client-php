@@ -5,11 +5,12 @@ declare(strict_types=1);
 /*
  * Answers one request per given response, one after another, each the way
  * EventSourcingDB answers a streaming request: after the given delay, it sends
- * the headers, with the given Server and Content-Type headers, and then the
- * given lines as NDJSON, one line every interval, and afterwards keeps the
- * connection open without sending anything. It reports "closed" once the
- * client closes the connection, or ends the response and reports "ended" once
- * the hold time is over.
+ * the headers, with the given Server and Content-Type headers and the rest of
+ * them the given header delay after the status line, and then the given lines
+ * as NDJSON, one line every interval, and afterwards keeps the connection open
+ * without sending anything. It reports "closed" once the client closes the
+ * connection, or ends the response and reports "ended" once the hold time is
+ * over.
  */
 
 /**
@@ -40,9 +41,11 @@ function answer($connection, array $response): string
 
     usleep((int) ($response['delay'] * 1_000_000));
 
+    fwrite($connection, "HTTP/1.1 200 OK\r\n");
+    usleep((int) ($response['headerDelay'] * 1_000_000));
+
     fwrite(
         $connection,
-        "HTTP/1.1 200 OK\r\n" .
         "Server: {$response['server']}\r\n" .
         "Content-Type: {$response['contentType']}\r\n" .
         "Transfer-Encoding: chunked\r\n" .

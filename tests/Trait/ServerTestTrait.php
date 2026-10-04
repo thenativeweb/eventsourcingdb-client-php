@@ -67,6 +67,7 @@ trait ServerTestTrait
         float $delay = 0.0,
         string $server = 'EventSourcingDB/test',
         string $contentType = 'application/x-ndjson',
+        float $headerDelay = 0.0,
     ): array {
         return [
             'lines' => $lines,
@@ -75,6 +76,7 @@ trait ServerTestTrait
             'delay' => $delay,
             'server' => $server,
             'contentType' => $contentType,
+            'headerDelay' => $headerDelay,
         ];
     }
 

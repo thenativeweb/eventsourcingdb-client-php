@@ -184,6 +184,21 @@ final class ReadingStreamsTest extends TestCase
         $this->assertSame('closed', $this->readServerReport(), 'Expected the connection to be closed.');
     }
 
+    public function testReadsAStreamWhoseHeadersArriveInSeveralPackets(): void
+    {
+        // The server sends the status line first and the other headers a
+        // little later, so that they arrive in separate packets.
+        $address = $this->startServerWithResponses([
+            $this->response([self::eventLine()], interval: 0.0, holdFor: 0.0, headerDelay: 0.2),
+        ]);
+        $client = new Client("http://{$address}", 'secret');
+
+        $eventsRead = iterator_count($client->readEvents('/', new ReadEventsOptions(recursive: true)));
+
+        $this->assertSame(1, $eventsRead);
+        $this->assertSame('ended', $this->readServerReport());
+    }
+
     public function testDoesNotApplyAbortInToALaterRequest(): void
     {
         $address = $this->startServerWithResponses([

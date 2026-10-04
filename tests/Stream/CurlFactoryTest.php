@@ -168,6 +168,8 @@ final class CurlFactoryTest extends TestCase
         $this->headerQueueMock->expects($this->once())
             ->method('write')
             ->with('test-header');
+        $this->headerQueueMock->expects($this->never())
+            ->method('complete');
 
         $options = CurlFactory::create(
             $this->requestMock,
@@ -178,6 +180,29 @@ final class CurlFactoryTest extends TestCase
         $headerFunction = $options[CURLOPT_HEADERFUNCTION];
         $length = $headerFunction(null, 'test-header');
         $this->assertSame(strlen('test-header'), $length);
+    }
+
+    public function testHeaderFunctionCompletesQueueAtTheEndOfTheHeaders(): void
+    {
+        $this->uriMock->method('__toString')
+            ->willReturn('http://example.com');
+        $this->uriMock->method('getScheme')
+            ->willReturn('http');
+
+        $this->headerQueueMock->expects($this->never())
+            ->method('write');
+        $this->headerQueueMock->expects($this->once())
+            ->method('complete');
+
+        $options = CurlFactory::create(
+            $this->requestMock,
+            $this->headerQueueMock,
+            $this->writeQueueMock,
+        );
+
+        $headerFunction = $options[CURLOPT_HEADERFUNCTION];
+        $length = $headerFunction(null, "\r\n");
+        $this->assertSame(strlen("\r\n"), $length);
     }
 
     public function testWriteFunctionWritesToQueue(): void

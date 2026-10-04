@@ -13,6 +13,8 @@ use Traversable;
  */
 class Queue implements IteratorAggregate
 {
+    private bool $isComplete = false;
+
     public function __construct(
         private array $queue = [],
         private readonly int $maxSize = 0,
@@ -22,6 +24,16 @@ class Queue implements IteratorAggregate
     public function isEmpty(): bool
     {
         return $this->queue === [];
+    }
+
+    public function complete(): void
+    {
+        $this->isComplete = true;
+    }
+
+    public function isComplete(): bool
+    {
+        return $this->isComplete;
     }
 
     public function read(): string

@@ -36,6 +36,13 @@ class CurlFactory
 
         $contentType = null;
         $options[CURLOPT_HEADERFUNCTION] = function (?CurlHandle $curlHandle, string $header) use (&$queueHeader, &$contentType): int {
+            // cURL also hands over the empty line that ends the headers.
+            if (trim($header) === '') {
+                $queueHeader->complete();
+
+                return strlen($header);
+            }
+
             $queueHeader->write($header);
 
             if (preg_match('/^Content-Type:\s*(.+)$/i', $header, $matches)) {

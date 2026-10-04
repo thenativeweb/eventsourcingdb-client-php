@@ -17,6 +17,23 @@ final class QueueTest extends TestCase
         $this->assertSame('', $queue->read());
     }
 
+    public function testQueueIsInitiallyNotComplete(): void
+    {
+        $queue = new Queue();
+
+        $this->assertFalse($queue->isComplete());
+    }
+
+    public function testCompleteMarksTheQueueAsComplete(): void
+    {
+        $queue = new Queue();
+        $queue->write('foo');
+        $queue->complete();
+
+        $this->assertTrue($queue->isComplete());
+        $this->assertSame('foo', $queue->read());
+    }
+
     public function testWriteAddsDataToQueue(): void
     {
         $queue = new Queue();
