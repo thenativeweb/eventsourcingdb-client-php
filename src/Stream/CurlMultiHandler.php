@@ -102,39 +102,47 @@ class CurlMultiHandler
         $this->iteratorTime = microtime(true);
         $lineTime = $this->iteratorTime;
 
-        do {
-            if (
-                $this->abortIn > 0
-                && (microtime(true) - $this->iteratorTime) >= $this->abortIn
-            ) {
-                break;
-            }
+        // The finally block also runs when the caller stops reading early and
+        // the generator is destroyed, so the connection does not stay open.
+        try {
+            do {
+                if (
+                    $this->abortIn > 0
+                    && (microtime(true) - $this->iteratorTime) >= $this->abortIn
+                ) {
+                    break;
+                }
 
-            $status = curl_multi_exec($curlMultiHandle, $isRunning);
-            if (!$queue->isEmpty()) {
-                $lineTime = microtime(true);
-            } elseif ($isRunning && (microtime(true) - $lineTime) >= $heartbeatTimeout) {
-                $this->closeHandles($curlHandle, $curlMultiHandle);
+                $status = curl_multi_exec($curlMultiHandle, $isRunning);
+                if (!$queue->isEmpty()) {
+                    $lineTime = microtime(true);
+                } elseif ($isRunning && (microtime(true) - $lineTime) >= $heartbeatTimeout) {
+                    throw new HeartbeatTimeoutException("No event and no heartbeat arrived for {$heartbeatTimeout} seconds.");
+                } elseif ($isRunning) {
+                    curl_multi_select($curlMultiHandle, max(0.0, min(1.0, $lineTime + $heartbeatTimeout - microtime(true))));
+                }
 
-                throw new HeartbeatTimeoutException("No event and no heartbeat arrived for {$heartbeatTimeout} seconds.");
-            } elseif ($isRunning) {
-                curl_multi_select($curlMultiHandle, max(0.0, min(1.0, $lineTime + $heartbeatTimeout - microtime(true))));
-            }
+                $this->verifyCurlHandle($curlMultiHandle);
 
-            $this->verifyCurlHandle($curlMultiHandle);
-
-            while (!$queue->isEmpty()) {
-                yield $queue->read();
-            }
-        } while ($isRunning && $status === CURLM_OK);
-
-        $this->closeHandles($curlHandle, $curlMultiHandle);
+                while (!$queue->isEmpty()) {
+                    yield $queue->read();
+                }
+            } while ($isRunning && $status === CURLM_OK);
+        } finally {
+            $this->closeHandles($curlHandle, $curlMultiHandle);
+        }
     }
 
     private function closeHandles(CurlHandle $curlHandle, CurlMultiHandle $curlMultiHandle): void
     {
         curl_multi_remove_handle($curlMultiHandle, $curlHandle);
         curl_multi_close($curlMultiHandle);
+
+        // The handler may already belong to a later request, for example if
+        // the caller releases a stream only after starting the next one.
+        if ($this->curlHandle !== $curlHandle) {
+            return;
+        }
 
         unset(
             $this->curlHandle,

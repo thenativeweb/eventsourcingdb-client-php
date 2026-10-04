@@ -95,4 +95,21 @@ final class ReadingStreamsTest extends TestCase
         $this->assertSame(1, $itemsRead);
         $this->assertLessThan(0.5, $processTime, "Expected the item to be handed over right away, but it took {$processTime} seconds.");
     }
+
+    #[DataProvider('streamingCalls')]
+    public function testClosesTheConnectionIfTheLoopIsLeft(Closure $call, string $itemLine): void
+    {
+        $address = $this->startServer([$itemLine], interval: 0.0, holdFor: 5.0);
+        $client = new Client("http://{$address}", 'secret');
+
+        $itemsRead = 0;
+        foreach ($call($client) as $item) {
+            ++$itemsRead;
+
+            break;
+        }
+
+        $this->assertSame(1, $itemsRead);
+        $this->assertSame('closed', $this->readServerReport(), 'Expected the connection to be closed.');
+    }
 }
