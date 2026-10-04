@@ -262,6 +262,11 @@ final readonly class Client
 
         $this->throwIfNotValidServerHeader($response);
         $this->throwIfNotSuccessStatusCode($response, 'Failed to register event schema');
+
+        // The response is not needed, so its connection is closed rather than
+        // kept open until the next request.
+        $response->getStream()
+            ->close();
     }
 
     public function readSubjects(string $baseSubject): iterable
@@ -361,10 +366,16 @@ final readonly class Client
         $serverHeader = $response->getHeader('Server');
 
         if ($serverHeader === []) {
+            $response->getStream()
+                ->close();
+
             throw new RuntimeException('Server Header is empty.');
         }
 
         if (!str_starts_with($serverHeader[0], 'EventSourcingDB/')) {
+            $response->getStream()
+                ->close();
+
             throw new RuntimeException('Server must be EventSourcingDB.');
         }
     }

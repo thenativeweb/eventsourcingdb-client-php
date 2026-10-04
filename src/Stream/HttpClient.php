@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Thenativeweb\Eventsourcingdb\Stream;
 
 use InvalidArgumentException;
+use Throwable;
 
 /**
  * @see \Thenativeweb\Eventsourcingdb\Tests\Stream\HttpClientTest
@@ -92,24 +93,33 @@ class HttpClient
         }
 
         $this->curlMultiHandler->addHandle($request);
-        $this->curlMultiHandler->execute();
 
-        $headerQueue = $this->curlMultiHandler->getHeaderQueue();
-        $responseHeader = $this->parseHeaderQueue($headerQueue);
+        // A response that is refused is never read, so its connection is
+        // closed here rather than kept open until the next request.
+        try {
+            $this->curlMultiHandler->execute();
 
-        if (!$this->isContentTypeSupported($responseHeader->contentType)) {
-            throw new InvalidArgumentException(
-                "Internal HttpClient: got Content-Type '{$responseHeader->contentType}', expected one of: " .
-                implode(', ', self::SUPPORTED_CONTENT_TYPES),
+            $headerQueue = $this->curlMultiHandler->getHeaderQueue();
+            $responseHeader = $this->parseHeaderQueue($headerQueue);
+
+            if (!$this->isContentTypeSupported($responseHeader->contentType)) {
+                throw new InvalidArgumentException(
+                    "Internal HttpClient: got Content-Type '{$responseHeader->contentType}', expected one of: " .
+                    implode(', ', self::SUPPORTED_CONTENT_TYPES),
+                );
+            }
+
+            $response = new Response(
+                statusCode: $responseHeader->statusCode,
+                headers: iterator_to_array($headerQueue),
+                stream: new Stream($this->curlMultiHandler),
+                protocolVersion: $responseHeader->httpVersion,
             );
-        }
+        } catch (Throwable $throwable) {
+            $this->curlMultiHandler->close();
 
-        $response = new Response(
-            statusCode: $responseHeader->statusCode,
-            headers: iterator_to_array($headerQueue),
-            stream: new Stream($this->curlMultiHandler),
-            protocolVersion: $responseHeader->httpVersion,
-        );
+            throw $throwable;
+        }
 
         return $response;
     }

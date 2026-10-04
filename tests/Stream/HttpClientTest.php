@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Thenativeweb\Eventsourcingdb\Tests\Stream;
 
 use ArrayIterator;
+use InvalidArgumentException;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Thenativeweb\Eventsourcingdb\Stream\Header;
@@ -189,5 +190,44 @@ final class HttpClientTest extends TestCase
 
         $this->assertSame(200, $response->getStatusCode());
         $this->assertLessThan(0.5, $processTime, "Expected the response to be handed over right away, but it took {$processTime} seconds after the headers.");
+    }
+
+    public function testWaitsForAllHeadersOfTheResponse(): void
+    {
+        // The server sends the status line first and the other headers a
+        // little later, so that they arrive in separate packets.
+        $address = $this->startServerWithResponses([
+            $this->response([], interval: 0.0, holdFor: 5.0, headerDelay: 0.2),
+        ]);
+
+        $httpClient = new HttpClient("http://{$address}");
+
+        $response = $httpClient->post('/api/v1/read-events', 'secret', [
+            'subject' => '/',
+        ]);
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertSame(['EventSourcingDB/test'], $response->getHeader('Server'));
+        $this->assertSame(['application/x-ndjson'], $response->getHeader('Content-Type'));
+    }
+
+    public function testClosesTheConnectionIfTheContentTypeIsNotSupported(): void
+    {
+        $address = $this->startServerWithResponses([
+            $this->response([], interval: 0.0, holdFor: 5.0, contentType: 'text/html'),
+        ]);
+
+        $httpClient = new HttpClient("http://{$address}");
+
+        try {
+            $httpClient->post('/api/v1/read-events', 'secret', [
+                'subject' => '/',
+            ]);
+            $this->fail('Expected the response to be refused, but it was not.');
+        } catch (InvalidArgumentException $invalidArgumentException) {
+            $this->assertStringStartsWith("Internal HttpClient: got Content-Type 'text/html'", $invalidArgumentException->getMessage());
+        }
+
+        $this->assertSame('closed', $this->readServerReport(), 'Expected the connection to be closed.');
     }
 }

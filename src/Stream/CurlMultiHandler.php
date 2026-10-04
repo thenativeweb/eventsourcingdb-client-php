@@ -19,15 +19,25 @@ class CurlMultiHandler
     private ?CurlHandle $curlHandle = null;
     private ?CurlMultiHandle $curlMultiHandle = null;
     private float $abortIn = 0.0;
+    private ?CurlHandle $abortInCurlHandle = null;
     private float $iteratorTime;
     private float $heartbeatTimeout = self::HEARTBEAT_TIMEOUT;
     private ?Queue $header = null;
     private ?Queue $write = null;
 
+    /**
+     * @var array<int, CurlHandle>
+     */
+    private array $readingCurlHandles = [];
+
     public function abortIn(float $seconds): void
     {
         $this->abortIn = max($seconds, 0.0);
         $this->iteratorTime = microtime(true);
+
+        // The abort time applies to the stream being read, or, if there is
+        // none, to the next request.
+        $this->abortInCurlHandle = end($this->readingCurlHandles) ?: null;
     }
 
     public function getHeaderQueue(): Queue
@@ -66,6 +76,12 @@ class CurlMultiHandler
         }
 
         $this->curlHandle = $curlHandle;
+
+        // An abort time set while no stream was being read applies to this
+        // request.
+        if (!$this->abortInCurlHandle instanceof CurlHandle) {
+            $this->abortInCurlHandle = $curlHandle;
+        }
     }
 
     public function execute(): void
@@ -74,21 +90,36 @@ class CurlMultiHandler
         $queue = $this->getHeaderQueue();
 
         $curlMultiHandle = curl_multi_init();
+        $this->curlMultiHandle = $curlMultiHandle;
+
         if (curl_multi_add_handle($curlMultiHandle, $curlHandle) !== CURLM_OK) {
             throw new RuntimeException('Internal HttpClient: Failed to add cURL handle to multi handle: ' . curl_multi_strerror(curl_multi_errno($curlMultiHandle)));
         }
 
+        // The headers may arrive in several packets, so this waits for all of
+        // them, not only for the first line.
         do {
             $status = curl_multi_exec($curlMultiHandle, $isRunning);
-            if ($queue->isEmpty() && $isRunning) {
+            if (!$queue->isComplete() && $isRunning) {
                 curl_multi_select($curlMultiHandle);
             }
 
             $this->verifyCurlHandle($curlMultiHandle);
 
-        } while ($queue->isEmpty() && $isRunning && $status === CURLM_OK);
+        } while (!$queue->isComplete() && $isRunning && $status === CURLM_OK);
+    }
 
-        $this->curlMultiHandle = $curlMultiHandle;
+    public function close(): void
+    {
+        $curlHandle = $this->curlHandle;
+
+        // The response of a request that is being read is closed once the
+        // reading ends.
+        if (!$curlHandle instanceof CurlHandle || isset($this->readingCurlHandles[spl_object_id($curlHandle)])) {
+            return;
+        }
+
+        $this->closeHandles($curlHandle, $this->curlMultiHandle);
     }
 
     public function contentIterator(bool $withHeartbeatTimeout = false): iterable
@@ -99,15 +130,21 @@ class CurlMultiHandler
 
         $heartbeatTimeout = $withHeartbeatTimeout ? $this->heartbeatTimeout : INF;
 
-        $this->iteratorTime = microtime(true);
-        $lineTime = $this->iteratorTime;
+        if ($this->abortInCurlHandle === $curlHandle) {
+            $this->iteratorTime = microtime(true);
+        }
+
+        $lineTime = microtime(true);
+
+        $this->readingCurlHandles[spl_object_id($curlHandle)] = $curlHandle;
 
         // The finally block also runs when the caller stops reading early and
         // the generator is destroyed, so the connection does not stay open.
         try {
             do {
                 if (
-                    $this->abortIn > 0
+                    $this->abortInCurlHandle === $curlHandle
+                    && $this->abortIn > 0
                     && (microtime(true) - $this->iteratorTime) >= $this->abortIn
                 ) {
                     break;
@@ -119,7 +156,7 @@ class CurlMultiHandler
                 } elseif ($isRunning && (microtime(true) - $lineTime) >= $heartbeatTimeout) {
                     throw new HeartbeatTimeoutException("No event and no heartbeat arrived for {$heartbeatTimeout} seconds.");
                 } elseif ($isRunning) {
-                    curl_multi_select($curlMultiHandle, max(0.0, min(1.0, $lineTime + $heartbeatTimeout - microtime(true))));
+                    curl_multi_select($curlMultiHandle, $this->selectTimeout($curlHandle, $lineTime + $heartbeatTimeout));
                 }
 
                 $this->verifyCurlHandle($curlMultiHandle);
@@ -129,14 +166,35 @@ class CurlMultiHandler
                 }
             } while ($isRunning && $status === CURLM_OK);
         } finally {
+            unset($this->readingCurlHandles[spl_object_id($curlHandle)]);
+
             $this->closeHandles($curlHandle, $curlMultiHandle);
         }
     }
 
-    private function closeHandles(CurlHandle $curlHandle, CurlMultiHandle $curlMultiHandle): void
+    private function selectTimeout(CurlHandle $curlHandle, float $heartbeatDeadline): float
     {
-        curl_multi_remove_handle($curlMultiHandle, $curlHandle);
-        curl_multi_close($curlMultiHandle);
+        // Waiting for data ends after a second at the latest, or earlier at
+        // the heartbeat deadline or at the abort time of the stream being read.
+        $deadline = $heartbeatDeadline;
+        if ($this->abortInCurlHandle === $curlHandle && $this->abortIn > 0) {
+            $deadline = min($deadline, $this->iteratorTime + $this->abortIn);
+        }
+
+        return max(0.0, min(1.0, $deadline - microtime(true)));
+    }
+
+    private function closeHandles(CurlHandle $curlHandle, ?CurlMultiHandle $curlMultiHandle): void
+    {
+        if ($this->abortInCurlHandle === $curlHandle) {
+            $this->abortIn = 0.0;
+            $this->abortInCurlHandle = null;
+        }
+
+        if ($curlMultiHandle instanceof CurlMultiHandle) {
+            curl_multi_remove_handle($curlMultiHandle, $curlHandle);
+            curl_multi_close($curlMultiHandle);
+        }
 
         // The handler may already belong to a later request, for example if
         // the caller releases a stream only after starting the next one.
