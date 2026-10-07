@@ -28,11 +28,11 @@ final readonly class EventCandidate implements JsonSerializable
         ];
 
         if ($this->traceParent !== null) {
-            $result['traceParent'] = $this->traceParent;
+            $result['traceparent'] = $this->traceParent;
         }
 
         if ($this->traceState !== null) {
-            $result['traceState'] = $this->traceState;
+            $result['tracestate'] = $this->traceState;
         }
 
         return $result;
