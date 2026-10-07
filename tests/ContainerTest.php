@@ -75,7 +75,7 @@ final class ContainerTest extends TestCase
     public function testRemovesContainersThatDoNotBecomeReady(): void
     {
         $imageVersion = getImageVersionFromDockerfile();
-        $containerIdsBefore = $this->getContainerIds($imageVersion);
+        $containerIdsBefore = $this->getStartedContainerIds();
 
         // Without an API token, EventSourcingDB exits right away.
         $this->container = (new Container())
@@ -90,7 +90,7 @@ final class ContainerTest extends TestCase
         }
 
         $this->assertInstanceOf(ContainerException::class, $exception);
-        $this->assertSame($containerIdsBefore, $this->getContainerIds($imageVersion));
+        $this->assertSame([], array_values(array_diff($this->getStartedContainerIds(), $containerIdsBefore)));
     }
 
     public function testRemovesContainersThatFailAfterTheyWereCreated(): void
@@ -229,12 +229,15 @@ final class ContainerTest extends TestCase
     /**
      * @return list<string>
      */
-    private function getContainerIds(string $imageVersion): array
+    // Lists the containers that a Container of this SDK started, by the label
+    // it puts on them. Containers that anything else starts at the same time,
+    // e.g. the test suite of another SDK, do not carry it.
+    private function getStartedContainerIds(): array
     {
         $containers = DockerContainerClient::getDockerClient()->containerList([
             'all' => true,
             'filters' => json_encode([
-                'ancestor' => ["thenativeweb/eventsourcingdb:{$imageVersion}"],
+                'label' => ['io.eventsourcingdb.container-start'],
             ], JSON_THROW_ON_ERROR),
         ]);
         $this->assertIsArray($containers);
