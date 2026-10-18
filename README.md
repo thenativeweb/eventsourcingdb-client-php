@@ -54,7 +54,7 @@ To change the stall timeout, pass the `stallTimeout` option in seconds when crea
 $client = new Client('http://localhost:3000', 'secret', stallTimeout: 10);
 ```
 
-If a request stalls, the client closes the connection and throws a `ConnectionStalledException`, which extends `RuntimeException`. This holds for every request, including streams such as `observeEvents` and `runEventQlQuery`, which receive a heartbeat every second while there is nothing else to send. If a write stalls, the client throws an `OutcomeUnknownException` instead, whose previous exception is the `ConnectionStalledException`, since the server may have stored the write nonetheless, see [Handling Errors](#handling-errors).
+If a request stalls, the client closes the connection and throws a `ConnectionStalledException`, which extends `RuntimeException`. This holds for every request, including streams such as `observeEvents` and `runEventQlQuery`, which receive a heartbeat every second while there is nothing else to send. If a write stalls once the connection to the server is established, the client throws an `OutcomeUnknownException` instead, whose previous exception is the `ConnectionStalledException`, since the server may have stored the write nonetheless. A write that stalls while connecting was never sent, so the client throws the `ConnectionStalledException` itself, see [Knowing Whether a Write Was Stored](#knowing-whether-a-write-was-stored).
 
 ### Writing Events
 
