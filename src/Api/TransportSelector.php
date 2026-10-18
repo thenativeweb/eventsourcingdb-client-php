@@ -7,6 +7,7 @@ namespace Thenativeweb\Eventsourcingdb\Api;
 use RuntimeException;
 use Thenativeweb\Eventsourcingdb\ConnectionStalledException;
 use Thenativeweb\Eventsourcingdb\Stream\HttpClient;
+use Throwable;
 
 /**
  * Chooses the API to speak with a server, on the first request of a client,
@@ -45,7 +46,17 @@ final class TransportSelector
         // PHP runs one request at a time, so the first request of a client
         // finishes asking before any other one starts, and the others use
         // the answer it remembered.
-        return $this->transport ??= $this->detectTransport();
+        try {
+            return $this->transport ??= $this->detectTransport();
+        } catch (Throwable $throwable) {
+            // The request that asked fails, so it uses up an abort time that
+            // the caller set for it, as a request that fails does, rather than
+            // leave it to a later request. No stream is being read before the
+            // client knows the API, so the abort time was set for this one.
+            $this->httpClient->abortIn(0.0);
+
+            throw $throwable;
+        }
     }
 
     private function detectTransport(): Transport

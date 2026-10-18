@@ -415,6 +415,34 @@ final class ReadingStreamsTest extends TestCase
         $this->assertSame('ended', $this->readServerReport(), 'Expected the request made within the loop not to be aborted.');
     }
 
+    public function testUsesUpTheAbortTimeOfARequestThatFailsWhileAskingWhichApiTheServerOffers(): void
+    {
+        $address = $this->startServerWithResponses([
+            $this->textResponse(503, 'server is shutting down'),
+            $this->probeResponse('v2'),
+            $this->response([], interval: 0.0, holdFor: 2.0),
+        ]);
+        $client = new Client("http://{$address}", 'secret');
+
+        $client->abortIn(1.0);
+
+        try {
+            $client->ping();
+            $this->fail('Expected the ping to fail, but it did not.');
+        } catch (DbApiException $dbApiException) {
+            $this->assertSame(503, $dbApiException->status);
+        }
+
+        // The ping used up the abort time, so the observation is not aborted,
+        // and breaks off once the server ends it.
+        try {
+            iterator_count($client->observeEvents('/', new ObserveEventsOptions(recursive: true)));
+            $this->fail('Expected the observation to break off, but it ended quietly.');
+        } catch (RuntimeException $runtimeException) {
+            $this->assertSame('Failed to observe events, since the stream broke off.', $runtimeException->getMessage());
+        }
+    }
+
     public function testAppliesAbortInToTheNextRequestIfNoStreamIsBeingRead(): void
     {
         $address = $this->startDatabase('v1', [
