@@ -73,6 +73,12 @@ final readonly class CloudEvent
         }
 
         $signatureHex = substr($this->signature, strlen($signaturePrefix));
+
+        // hex2bin warns about what it cannot decode, so that is checked first.
+        if (strlen($signatureHex) % 2 !== 0 || ($signatureHex !== '' && !ctype_xdigit($signatureHex))) {
+            throw new SignatureVerificationFailedException('Failed to decode signature from hex.');
+        }
+
         $signatureBytes = hex2bin($signatureHex);
 
         if ($signatureBytes === false) {

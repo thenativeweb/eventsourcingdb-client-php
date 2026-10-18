@@ -6,6 +6,7 @@ namespace Thenativeweb\Eventsourcingdb\Tests;
 
 use Closure;
 use DateTimeImmutable;
+use ErrorException;
 use Iterator;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -158,6 +159,37 @@ final class CloudEventHashTest extends TestCase
         $cloudEvent->verifySignature(sodium_crypto_sign_publickey(sodium_crypto_sign_keypair()));
     }
 
+    public static function signaturesThatAreNotHex(): Iterator
+    {
+        yield 'an odd number of digits' => ['esdb:signature:v1:abc'];
+        yield 'characters that are not hex digits' => ['esdb:signature:v1:zz'];
+    }
+
+    #[DataProvider('signaturesThatAreNotHex')]
+    public function testFailsIfTheSignatureIsNotHex(string $signature): void
+    {
+        $cloudEvent = $this->createEvent(str_replace(
+            '"signature":null',
+            "\"signature\":\"{$signature}\"",
+            self::EVENT_WITH_HASH_OF_VERSION_2,
+        ));
+
+        $this->expectException(SignatureVerificationFailedException::class);
+        $this->expectExceptionMessage('Failed to decode signature from hex.');
+
+        // Many frameworks turn a warning into an exception, which would hide
+        // the reason why verifying the signature failed.
+        set_error_handler(static function (int $severity, string $message): never {
+            throw new ErrorException($message, 0, $severity);
+        });
+
+        try {
+            $cloudEvent->verifySignature(sodium_crypto_sign_publickey(sodium_crypto_sign_keypair()));
+        } finally {
+            restore_error_handler();
+        }
+    }
+
     #[DataProvider('verificationErrors')]
     public function testFailsWithErrorsThatExistingCallersCatchAsRuntimeExceptions(string $errorClass): void
     {
@@ -187,14 +219,15 @@ final class CloudEventHashTest extends TestCase
 
     /**
      * Creates the event the way the client does from what the server sent,
-     * and signs its hash if a signing key is given.
+     * and signs its hash if a signing key is given, rather than keep the
+     * signature it was sent with.
      */
     private function createEvent(string $eventJson, ?string $signingKey = null): CloudEvent
     {
         $payload = json_decode($eventJson, true, flags: JSON_THROW_ON_ERROR);
 
         $signature = $signingKey === null
-            ? null
+            ? $payload['signature']
             : 'esdb:signature:v1:' . bin2hex(sodium_crypto_sign_detached($payload['hash'], $signingKey));
 
         return new CloudEvent(
