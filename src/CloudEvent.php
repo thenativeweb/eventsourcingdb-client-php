@@ -151,6 +151,12 @@ final readonly class CloudEvent
         // event is encoded again instead, as before.
         $dataFromServer = $this->dataFromServer ?? null;
         if ($dataFromServer !== null) {
+            // The hash covers the data as received, so it must still be what
+            // the event carries, or a change to the data would go unnoticed.
+            if (json_decode($dataFromServer, true) !== $this->data) {
+                throw new HashVerificationFailedException('Failed to verify hash.');
+            }
+
             return $dataFromServer;
         }
 

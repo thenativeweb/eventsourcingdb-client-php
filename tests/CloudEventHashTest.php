@@ -101,6 +101,21 @@ final class CloudEventHashTest extends TestCase
         $cloudEvent->verifyHash();
     }
 
+    #[DataProvider('eventsOfEveryHashVersion')]
+    public function testFailsIfTheDataNoLongerMatchesTheDataAsReceived(string $eventJson): void
+    {
+        $payload = json_decode($eventJson, true, flags: JSON_THROW_ON_ERROR);
+        $cloudEvent = $this->createEvent($eventJson, data: [
+            ...$payload['data'],
+            'copies' => 4,
+        ]);
+
+        $this->expectException(HashVerificationFailedException::class);
+        $this->expectExceptionMessage('Failed to verify hash.');
+
+        $cloudEvent->verifyHash();
+    }
+
     public function testCoversTheTraceContextWithAHashOfVersion2(): void
     {
         $cloudEvent = $this->createEvent(str_replace(
@@ -232,9 +247,10 @@ final class CloudEventHashTest extends TestCase
     /**
      * Creates the event the way the client does from what the server sent,
      * and signs its hash if a signing key is given, rather than keep the
-     * signature it was sent with.
+     * signature it was sent with. If data is given, the event carries it
+     * instead of the data it was sent with, which it still keeps as received.
      */
-    private function createEvent(string $eventJson, ?string $signingKey = null): CloudEvent
+    private function createEvent(string $eventJson, ?string $signingKey = null, ?array $data = null): CloudEvent
     {
         $payload = json_decode($eventJson, true, flags: JSON_THROW_ON_ERROR);
 
@@ -251,7 +267,7 @@ final class CloudEventHashTest extends TestCase
             subject: $payload['subject'],
             type: $payload['type'],
             dataContentType: $payload['datacontenttype'],
-            data: $payload['data'],
+            data: $data ?? $payload['data'],
             hash: $payload['hash'],
             predecessorHash: $payload['predecessorhash'],
             traceParent: $payload['traceparent'] ?? null,
