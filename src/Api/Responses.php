@@ -107,6 +107,17 @@ final class Responses
     }
 
     /**
+     * Creates the error of a stream that broke off, i.e. that ended before
+     * the server ended it: a finite stream of the v2 API without its item of
+     * type end, or an observation, which the server never ends, without an
+     * item of type error.
+     */
+    public static function createErrorOfBrokenStream(string $scope): RuntimeException
+    {
+        return new RuntimeException("{$scope}, since the stream broke off.");
+    }
+
+    /**
      * Creates an event from the raw JSON object that the server sent for it,
      * and keeps its data as the server sent it, so that its hash can be
      * verified.

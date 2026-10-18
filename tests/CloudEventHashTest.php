@@ -243,9 +243,13 @@ final class CloudEventHashTest extends TestCase
         ]);
         $client = new Client("http://{$address}", 'secret');
 
+        // The server never ends an observation, so the first event is taken,
+        // which is the only one of every call.
         $events = [];
         foreach ($call($client) as $event) {
             $events[] = $event;
+
+            break;
         }
 
         $this->assertCount(1, $events);

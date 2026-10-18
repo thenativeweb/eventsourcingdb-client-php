@@ -110,17 +110,25 @@ final class RequestsTest extends TestCase
             'application/x-ndjson',
             ['QUERY', '/api/v2/data/run-eventql-query', '{"query":"FROM e IN events PROJECT INTO e"}'],
         ];
+        // The server never ends an observation, so it is left after its first
+        // event.
+        $observeEvents = static function (Client $client): void {
+            foreach ($client->observeEvents('/test', new ObserveEventsOptions(recursive: true)) as $event) {
+                break;
+            }
+        };
+
         yield 'observeEvents (v1)' => [
             'v1',
-            static fn (Client $client): int => iterator_count($client->observeEvents('/test', new ObserveEventsOptions(recursive: true))),
-            [],
+            $observeEvents,
+            [self::eventItem('v1')],
             'application/x-ndjson',
             ['POST', '/api/v1/observe-events', '{"subject":"\/test","options":{"recursive":true}}'],
         ];
         yield 'observeEvents (v2)' => [
             'v2',
-            static fn (Client $client): int => iterator_count($client->observeEvents('/test', new ObserveEventsOptions(recursive: true))),
-            [],
+            $observeEvents,
+            [self::eventItem('v2')],
             'application/x-ndjson',
             ['QUERY', '/api/v2/data/observe-events', '{"subject":"\/test","options":{"recursive":true}}'],
         ];

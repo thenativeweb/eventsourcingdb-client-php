@@ -27,7 +27,6 @@ final class HeartbeatTest extends TestCase
                 $apiVersion,
                 static fn (Client $client): iterable => $client->observeEvents('/', new ObserveEventsOptions(recursive: true)),
                 self::eventItem($apiVersion),
-                [],
             ];
             yield "runEventQlQuery ({$apiVersion})" => [
                 $apiVersion,
@@ -35,8 +34,6 @@ final class HeartbeatTest extends TestCase
                 self::item($apiVersion, 'row', [
                     'value' => 23,
                 ]),
-                // A query that the v2 API answers ends with an item of type end.
-                $apiVersion === 'v2' ? [self::item($apiVersion, 'end')] : [],
             ];
         }
     }
@@ -62,25 +59,36 @@ final class HeartbeatTest extends TestCase
     }
 
     #[DataProvider('callsWithHeartbeats')]
-    public function testKeepsReadingWhileHeartbeatsArrive(string $apiVersion, Closure $call, string $itemLine, array $endLines): void
+    public function testKeepsReadingWhileHeartbeatsArrive(string $apiVersion, Closure $call): void
     {
-        $client = $this->startClient($apiVersion, [...array_fill(0, 20, self::item($apiVersion, 'heartbeat')), ...$endLines], interval: 0.1, holdFor: 0.0);
+        // The heartbeats last longer than the stream is read, which abortIn
+        // ends after three times the stall timeout.
+        $client = $this->startClient($apiVersion, array_fill(0, 20, self::item($apiVersion, 'heartbeat')), interval: 0.1, holdFor: 5.0);
+
+        $client->abortIn(self::STALL_TIMEOUT * 3);
 
         $startTime = microtime(true);
         $itemsRead = iterator_count($call($client));
         $processTime = microtime(true) - $startTime;
 
         $this->assertSame(0, $itemsRead);
-        $this->assertGreaterThan(self::STALL_TIMEOUT * 3, $processTime);
+        $this->assertGreaterThanOrEqual(self::STALL_TIMEOUT * 3, $processTime);
     }
 
     #[DataProvider('callsWithHeartbeats')]
-    public function testDeliversItemsThatArriveWithinTheStallTimeout(string $apiVersion, Closure $call, string $itemLine, array $endLines): void
+    public function testDeliversItemsThatArriveWithinTheStallTimeout(string $apiVersion, Closure $call, string $itemLine): void
     {
         $heartbeat = self::item($apiVersion, 'heartbeat');
-        $client = $this->startClient($apiVersion, [$heartbeat, $itemLine, $heartbeat, $itemLine, ...$endLines], interval: 0.1, holdFor: 0.0);
+        $client = $this->startClient($apiVersion, [$heartbeat, $itemLine, $heartbeat, $itemLine], interval: 0.1, holdFor: 5.0);
 
-        $itemsRead = iterator_count($call($client));
+        $itemsRead = 0;
+        foreach ($call($client) as $item) {
+            ++$itemsRead;
+
+            if ($itemsRead === 2) {
+                break;
+            }
+        }
 
         $this->assertSame(2, $itemsRead);
     }

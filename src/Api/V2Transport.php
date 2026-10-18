@@ -289,10 +289,11 @@ final readonly class V2Transport implements Transport
 
     /**
      * Yields the items of a stream that carry data, and skips heartbeats.
-     * It throws the error that an item of type error reports, and, for a
-     * stream that ends with an item of type end, an error if the stream
-     * breaks off before that item. A stream that abortIn ends simply ends,
-     * unless it is the answer to a write, whose outcome it leaves open.
+     * It throws the error that an item of type error reports, and an error if
+     * the stream breaks off: a stream that ends with an item of type end
+     * before that item, and an observation, which the server never ends, at
+     * all. A stream that abortIn ends simply ends, unless it is the answer to
+     * a write, whose outcome it leaves open.
      *
      * @return iterable<ReadEventLine>
      */
@@ -323,9 +324,7 @@ final readonly class V2Transport implements Transport
             return;
         }
 
-        if ($endsWithEndItem) {
-            throw new RuntimeException("{$scope}, since the stream ended before its end item.");
-        }
+        throw Responses::createErrorOfBrokenStream($scope);
     }
 
     /**

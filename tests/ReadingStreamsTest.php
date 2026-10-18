@@ -10,6 +10,8 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 use Thenativeweb\Eventsourcingdb\Client;
+use Thenativeweb\Eventsourcingdb\DbApiException;
+use Thenativeweb\Eventsourcingdb\ErrorCode;
 use Thenativeweb\Eventsourcingdb\ObserveEventsOptions;
 use Thenativeweb\Eventsourcingdb\OutcomeUnknownException;
 use Thenativeweb\Eventsourcingdb\ReadEventsOptions;
@@ -186,20 +188,62 @@ final class ReadingStreamsTest extends TestCase
 
             $this->fail('Expected the stream to fail, but it did not.');
         } catch (RuntimeException $runtimeException) {
-            $this->assertStringEndsWith(', since the stream ended before its end item.', $runtimeException->getMessage());
+            $this->assertStringEndsWith(', since the stream broke off.', $runtimeException->getMessage());
         }
 
         $this->assertSame(1, $itemsRead);
     }
 
-    public function testEndsAnObservationThatTheServerEndsWithoutAnError(): void
+    /**
+     * @param 'v1'|'v2' $apiVersion
+     */
+    #[DataProvider('apiVersions')]
+    public function testFailsIfTheServerEndsAnObservationWithoutAnError(string $apiVersion): void
     {
-        $address = $this->startDatabase('v2', [
-            $this->response([self::eventItem('v2')], interval: 0.0, holdFor: 0.0),
+        $address = $this->startDatabase($apiVersion, [
+            $this->response([self::eventItem($apiVersion)], interval: 0.0, holdFor: 0.0),
         ]);
         $client = new Client("http://{$address}", 'secret');
 
-        $eventsObserved = iterator_count($client->observeEvents('/', new ObserveEventsOptions(recursive: true)));
+        $eventsObserved = 0;
+        try {
+            foreach ($client->observeEvents('/', new ObserveEventsOptions(recursive: true)) as $event) {
+                ++$eventsObserved;
+            }
+
+            $this->fail('Expected the observation to fail, but it did not.');
+        } catch (RuntimeException $runtimeException) {
+            $this->assertNotInstanceOf(DbApiException::class, $runtimeException);
+            $this->assertSame('Failed to observe events, since the stream broke off.', $runtimeException->getMessage());
+        }
+
+        $this->assertSame(1, $eventsObserved);
+    }
+
+    public function testFailsWithTheErrorWithWhichTheServerEndsAnObservation(): void
+    {
+        $address = $this->startDatabase('v2', [
+            $this->response([
+                self::eventItem('v2'),
+                self::item('v2', 'error', [
+                    'code' => ErrorCode::SERVER_SHUTTING_DOWN,
+                    'description' => 'server is shutting down',
+                    'details' => (object) [],
+                ]),
+            ], interval: 0.0, holdFor: 0.0),
+        ]);
+        $client = new Client("http://{$address}", 'secret');
+
+        $eventsObserved = 0;
+        try {
+            foreach ($client->observeEvents('/', new ObserveEventsOptions(recursive: true)) as $event) {
+                ++$eventsObserved;
+            }
+
+            $this->fail('Expected the observation to fail, but it did not.');
+        } catch (DbApiException $dbApiException) {
+            $this->assertSame(ErrorCode::SERVER_SHUTTING_DOWN, $dbApiException->code);
+        }
 
         $this->assertSame(1, $eventsObserved);
     }

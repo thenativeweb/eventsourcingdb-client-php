@@ -155,6 +155,12 @@ final readonly class V1Transport implements Transport
                     throw new RuntimeException("Failed to handle unsupported line type {$eventLine->type}");
             }
         }
+
+        // The server never ends an observation, other than with an error, so
+        // one that ends otherwise has broken off, unless abortIn ended it.
+        if (!$this->httpClient->hasLastStreamBeenAborted()) {
+            throw Responses::createErrorOfBrokenStream('Failed to observe events');
+        }
     }
 
     public function registerEventSchema(string $eventType, array $schema): void
