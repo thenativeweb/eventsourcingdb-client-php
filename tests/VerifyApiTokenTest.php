@@ -6,6 +6,7 @@ namespace Thenativeweb\Eventsourcingdb\Tests;
 
 use PHPUnit\Framework\TestCase;
 use Thenativeweb\Eventsourcingdb\Client;
+use Thenativeweb\Eventsourcingdb\DbApiException;
 use Thenativeweb\Eventsourcingdb\Tests\Trait\ClientTestTrait;
 
 final class VerifyApiTokenTest extends TestCase
@@ -25,10 +26,14 @@ final class VerifyApiTokenTest extends TestCase
         $apiToken = $this->container->getApiToken() . '-invalid';
         $client = new Client($baseUrl, $apiToken);
 
-        $this->expectException(\Throwable::class);
-        $this->expectExceptionMessage('Failed to verify API token, unauthorized');
-        $this->expectExceptionCode(401);
-
-        $client->verifyApiToken();
+        try {
+            $client->verifyApiToken();
+            $this->fail('Expected verifying the API token to fail, but it did not.');
+        } catch (DbApiException $dbApiException) {
+            $this->assertSame(401, $dbApiException->status);
+            $this->assertSame('', $dbApiException->code);
+            $this->assertSame('unauthorized', $dbApiException->description);
+            $this->assertSame('Failed to verify API token, unauthorized', $dbApiException->getMessage());
+        }
     }
 }

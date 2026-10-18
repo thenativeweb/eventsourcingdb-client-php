@@ -56,9 +56,12 @@ final class CloudEventHashTest extends TestCase
 
         // EVENT stands for the event in the response.
         foreach (self::eventsOfEveryHashVersion() as $version => [$eventJson]) {
-            yield "readEvents, {$version}" => [$readEvents, $eventJson, '{"type":"event","payload":EVENT}', 'application/x-ndjson'];
-            yield "observeEvents, {$version}" => [$observeEvents, $eventJson, '{"type":"event","payload":EVENT}', 'application/x-ndjson'];
-            yield "writeEvents, {$version}" => [$writeEvents, $eventJson, '[EVENT]', 'application/json'];
+            yield "readEvents, {$version}, v1" => ['v1', $readEvents, $eventJson, ['{"type":"event","payload":EVENT}'], 'application/x-ndjson'];
+            yield "observeEvents, {$version}, v1" => ['v1', $observeEvents, $eventJson, ['{"type":"event","payload":EVENT}'], 'application/x-ndjson'];
+            yield "writeEvents, {$version}, v1" => ['v1', $writeEvents, $eventJson, ['[EVENT]'], 'application/json'];
+            yield "readEvents, {$version}, v2" => ['v2', $readEvents, $eventJson, ['{"type":"event","data":EVENT}', '{"type":"end","data":{}}'], 'application/x-ndjson'];
+            yield "observeEvents, {$version}, v2" => ['v2', $observeEvents, $eventJson, ['{"type":"event","data":EVENT}'], 'application/x-ndjson'];
+            yield "writeEvents, {$version}, v2" => ['v2', $writeEvents, $eventJson, ['{"type":"event","data":EVENT}', '{"type":"end","data":{}}'], 'application/x-ndjson'];
         }
     }
 
@@ -223,13 +226,20 @@ final class CloudEventHashTest extends TestCase
         $this->assertTrue(is_a($errorClass, RuntimeException::class, true));
     }
 
+    /**
+     * @param 'v1'|'v2' $apiVersion
+     * @param list<string> $templates
+     */
     #[DataProvider('callsThatReturnEvents')]
-    public function testKeepsTheDataAsTheServerSentIt(Closure $call, string $eventJson, string $template, string $contentType): void
+    public function testKeepsTheDataAsTheServerSentIt(string $apiVersion, Closure $call, string $eventJson, array $templates, string $contentType): void
     {
-        $line = str_replace('EVENT', $eventJson, $template);
+        $lines = array_map(
+            static fn (string $template): string => str_replace('EVENT', $eventJson, $template),
+            $templates,
+        );
 
-        $address = $this->startServerWithResponses([
-            $this->response([$line], interval: 0.0, holdFor: 0.0, contentType: $contentType),
+        $address = $this->startDatabase($apiVersion, [
+            $this->response($lines, interval: 0.0, holdFor: 0.0, contentType: $contentType),
         ]);
         $client = new Client("http://{$address}", 'secret');
 

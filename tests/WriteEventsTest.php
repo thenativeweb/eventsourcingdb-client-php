@@ -6,6 +6,8 @@ namespace Thenativeweb\Eventsourcingdb\Tests;
 
 use PHPUnit\Framework\TestCase;
 use Thenativeweb\Eventsourcingdb\CloudEvent;
+use Thenativeweb\Eventsourcingdb\DbApiException;
+use Thenativeweb\Eventsourcingdb\ErrorCode;
 use Thenativeweb\Eventsourcingdb\EventCandidate;
 use Thenativeweb\Eventsourcingdb\IsEventQlQueryTrue;
 use Thenativeweb\Eventsourcingdb\IsSubjectOnEventId;
@@ -155,9 +157,8 @@ final class WriteEventsTest extends TestCase
             ],
         );
 
-        $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('Failed to write events, ');
-        $this->expectExceptionCode(409);
+        $this->expectException(DbApiException::class);
+        $this->expectExceptionCode(ErrorCode::PRECONDITION_VIOLATED);
 
         $this->client->writeEvents(
             [
@@ -180,9 +181,8 @@ final class WriteEventsTest extends TestCase
             ],
         );
 
-        $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('Failed to write events, ');
-        $this->expectExceptionCode(409);
+        $this->expectException(DbApiException::class);
+        $this->expectExceptionCode(ErrorCode::PRECONDITION_VIOLATED);
 
         $this->client->writeEvents(
             [
@@ -257,9 +257,8 @@ final class WriteEventsTest extends TestCase
             ],
         );
 
-        $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('Failed to write events, ');
-        $this->expectExceptionCode(409);
+        $this->expectException(DbApiException::class);
+        $this->expectExceptionCode(ErrorCode::PRECONDITION_VIOLATED);
 
         $this->client->writeEvents(
             [
@@ -295,9 +294,8 @@ final class WriteEventsTest extends TestCase
             ],
         );
 
-        $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('Failed to write events, ');
-        $this->expectExceptionCode(409);
+        $this->expectException(DbApiException::class);
+        $this->expectExceptionCode(ErrorCode::PRECONDITION_VIOLATED);
 
         $this->client->writeEvents(
             [

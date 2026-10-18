@@ -57,11 +57,11 @@ final class ReadEventTypesTest extends TestCase
 
         $this->assertCount(2, $eventTypesRead);
         $this->assertInstanceOf(EventType::class, $eventTypesRead[0]);
-        $this->assertSame('io.eventsourcingdb.test.bar', $eventTypesRead[0]->eventType);
-        $this->assertFalse($eventTypesRead[0]->isPhantom);
+        $this->assertSame('io.eventsourcingdb.test.bar', $eventTypesRead[0]->type);
+        $this->assertTrue($eventTypesRead[0]->hasEvents);
         $this->assertInstanceOf(EventType::class, $eventTypesRead[1]);
-        $this->assertSame('io.eventsourcingdb.test.foo', $eventTypesRead[1]->eventType);
-        $this->assertFalse($eventTypesRead[1]->isPhantom);
+        $this->assertSame('io.eventsourcingdb.test.foo', $eventTypesRead[1]->type);
+        $this->assertTrue($eventTypesRead[1]->hasEvents);
     }
 
     public function testSupportsReadingEventSchemas(): void
@@ -88,7 +88,8 @@ final class ReadEventTypesTest extends TestCase
 
         $this->assertCount(1, $eventTypesRead);
         $this->assertInstanceOf(EventType::class, $eventTypesRead[0]);
-        $this->assertSame('io.eventsourcingdb.test', $eventTypesRead[0]->eventType);
-        $this->assertTrue($eventTypesRead[0]->isPhantom);
+        $this->assertSame('io.eventsourcingdb.test', $eventTypesRead[0]->type);
+        $this->assertFalse($eventTypesRead[0]->hasEvents);
+        $this->assertEquals($schema, $eventTypesRead[0]->schema);
     }
 }

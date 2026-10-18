@@ -5,7 +5,8 @@ declare(strict_types=1);
 namespace Thenativeweb\Eventsourcingdb\Tests;
 
 use PHPUnit\Framework\TestCase;
-use RuntimeException;
+use Thenativeweb\Eventsourcingdb\DbApiException;
+use Thenativeweb\Eventsourcingdb\ErrorCode;
 use Thenativeweb\Eventsourcingdb\Tests\Trait\ClientTestTrait;
 
 final class RegisterEventSchemaTest extends TestCase
@@ -47,9 +48,9 @@ final class RegisterEventSchemaTest extends TestCase
 
         $this->client->registerEventSchema($eventType, $schema);
 
-        $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('Failed to register event schema, schema conflict: schema already exists');
-        $this->expectExceptionCode(409);
+        $this->expectException(DbApiException::class);
+        $this->expectExceptionMessage('Failed to register event schema, ');
+        $this->expectExceptionCode(ErrorCode::EVENT_SCHEMA_ALREADY_REGISTERED);
 
         $this->client->registerEventSchema($eventType, $schema);
     }

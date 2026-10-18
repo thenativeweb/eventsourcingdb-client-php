@@ -10,6 +10,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Thenativeweb\Eventsourcingdb\Client;
 use Thenativeweb\Eventsourcingdb\ConnectionStalledException;
+use Thenativeweb\Eventsourcingdb\EventCandidate;
 use Thenativeweb\Eventsourcingdb\ObserveEventsOptions;
 use Thenativeweb\Eventsourcingdb\Tests\Trait\ServerTestTrait;
 
@@ -18,46 +19,32 @@ final class HeartbeatTest extends TestCase
     use ServerTestTrait;
 
     private const STALL_TIMEOUT = 0.5;
-    private const HEARTBEAT_LINE = '{"type":"heartbeat","payload":{}}';
 
     public static function callsWithHeartbeats(): Iterator
     {
-        yield 'observeEvents' => [
-            static fn (Client $client): iterable => $client->observeEvents('/', new ObserveEventsOptions(recursive: true)),
-            json_encode([
-                'type' => 'event',
-                'payload' => [
-                    'specversion' => '1.0',
-                    'id' => '0',
-                    'time' => '2026-01-01T00:00:00Z',
-                    'source' => 'https://www.eventsourcingdb.io',
-                    'subject' => '/test',
-                    'type' => 'io.eventsourcingdb.test',
-                    'datacontenttype' => 'application/json',
-                    'data' => [
-                        'value' => 23,
-                    ],
-                    'hash' => 'hash',
-                    'predecessorhash' => 'predecessorhash',
-                    'signature' => null,
-                ],
-            ], JSON_THROW_ON_ERROR),
-        ];
-        yield 'runEventQlQuery' => [
-            static fn (Client $client): iterable => $client->runEventQlQuery('FROM e IN events PROJECT INTO e'),
-            json_encode([
-                'type' => 'row',
-                'payload' => [
+        foreach (['v1', 'v2'] as $apiVersion) {
+            yield "observeEvents ({$apiVersion})" => [
+                $apiVersion,
+                static fn (Client $client): iterable => $client->observeEvents('/', new ObserveEventsOptions(recursive: true)),
+                self::eventItem($apiVersion),
+                [],
+            ];
+            yield "runEventQlQuery ({$apiVersion})" => [
+                $apiVersion,
+                static fn (Client $client): iterable => $client->runEventQlQuery('FROM e IN events PROJECT INTO e'),
+                self::item($apiVersion, 'row', [
                     'value' => 23,
-                ],
-            ], JSON_THROW_ON_ERROR),
-        ];
+                ]),
+                // A query that the v2 API answers ends with an item of type end.
+                $apiVersion === 'v2' ? [self::item($apiVersion, 'end')] : [],
+            ];
+        }
     }
 
     #[DataProvider('callsWithHeartbeats')]
-    public function testEndsWithAStalledConnectionIfNeitherAnEventNorAHeartbeatArrives(Closure $call): void
+    public function testEndsWithAStalledConnectionIfNeitherAnItemNorAHeartbeatArrives(string $apiVersion, Closure $call): void
     {
-        $client = $this->startClient([self::HEARTBEAT_LINE], interval: 0.0, holdFor: 5.0);
+        $client = $this->startClient($apiVersion, [self::item($apiVersion, 'heartbeat')], interval: 0.0, holdFor: 5.0);
 
         $startTime = microtime(true);
         try {
@@ -75,9 +62,9 @@ final class HeartbeatTest extends TestCase
     }
 
     #[DataProvider('callsWithHeartbeats')]
-    public function testKeepsReadingWhileHeartbeatsArrive(Closure $call): void
+    public function testKeepsReadingWhileHeartbeatsArrive(string $apiVersion, Closure $call, string $itemLine, array $endLines): void
     {
-        $client = $this->startClient(array_fill(0, 20, self::HEARTBEAT_LINE), interval: 0.1, holdFor: 0.0);
+        $client = $this->startClient($apiVersion, [...array_fill(0, 20, self::item($apiVersion, 'heartbeat')), ...$endLines], interval: 0.1, holdFor: 0.0);
 
         $startTime = microtime(true);
         $itemsRead = iterator_count($call($client));
@@ -85,13 +72,13 @@ final class HeartbeatTest extends TestCase
 
         $this->assertSame(0, $itemsRead);
         $this->assertGreaterThan(self::STALL_TIMEOUT * 3, $processTime);
-        $this->assertSame('ended', $this->readServerReport());
     }
 
     #[DataProvider('callsWithHeartbeats')]
-    public function testDeliversItemsThatArriveWithinTheTimeout(Closure $call, string $itemLine): void
+    public function testDeliversItemsThatArriveWithinTheStallTimeout(string $apiVersion, Closure $call, string $itemLine, array $endLines): void
     {
-        $client = $this->startClient([self::HEARTBEAT_LINE, $itemLine, self::HEARTBEAT_LINE, $itemLine], interval: 0.1, holdFor: 0.0);
+        $heartbeat = self::item($apiVersion, 'heartbeat');
+        $client = $this->startClient($apiVersion, [$heartbeat, $itemLine, $heartbeat, $itemLine, ...$endLines], interval: 0.1, holdFor: 0.0);
 
         $itemsRead = iterator_count($call($client));
 
@@ -99,9 +86,9 @@ final class HeartbeatTest extends TestCase
     }
 
     #[DataProvider('callsWithHeartbeats')]
-    public function testEndsWithoutAStalledConnectionIfAborted(Closure $call): void
+    public function testEndsWithoutAStalledConnectionIfAborted(string $apiVersion, Closure $call): void
     {
-        $client = $this->startClient([self::HEARTBEAT_LINE], interval: 0.0, holdFor: 5.0);
+        $client = $this->startClient($apiVersion, [self::item($apiVersion, 'heartbeat')], interval: 0.0, holdFor: 5.0);
 
         $client->abortIn(0.2);
 
@@ -111,9 +98,9 @@ final class HeartbeatTest extends TestCase
     }
 
     #[DataProvider('callsWithHeartbeats')]
-    public function testEndsWithoutAStalledConnectionIfTheLoopIsLeft(Closure $call, string $itemLine): void
+    public function testEndsWithoutAStalledConnectionIfTheLoopIsLeft(string $apiVersion, Closure $call, string $itemLine): void
     {
-        $client = $this->startClient([$itemLine], interval: 0.0, holdFor: 5.0);
+        $client = $this->startClient($apiVersion, [$itemLine], interval: 0.0, holdFor: 5.0);
 
         $itemsRead = 0;
         foreach ($call($client) as $item) {
@@ -125,12 +112,39 @@ final class HeartbeatTest extends TestCase
         $this->assertSame(1, $itemsRead);
     }
 
-    private function startClient(array $lines, float $interval, float $holdFor): Client
+    public function testKeepsAWriteThatReceivesHeartbeats(): void
     {
-        $address = $this->startServer($lines, $interval, $holdFor);
+        // The v2 API sends heartbeats while a write takes long, e.g. because of
+        // the EventQL query of a precondition.
+        $heartbeat = self::item('v2', 'heartbeat');
+        $client = $this->startClient('v2', [$heartbeat, $heartbeat, $heartbeat, $heartbeat, self::eventItem('v2'), self::item('v2', 'end')], interval: 0.3, holdFor: 0.0);
 
-        // The stall timeout sets after how long a stream with heartbeats ends
-        // with a stalled connection.
+        $startTime = microtime(true);
+        $writtenEvents = $client->writeEvents([
+            new EventCandidate(
+                source: 'https://www.eventsourcingdb.io',
+                subject: '/test',
+                type: 'io.eventsourcingdb.test',
+                data: [
+                    'value' => 23,
+                ],
+            ),
+        ]);
+        $processTime = microtime(true) - $startTime;
+
+        $this->assertCount(1, $writtenEvents);
+        $this->assertGreaterThan(self::STALL_TIMEOUT * 2, $processTime);
+    }
+
+    /**
+     * @param 'v1'|'v2' $apiVersion
+     */
+    private function startClient(string $apiVersion, array $lines, float $interval, float $holdFor): Client
+    {
+        $address = $this->startDatabase($apiVersion, [
+            $this->response($lines, $interval, $holdFor),
+        ]);
+
         return new Client("http://{$address}", 'secret', stallTimeout: self::STALL_TIMEOUT);
     }
 }

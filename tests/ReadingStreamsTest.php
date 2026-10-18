@@ -11,53 +11,43 @@ use PHPUnit\Framework\TestCase;
 use RuntimeException;
 use Thenativeweb\Eventsourcingdb\Client;
 use Thenativeweb\Eventsourcingdb\ObserveEventsOptions;
+use Thenativeweb\Eventsourcingdb\OutcomeUnknownException;
 use Thenativeweb\Eventsourcingdb\ReadEventsOptions;
+use Thenativeweb\Eventsourcingdb\ReadSubjectsOptions;
 use Thenativeweb\Eventsourcingdb\Tests\Trait\ServerTestTrait;
 
 final class ReadingStreamsTest extends TestCase
 {
     use ServerTestTrait;
 
+    public static function apiVersions(): Iterator
+    {
+        yield 'v1' => ['v1'];
+        yield 'v2' => ['v2'];
+    }
+
     public static function streamingCalls(): Iterator
     {
-        $eventLine = self::eventLine();
+        foreach (['v1', 'v2'] as $apiVersion) {
+            foreach (self::streamingCallsOf($apiVersion) as $name => [$call, $itemLine]) {
+                yield "{$name} ({$apiVersion})" => [$apiVersion, $call, $itemLine];
+            }
+        }
+    }
 
-        yield 'readEvents' => [
-            static fn (Client $client): iterable => $client->readEvents('/', new ReadEventsOptions(recursive: true)),
-            $eventLine,
-        ];
-        yield 'observeEvents' => [
-            static fn (Client $client): iterable => $client->observeEvents('/', new ObserveEventsOptions(recursive: true)),
-            $eventLine,
-        ];
-        yield 'runEventQlQuery' => [
-            static fn (Client $client): iterable => $client->runEventQlQuery('FROM e IN events PROJECT INTO e'),
-            json_encode([
-                'type' => 'row',
-                'payload' => [
-                    'value' => 23,
-                ],
-            ], JSON_THROW_ON_ERROR),
-        ];
-        yield 'readSubjects' => [
-            static fn (Client $client): iterable => $client->readSubjects('/'),
-            json_encode([
-                'type' => 'subject',
-                'payload' => [
-                    'subject' => '/test',
-                ],
-            ], JSON_THROW_ON_ERROR),
-        ];
-        yield 'readEventTypes' => [
-            static fn (Client $client): iterable => $client->readEventTypes(),
-            json_encode([
-                'type' => 'eventType',
-                'payload' => [
-                    'eventType' => 'io.eventsourcingdb.test',
-                    'isPhantom' => false,
-                ],
-            ], JSON_THROW_ON_ERROR),
-        ];
+    /**
+     * The calls whose answer is a stream that ends with an item of type end in
+     * the v2 API.
+     */
+    public static function finiteStreamingCalls(): Iterator
+    {
+        foreach (self::streamingCallsOf('v2') as $name => [$call, $itemLine]) {
+            if ($name === 'observeEvents') {
+                continue;
+            }
+
+            yield $name => [$call, $itemLine];
+        }
     }
 
     public static function calls(): Iterator
@@ -101,7 +91,7 @@ final class ReadingStreamsTest extends TestCase
         ];
         yield 'readSubjects' => [
             static function (Client $client): void {
-                iterator_count($client->readSubjects('/'));
+                iterator_count($client->readSubjects('/', new ReadSubjectsOptions(recursive: true)));
             },
         ];
         yield 'readEventTypes' => [
@@ -116,10 +106,21 @@ final class ReadingStreamsTest extends TestCase
         ];
     }
 
-    #[DataProvider('streamingCalls')]
-    public function testHandsOverAnItemAsSoonAsItHasArrived(Closure $call, string $itemLine): void
+    public static function callsOfEveryApiVersion(): Iterator
     {
-        $address = $this->startServer([$itemLine], interval: 0.0, holdFor: 5.0);
+        foreach (['v1', 'v2'] as $apiVersion) {
+            foreach (self::calls() as $name => [$call]) {
+                yield "{$name} ({$apiVersion})" => [$apiVersion, $call, in_array($name, ['writeEvents', 'registerEventSchema'], true)];
+            }
+        }
+    }
+
+    #[DataProvider('streamingCalls')]
+    public function testHandsOverAnItemAsSoonAsItHasArrived(string $apiVersion, Closure $call, string $itemLine): void
+    {
+        $address = $this->startDatabase($apiVersion, [
+            $this->response([$itemLine], interval: 0.0, holdFor: 5.0),
+        ]);
         $client = new Client("http://{$address}", 'secret');
 
         $startTime = microtime(true);
@@ -137,9 +138,11 @@ final class ReadingStreamsTest extends TestCase
     }
 
     #[DataProvider('streamingCalls')]
-    public function testClosesTheConnectionIfTheLoopIsLeft(Closure $call, string $itemLine): void
+    public function testClosesTheConnectionIfTheLoopIsLeft(string $apiVersion, Closure $call, string $itemLine): void
     {
-        $address = $this->startServer([$itemLine], interval: 0.0, holdFor: 5.0);
+        $address = $this->startDatabase($apiVersion, [
+            $this->response([$itemLine], interval: 0.0, holdFor: 5.0),
+        ]);
         $client = new Client("http://{$address}", 'secret');
 
         $itemsRead = 0;
@@ -153,12 +156,63 @@ final class ReadingStreamsTest extends TestCase
         $this->assertSame('closed', $this->readServerReport(), 'Expected the connection to be closed.');
     }
 
-    public function testClosesTheConnectionOfAResponseThatIsNeverRead(): void
+    #[DataProvider('finiteStreamingCalls')]
+    public function testReadsAStreamToItsEndItem(Closure $call, string $itemLine): void
     {
-        $address = $this->startServer([], interval: 0.0, holdFor: 5.0);
+        $address = $this->startDatabase('v2', [
+            $this->response([$itemLine, self::item('v2', 'heartbeat'), $itemLine, self::item('v2', 'end')], interval: 0.0, holdFor: 5.0),
+        ]);
         $client = new Client("http://{$address}", 'secret');
 
-        // Registering an event schema does not read the response.
+        $itemsRead = iterator_count($call($client));
+
+        $this->assertSame(2, $itemsRead);
+        $this->assertSame('closed', $this->readServerReport(), 'Expected the connection to be closed after the end item.');
+    }
+
+    #[DataProvider('finiteStreamingCalls')]
+    public function testFailsIfAStreamEndsBeforeItsEndItem(Closure $call, string $itemLine): void
+    {
+        $address = $this->startDatabase('v2', [
+            $this->response([$itemLine], interval: 0.0, holdFor: 0.0),
+        ]);
+        $client = new Client("http://{$address}", 'secret');
+
+        $itemsRead = 0;
+        try {
+            foreach ($call($client) as $item) {
+                ++$itemsRead;
+            }
+
+            $this->fail('Expected the stream to fail, but it did not.');
+        } catch (RuntimeException $runtimeException) {
+            $this->assertStringEndsWith(', since the stream ended before its end item.', $runtimeException->getMessage());
+        }
+
+        $this->assertSame(1, $itemsRead);
+    }
+
+    public function testEndsAnObservationThatTheServerEndsWithoutAnError(): void
+    {
+        $address = $this->startDatabase('v2', [
+            $this->response([self::eventItem('v2')], interval: 0.0, holdFor: 0.0),
+        ]);
+        $client = new Client("http://{$address}", 'secret');
+
+        $eventsObserved = iterator_count($client->observeEvents('/', new ObserveEventsOptions(recursive: true)));
+
+        $this->assertSame(1, $eventsObserved);
+    }
+
+    public function testClosesTheConnectionOfAResponseThatIsNeverRead(): void
+    {
+        $address = $this->startDatabase('v1', [
+            $this->response([], interval: 0.0, holdFor: 5.0),
+        ]);
+        $client = new Client("http://{$address}", 'secret');
+
+        // Registering an event schema through the v1 API does not read the
+        // response.
         $client->registerEventSchema('io.eventsourcingdb.test', [
             'type' => 'object',
         ]);
@@ -167,7 +221,7 @@ final class ReadingStreamsTest extends TestCase
     }
 
     #[DataProvider('calls')]
-    public function testClosesTheConnectionIfTheServerIsNotEventSourcingDb(Closure $call): void
+    public function testClosesTheConnectionIfTheServerThatIsAskedForItsApiIsNotEventSourcingDb(Closure $call): void
     {
         $address = $this->startServerWithResponses([
             $this->response([], interval: 0.0, holdFor: 5.0, server: 'nginx'),
@@ -178,31 +232,65 @@ final class ReadingStreamsTest extends TestCase
             $call($client);
             $this->fail('Expected the request to be refused, but it was not.');
         } catch (RuntimeException $runtimeException) {
+            $this->assertNotInstanceOf(OutcomeUnknownException::class, $runtimeException, 'Expected a write that was not sent not to have an unknown outcome.');
             $this->assertSame('Server must be EventSourcingDB.', $runtimeException->getMessage());
         }
 
         $this->assertSame('closed', $this->readServerReport(), 'Expected the connection to be closed.');
     }
 
-    public function testReadsAStreamWhoseHeadersArriveInSeveralPackets(): void
+    #[DataProvider('callsOfEveryApiVersion')]
+    public function testClosesTheConnectionIfTheServerIsNotEventSourcingDb(string $apiVersion, Closure $call, bool $isWrite): void
+    {
+        $address = $this->startDatabase($apiVersion, [
+            $this->response([], interval: 0.0, holdFor: 5.0, server: 'nginx'),
+        ]);
+        $client = new Client("http://{$address}", 'secret');
+
+        try {
+            $call($client);
+            $this->fail('Expected the request to be refused, but it was not.');
+        } catch (RuntimeException $runtimeException) {
+            // A write that an answer from another server meets may have reached
+            // EventSourcingDB nonetheless, e.g. through a proxy.
+            if ($isWrite) {
+                $this->assertInstanceOf(OutcomeUnknownException::class, $runtimeException);
+                $runtimeException = $runtimeException->getPrevious();
+                $this->assertInstanceOf(RuntimeException::class, $runtimeException);
+            }
+
+            $this->assertSame('Server must be EventSourcingDB.', $runtimeException->getMessage());
+        }
+
+        $this->assertSame('closed', $this->readServerReport(), 'Expected the connection to be closed.');
+    }
+
+    #[DataProvider('apiVersions')]
+    public function testReadsAStreamWhoseHeadersArriveInSeveralPackets(string $apiVersion): void
     {
         // The server sends the status line first and the other headers a
         // little later, so that they arrive in separate packets.
-        $address = $this->startServerWithResponses([
-            $this->response([self::eventLine()], interval: 0.0, holdFor: 0.0, headerDelay: 0.2),
+        $address = $this->startDatabase($apiVersion, [
+            $this->response(
+                $apiVersion === 'v2' ? [self::eventItem($apiVersion), self::item($apiVersion, 'end')] : [self::eventItem($apiVersion)],
+                interval: 0.0,
+                holdFor: 0.0,
+                headerDelay: 0.2,
+            ),
         ]);
         $client = new Client("http://{$address}", 'secret');
 
         $eventsRead = iterator_count($client->readEvents('/', new ReadEventsOptions(recursive: true)));
 
         $this->assertSame(1, $eventsRead);
-        $this->assertSame('ended', $this->readServerReport());
     }
 
     #[DataProvider('streamingCalls')]
-    public function testStopsAStreamAtTheTimeAbortInSets(Closure $call): void
+    public function testStopsAStreamAtTheTimeAbortInSets(string $apiVersion, Closure $call): void
     {
-        $address = $this->startServer([], interval: 0.0, holdFor: 5.0);
+        $address = $this->startDatabase($apiVersion, [
+            $this->response([], interval: 0.0, holdFor: 5.0),
+        ]);
         $client = new Client("http://{$address}", 'secret');
 
         $client->abortIn(0.2);
@@ -219,7 +307,7 @@ final class ReadingStreamsTest extends TestCase
 
     public function testDoesNotApplyAbortInToALaterRequest(): void
     {
-        $address = $this->startServerWithResponses([
+        $address = $this->startDatabase('v1', [
             $this->response([], interval: 0.0, holdFor: 2.0),
             $this->response([], interval: 0.0, holdFor: 2.0),
         ]);
@@ -237,9 +325,9 @@ final class ReadingStreamsTest extends TestCase
 
     public function testDoesNotApplyAbortInToALaterRequestIfTheLoopWasLeft(): void
     {
-        $address = $this->startServerWithResponses([
-            $this->response([self::eventLine()], interval: 0.0, holdFor: 2.0),
-            $this->response([self::eventLine()], interval: 0.0, holdFor: 2.0),
+        $address = $this->startDatabase('v1', [
+            $this->response([self::eventItem('v1')], interval: 0.0, holdFor: 2.0),
+            $this->response([self::eventItem('v1')], interval: 0.0, holdFor: 2.0),
         ]);
         $client = new Client("http://{$address}", 'secret');
 
@@ -261,8 +349,8 @@ final class ReadingStreamsTest extends TestCase
 
     public function testDoesNotApplyAbortInToARequestMadeWithinTheLoop(): void
     {
-        $address = $this->startServerWithResponses([
-            $this->response([self::eventLine(), self::eventLine()], interval: 0.0, holdFor: 0.0),
+        $address = $this->startDatabase('v1', [
+            $this->response([self::eventItem('v1'), self::eventItem('v1')], interval: 0.0, holdFor: 0.0),
             $this->response([], interval: 0.0, holdFor: 1.5),
             $this->response([], interval: 0.0, holdFor: 1.5),
         ]);
@@ -285,14 +373,15 @@ final class ReadingStreamsTest extends TestCase
 
     public function testAppliesAbortInToTheNextRequestIfNoStreamIsBeingRead(): void
     {
-        $address = $this->startServerWithResponses([
+        $address = $this->startDatabase('v1', [
             $this->response([], interval: 0.0, holdFor: 2.0),
             $this->response([], interval: 0.0, holdFor: 2.0),
         ]);
         $client = new Client("http://{$address}", 'secret');
 
-        // Registering an event schema does not read the response, so its
-        // request is not a stream being read when abortIn is called.
+        // Registering an event schema through the v1 API does not read the
+        // response, so its request is not a stream being read when abortIn is
+        // called.
         $client->registerEventSchema('io.eventsourcingdb.test', [
             'type' => 'object',
         ]);
@@ -304,25 +393,43 @@ final class ReadingStreamsTest extends TestCase
         $this->assertSame('closed', $this->readServerReport(), 'Expected the next request to be aborted.');
     }
 
-    private static function eventLine(): string
+    /**
+     * @param 'v1'|'v2' $apiVersion
+     */
+    private static function streamingCallsOf(string $apiVersion): Iterator
     {
-        return json_encode([
-            'type' => 'event',
-            'payload' => [
-                'specversion' => '1.0',
-                'id' => '0',
-                'time' => '2026-01-01T00:00:00Z',
-                'source' => 'https://www.eventsourcingdb.io',
+        yield 'readEvents' => [
+            static fn (Client $client): iterable => $client->readEvents('/', new ReadEventsOptions(recursive: true)),
+            self::eventItem($apiVersion),
+        ];
+        yield 'observeEvents' => [
+            static fn (Client $client): iterable => $client->observeEvents('/', new ObserveEventsOptions(recursive: true)),
+            self::eventItem($apiVersion),
+        ];
+        yield 'runEventQlQuery' => [
+            static fn (Client $client): iterable => $client->runEventQlQuery('FROM e IN events PROJECT INTO e'),
+            self::item($apiVersion, 'row', [
+                'value' => 23,
+            ]),
+        ];
+        yield 'readSubjects' => [
+            static fn (Client $client): iterable => $client->readSubjects('/', new ReadSubjectsOptions(recursive: true)),
+            self::item($apiVersion, 'subject', [
                 'subject' => '/test',
-                'type' => 'io.eventsourcingdb.test',
-                'datacontenttype' => 'application/json',
-                'data' => [
-                    'value' => 23,
-                ],
-                'hash' => 'hash',
-                'predecessorhash' => 'predecessorhash',
-                'signature' => null,
-            ],
-        ], JSON_THROW_ON_ERROR);
+            ]),
+        ];
+        yield 'readEventTypes' => [
+            static fn (Client $client): iterable => $client->readEventTypes(),
+            $apiVersion === 'v2'
+                ? self::item($apiVersion, 'eventType', [
+                    'type' => 'io.eventsourcingdb.test',
+                    'hasEvents' => true,
+                    'schema' => null,
+                ])
+                : self::item($apiVersion, 'eventType', [
+                    'eventType' => 'io.eventsourcingdb.test',
+                    'isPhantom' => false,
+                ]),
+        ];
     }
 }

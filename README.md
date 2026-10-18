@@ -26,6 +26,10 @@ use Thenativeweb\Eventsourcingdb\Client;
 $client = new Client('http://localhost:3000', 'secret');
 ```
 
+Creating a client does not send a request. The client SDK works with servers that offer the v2 API of EventSourcingDB, which it offers since version 1.3, and with servers that only offer the v1 API. On its first request, the client asks the server for the ping of the v2 API, `GET /api/v2/system/ping`, and remembers the answer: if the server answers it, the client uses the v2 API, and if the server does not know the route, the client uses the v1 API. If asking fails, e.g. because the server is not reachable, the first request fails with that error, and the next request asks again.
+
+*Note that the v2 API reads with the HTTP method `QUERY` ([RFC 10008](https://www.rfc-editor.org/rfc/rfc10008)), which a proxy in front of the database has to let through. There is no fallback to `POST`.*
+
 Then call the `ping` function to check whether the instance is reachable. If it is not, the function will throw an exception:
 
 ```php
@@ -50,7 +54,7 @@ To change the stall timeout, pass the `stallTimeout` option in seconds when crea
 $client = new Client('http://localhost:3000', 'secret', stallTimeout: 10);
 ```
 
-If a request stalls, the client closes the connection and throws a `ConnectionStalledException`, which extends `RuntimeException`. This holds for every request, including streams such as `observeEvents` and `runEventQlQuery`, which receive a heartbeat every second while there is nothing else to send.
+If a request stalls, the client closes the connection and throws a `ConnectionStalledException`, which extends `RuntimeException`. This holds for every request, including streams such as `observeEvents` and `runEventQlQuery`, which receive a heartbeat every second while there is nothing else to send. If a write stalls, the client throws an `OutcomeUnknownException` instead, whose previous exception is the `ConnectionStalledException`, since the server may have stored the write nonetheless, see [Handling Errors](#handling-errors).
 
 ### Writing Events
 
@@ -90,6 +94,27 @@ $writtenEvents = $client->writeEvents([
   new IsSubjectPristine('/books/42'),
 ]);
 ```
+
+If a precondition does not hold, the function throws a `DbApiException` whose code is `ErrorCode::PRECONDITION_VIOLATED`, and writes no event:
+
+```php
+use Thenativeweb\Eventsourcingdb\DbApiException;
+use Thenativeweb\Eventsourcingdb\ErrorCode;
+
+try {
+  $writtenEvents = $client->writeEvents([
+    // events
+  ], [
+    new IsSubjectPristine('/books/42'),
+  ]);
+} catch (DbApiException $exception) {
+  if ($exception->code === ErrorCode::PRECONDITION_VIOLATED) {
+    // ...
+  }
+}
+```
+
+The same holds for the other preconditions.
 
 #### Using the `isSubjectPopulated` precondition
 
@@ -273,7 +298,7 @@ foreach ($rows as $row) {
 }
 ```
 
-*Note that each row returned by the iterator is an associative array and matches the projection specified in your query.*
+*Note that each row returned by the iterator matches the projection specified in your query, e.g. an associative array for an event, or a number for `COUNT()`.*
 
 *Note that EventSourcingDB sends a heartbeat every second while there is nothing else to send. If neither a row nor a heartbeat arrives for the [stall timeout](#configuring-the-stall-timeout), which is 30 seconds by default, e.g. because the connection stalled, the iterator closes the connection and throws a `ConnectionStalledException`.*
 
@@ -422,34 +447,59 @@ $schema = [
 $client->registerEventSchema($eventType, $schema);
 ```
 
+If a schema is already registered for the event type, the function throws a `DbApiException` whose code is `ErrorCode::EVENT_SCHEMA_ALREADY_REGISTERED`.
+
 ### Listing Subjects
 
-To list all subjects, call the `readSubjects` function with `/` as the base subject. The function returns an asynchronous iterator, which you can use e.g. inside a `foreach` loop:
+To list subjects, call the `readSubjects` function with a subject and an options object, in which you have to set the `recursive` option. To list all subjects, provide `/` as the subject and set `recursive` to `true`, since all subjects are nested under the root subject. The function returns an asynchronous iterator, which you can use e.g. inside a `foreach` loop:
 
 ```php
-$subjects = $client->readSubjects('/');
+use Thenativeweb\Eventsourcingdb\ReadSubjectsOptions;
+
+$subjects = $client->readSubjects(
+  '/',
+  new ReadSubjectsOptions(
+    recursive: true,
+  ),
+);
 
 foreach($subjects as $subject) {
   // ...
 }
 ```
 
-If you only want to list subjects within a specific branch, provide the desired base subject instead:
+If you only want to list subjects within a specific branch, provide the desired subject instead. The listing includes the subject itself:
 
 ```php
-$subjects = $client->readSubjects('/books');
+use Thenativeweb\Eventsourcingdb\ReadSubjectsOptions;
+
+$subjects = $client->readSubjects(
+  '/books',
+  new ReadSubjectsOptions(
+    recursive: true,
+  ),
+);
 
 foreach($subjects as $subject) {
   // ...
 }
 ```
+
+If you set `recursive` to `false`, the listing only includes the given subject, if it exists, and none of the subjects nested under it.
 
 #### Aborting Listing
 
 If you need to abort listing use `abortIn` before or within the `foreach` loop. The `abortIn` method expects the abort time in seconds. It applies only to the iteration currently going on, or, if there is none, to the next one, so later requests of the client are not aborted:
 
 ```php
-$subjects = $client->readSubjects('/');
+use Thenativeweb\Eventsourcingdb\ReadSubjectsOptions;
+
+$subjects = $client->readSubjects(
+  '/',
+  new ReadSubjectsOptions(
+    recursive: true,
+  ),
+);
 
 $client->abortIn(0.1);
 foreach($subjects as $subject) {
@@ -469,6 +519,8 @@ foreach($eventTypes as $eventType) {
   // ...
 }
 ```
+
+Each event type is an `EventType` instance, whose `type` property holds the name of the event type, whose `hasEvents` property tells whether events of the type have been written, rather than only a schema registered for it, and whose `schema` property holds the registered schema, or an empty array if there is none.
 
 #### Aborting Listing
 
@@ -490,6 +542,54 @@ To list a specific event type, call the `readEventType` function with the event 
 
 ```php
 $eventType = $client->readEventType('io.eventsourcingdb.library.book-acquired');
+```
+
+If the event type does not exist, the function throws a `DbApiException` whose code is `ErrorCode::EVENT_TYPE_UNKNOWN`.
+
+### Handling Errors
+
+If the server reports an error, the client throws a `DbApiException`, which extends `RuntimeException`. It has the following properties:
+
+- `code` is the code of the error exactly as the server sends it, which is the URL of the page that documents the error, such as `https://docs.eventsourcingdb.io/errors/precondition-violated`, or an empty string for an error without a code. `getCode()` returns it as well, as it does for a `PDOException`.
+- `description` is the text that describes the error.
+- `details` is an associative array with the details of the error, or an empty array if there are none.
+- `status` is the HTTP status of the response. Note that the v2 API reports an error of a request, such as a precondition that does not hold, in the body of a response with the status `200`, so tell errors apart by their code rather than by their status.
+- `retryAfter` is, for a request that was limited, whose status is `429`, the number of seconds after which it may be repeated, if the server names them, and `null` otherwise. The client never repeats a request on its own.
+
+The `ErrorCode` class has a constant for every code, so that you can tell errors apart without comparing strings:
+
+```php
+use Thenativeweb\Eventsourcingdb\DbApiException;
+use Thenativeweb\Eventsourcingdb\ErrorCode;
+
+try {
+  $eventType = $client->readEventType('io.eventsourcingdb.library.book-acquired');
+} catch (DbApiException $exception) {
+  if ($exception->code === ErrorCode::EVENT_TYPE_UNKNOWN) {
+    // ...
+  }
+}
+```
+
+If the server only offers the v1 API, the client assigns the code of the v2 API to those errors of the v1 API that clearly match one, such as a precondition that does not hold, a schema that is already registered, or an event type that does not exist. Other errors of the v1 API keep an empty code.
+
+#### Knowing Whether a Write Was Stored
+
+EventSourcingDB never stores a write halfway, but a write whose answer is lost may have been stored nonetheless. So, if writing events or registering an event schema fails in a way that leaves open whether the server stored it, the client throws an `OutcomeUnknownException`, which extends `RuntimeException`, and whose previous exception, which `getPrevious()` returns, is the cause. This is the case, e.g., if the connection stalls or breaks after the request was sent, if `abortIn` aborts reading the answer, if the answer breaks off, if the server fails unexpectedly, or if the answer does not come from EventSourcingDB, e.g. from a proxy.
+
+A write certainly was not stored if the client throws any other exception, i.e. if the connection could not be established at all, or if the server refused the write, which it reports with a `DbApiException`:
+
+```php
+use Thenativeweb\Eventsourcingdb\OutcomeUnknownException;
+
+try {
+  $writtenEvents = $client->writeEvents([
+    // events
+  ]);
+} catch (OutcomeUnknownException $exception) {
+  // Find out whether the events were written, e.g. by reading them,
+  // before writing them again.
+}
 ```
 
 ### Verifying an Event's Hash
@@ -591,3 +691,67 @@ In case you need to set up the client yourself, use the following functions to g
 - `getMappedPort()` returns the port
 - `getBaseUrl()` returns the full URL of the container
 - `getApiToken()` returns the API token
+
+## Upgrading From Version 1
+
+Version 2 of the client SDK speaks the v2 API of EventSourcingDB wherever the server offers it, and the v1 API otherwise, see [Getting Started](#getting-started). It changes the following:
+
+- **Event types follow the v2 API.** `EventType::$eventType` is now `EventType::$type`, and `EventType::$isPhantom` is replaced by `EventType::$hasEvents`, which is its opposite. The constructor and `jsonSerialize` follow suit:
+
+  ```php
+  // Before
+  if ($eventType->isPhantom) { /* ... */ }
+  new EventType(eventType: 'io.eventsourcingdb.library.book-acquired', isPhantom: false, schema: []);
+
+  // After
+  if (!$eventType->hasEvents) { /* ... */ }
+  new EventType(type: 'io.eventsourcingdb.library.book-acquired', hasEvents: true, schema: []);
+  ```
+
+- **`readSubjects` takes options with a required `recursive` option**, and its first parameter is called `subject` rather than `baseSubject`. The previous version always listed recursively, so `recursive: true` keeps that:
+
+  ```php
+  // Before
+  $subjects = $client->readSubjects('/books');
+
+  // After
+  $subjects = $client->readSubjects('/books', new ReadSubjectsOptions(recursive: true));
+  ```
+
+- **Every error that the server reports is a `DbApiException`**, which extends `RuntimeException`, as the exceptions thrown before did, see [Handling Errors](#handling-errors). Its `getCode()` returns the code of the error, such as `ErrorCode::PRECONDITION_VIOLATED`, rather than the HTTP status, which `status` holds now. An error that the server reports within a stream is a `DbApiException` as well, with the status `200`, as is every error of a request that the v2 API reports:
+
+  ```php
+  // Before
+  try { /* ... */ } catch (RuntimeException $exception) {
+    if ($exception->getCode() === 409) { /* ... */ }
+  }
+
+  // After
+  try { /* ... */ } catch (DbApiException $exception) {
+    if ($exception->code === ErrorCode::PRECONDITION_VIOLATED) { /* ... */ }
+  }
+  ```
+
+- **`HeartbeatTimeoutException` is removed.** Observing events and running EventQL queries throw a `ConnectionStalledException` once neither data nor a heartbeat has arrived for the stall timeout, as every other request does:
+
+  ```php
+  // Before
+  try { /* ... */ } catch (HeartbeatTimeoutException $exception) { /* ... */ }
+
+  // After
+  try { /* ... */ } catch (ConnectionStalledException $exception) { /* ... */ }
+  ```
+
+- **A write that may have been stored throws an `OutcomeUnknownException`**, whose previous exception is the cause, rather than the cause itself, see [Knowing Whether a Write Was Stored](#knowing-whether-a-write-was-stored). This applies to `writeEvents` and `registerEventSchema`:
+
+  ```php
+  // Before
+  try { $client->writeEvents($events); } catch (ConnectionStalledException $exception) { /* ... */ }
+
+  // After
+  try { $client->writeEvents($events); } catch (OutcomeUnknownException $exception) {
+    $cause = $exception->getPrevious(); // e.g. a ConnectionStalledException
+  }
+  ```
+
+- **`Stream::withHeartbeatTimeout()` is removed**, and `CurlMultiHandler::contentIterator()` no longer takes a parameter, since there is no heartbeat timeout any more.
