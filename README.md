@@ -482,11 +482,15 @@ $eventType = $client->readEventType('io.eventsourcingdb.library.book-acquired');
 
 ### Verifying an Event's Hash
 
-To verify the integrity of an event, call the `verifyHash` function on the event instance. This recomputes the event's hash locally and compares it to the hash stored in the event. If the hashes differ, the function returns an error:
+To verify the integrity of an event, call the `verifyHash` function on the event instance. This recomputes the event's hash locally and compares it to the hash stored in the event. If the hashes differ, the function throws a `HashVerificationFailedException`:
 
 ```php
 $event->verifyHash();
 ```
+
+The function supports both versions of the hash: version 1, which events written before EventSourcingDB 1.3 keep, and version 2, which starts with `esdb:hash:v2:`. If the hash is of a version the client SDK does not know, the function throws an `UnsupportedHashVersionException`, whose message names the version.
+
+*Note that both exceptions extend `RuntimeException`, so code that catches a `RuntimeException` keeps working.*
 
 *Note that this only verifies the hash. If you also want to verify the signature, you can skip this step and call `verifySignature` directly, which performs a hash verification internally.*
 
@@ -494,7 +498,7 @@ $event->verifyHash();
 
 To verify the authenticity of an event, call the `verifySignature` function on the event instance. This requires the public key that matches the private key used for signing on the server.
 
-The function first verifies the event's hash, and then checks the signature. If any verification step fails, it returns an error:
+The function first verifies the event's hash, and then checks the signature. If the hash verification fails, it throws one of the exceptions described above. If the signature is invalid, it throws a `SignatureVerificationFailedException`, which extends `RuntimeException` as well:
 
 ```php
 $verificationKey = // an ed25519 public key

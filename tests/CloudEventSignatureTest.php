@@ -10,6 +10,9 @@ use RuntimeException;
 use Thenativeweb\Eventsourcingdb\CloudEvent;
 use Thenativeweb\Eventsourcingdb\Container;
 use Thenativeweb\Eventsourcingdb\EventCandidate;
+use Thenativeweb\Eventsourcingdb\HashVerificationFailedException;
+use Thenativeweb\Eventsourcingdb\ReadEventsOptions;
+use Thenativeweb\Eventsourcingdb\SignatureVerificationFailedException;
 use Thenativeweb\Eventsourcingdb\SigningKey;
 use Thenativeweb\Eventsourcingdb\Tests\Trait\ReflectionTestTrait;
 use function Thenativeweb\Eventsourcingdb\Tests\Fn\getImageTag;
@@ -102,7 +105,7 @@ final class CloudEventSignatureTest extends TestCase
             signature: 'esdb:signature:v1:deadbeef',
         );
 
-        $this->expectException(RuntimeException::class);
+        $this->expectException(SignatureVerificationFailedException::class);
         $this->expectExceptionMessage('Signature has an invalid length: expected 64 bytes, got 4 bytes.');
 
         $tamperedCloudEvent->verifySignature($container->getVerificationKey());
@@ -192,7 +195,7 @@ final class CloudEventSignatureTest extends TestCase
             signature: $writtenEvent->signature,
         );
 
-        $this->expectException(RuntimeException::class);
+        $this->expectException(HashVerificationFailedException::class);
         $this->expectExceptionMessage('Failed to verify hash.');
 
         $verificationKey = $container->getVerificationKey();
@@ -230,7 +233,7 @@ final class CloudEventSignatureTest extends TestCase
 
         $this->assertNotNull($writtenEvent->signature);
 
-        $this->expectException(RuntimeException::class);
+        $this->expectException(SignatureVerificationFailedException::class);
         $this->expectExceptionMessage('Signature verification failed.');
 
         $tamperedCloudEvent = new CloudEvent(
@@ -291,6 +294,50 @@ final class CloudEventSignatureTest extends TestCase
             $writtenEvent->verifySignature($verificationKey);
         } catch (Exception $exception) {
             $this->fail($exception->getMessage());
+        }
+    }
+
+    public function testVerifiesTheSignatureOfEventsAsTheyAreWrittenAndRead(): void
+    {
+        $imageTag = getImageTag();
+        $container = (new Container())
+            ->withImageTag($imageTag)
+            ->withSigningKey();
+        $container->start();
+        $this->container = $container;
+
+        $client = $container->getClient();
+
+        $writtenEvents = $client->writeEvents([
+            new EventCandidate(
+                source: 'https://www.eventsourcingdb.io',
+                subject: '/books/42',
+                type: 'io.eventsourcingdb.library.book-acquired',
+                data: [
+                    'title' => '2001 – A Space Odyssey',
+                    'shelf' => 'A&B <classic>',
+                    'price' => 12.5,
+                ],
+                traceParent: '00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01',
+                traceState: 'rojo=00f067aa0ba902b7',
+            ),
+        ]);
+        $readEvents = iterator_to_array($client->readEvents('/books/42', new ReadEventsOptions(recursive: false)), false);
+
+        $this->assertCount(1, $writtenEvents);
+        $this->assertCount(1, $readEvents);
+
+        $verificationKey = $container->getVerificationKey();
+
+        foreach ([...$writtenEvents, ...$readEvents] as $event) {
+            $this->assertInstanceOf(CloudEvent::class, $event);
+            $this->assertNotNull($event->signature);
+
+            try {
+                $event->verifySignature($verificationKey);
+            } catch (Exception $exception) {
+                $this->fail("Failed to verify the signature of event {$event->id} with hash '{$event->hash}': {$exception->getMessage()}");
+            }
         }
     }
 }

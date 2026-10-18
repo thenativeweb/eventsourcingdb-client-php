@@ -31,6 +31,7 @@ final readonly class NdJson
             $eventLine = new ReadEventLine(
                 $item['type'] ?? 'unknown',
                 $item['payload'] ?? [],
+                $line,
             );
             yield $eventLine;
         }
