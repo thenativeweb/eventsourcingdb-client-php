@@ -325,7 +325,7 @@ foreach ($events as $event) {
 
 *Note that EventSourcingDB sends a heartbeat every second while there are no events to send. If neither an event nor a heartbeat arrives for the [stall timeout](#configuring-the-stall-timeout), which is 30 seconds by default, e.g. because the connection stalled, the iterator closes the connection and throws a `ConnectionStalledException`.*
 
-*Note that EventSourcingDB never ends an observation on its own, other than with an error, which the iterator throws as a `DbApiException`, e.g. with the code `ErrorCode::SERVER_SHUTTING_DOWN` once the server shuts down. If the observation ends otherwise, e.g. because the connection broke, the iterator throws a `RuntimeException` that says the stream broke off. Only `abortIn` and leaving the loop end an observation without an exception.*
+*Note that EventSourcingDB never ends an observation on its own, other than with an error, which the iterator throws as a `DbApiException`, e.g. with the code `ErrorCode::SERVER_SHUTTING_DOWN` once the server shuts down. If its response ends cleanly nonetheless, e.g. because a proxy ends it, the iterator throws a `RuntimeException` that says the stream broke off, and if the connection breaks, it throws a `RuntimeException` that says so. Only `abortIn` and leaving the loop end an observation without an exception.*
 
 *Note that if you leave the `foreach` loop early, e.g. with `break`, the connection is closed once the iterator is released. If you keep the iterator in a variable, such as `$events`, the connection therefore stays open until you release the variable, e.g. with `unset($events)`.*
 
@@ -573,7 +573,7 @@ try {
 }
 ```
 
-If a stream breaks off, i.e. ends before the server ended it, the iterator throws a `RuntimeException` that says so. This holds for a stream of the v2 API that ends without the item that ends it, and for an observation, which the server never ends, other than with an error.
+If a stream breaks off, i.e. its response ends cleanly, but before the server ended the stream, the iterator throws a `RuntimeException` that says so. This holds for a stream of the v2 API whose response ends without the item that ends the stream, and for an observation, which the server never ends, other than with an error. A connection that breaks fails a stream with a `RuntimeException` as well.
 
 If the server only offers the v1 API, the client assigns the code of the v2 API to those errors of the v1 API that clearly match one, such as a precondition that does not hold, a schema that is already registered, or an event type that does not exist. Other errors of the v1 API keep an empty code.
 
@@ -758,18 +758,18 @@ Version 2 of the client SDK speaks the v2 API of EventSourcingDB wherever the se
   }
   ```
 
-- **An observation that the server ends without an error throws a `RuntimeException`**, since EventSourcingDB never ends an observation on its own, rather than ending quietly. This holds for both APIs. `abortIn` and leaving the loop still end an observation quietly:
+- **An observation whose response ends cleanly without an error throws a `RuntimeException`**, since EventSourcingDB never ends an observation on its own, rather than ending quietly. This holds for both APIs. A connection that breaks threw before, and still does, and `abortIn` and leaving the loop still end an observation quietly:
 
   ```php
   // Before
   foreach ($client->observeEvents('/books', $options) as $event) { /* ... */ }
-  // The loop ended quietly once the connection broke.
+  // The loop ended quietly once the response ended, e.g. because a proxy ended it.
 
   // After
   try {
     foreach ($client->observeEvents('/books', $options) as $event) { /* ... */ }
   } catch (RuntimeException $exception) {
-    // The observation broke off, e.g. because the connection broke.
+    // The observation broke off, e.g. because a proxy ended its response.
   }
   ```
 
