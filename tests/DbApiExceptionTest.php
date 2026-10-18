@@ -229,6 +229,26 @@ final class DbApiExceptionTest extends TestCase
         $this->assertSame('Failed to read events,   invalid request  ', $dbApiException->getMessage());
     }
 
+    /**
+     * @param 'v1'|'v2' $apiVersion
+     */
+    #[DataProvider('apiVersions')]
+    public function testKeepsALineBreakOfTheServerBeforeTheOneThatEndsTheText(string $apiVersion): void
+    {
+        // The text itself ends with a line break, to which the server appends
+        // another one, which alone is not a part of it.
+        $address = $this->startDatabase($apiVersion, [
+            $this->textResponse(400, "invalid request\n"),
+        ]);
+        $client = new Client("http://{$address}", 'secret');
+
+        $dbApiException = $this->catchDbApiException(static function (Client $client): void {
+            iterator_count($client->readEvents('/', new ReadEventsOptions(recursive: true)));
+        }, $client);
+
+        $this->assertSame("invalid request\n", $dbApiException->description);
+    }
+
     public function testReportsAnErrorThatTheV1ApiSendsWithinAStream(): void
     {
         $address = $this->startDatabase('v1', [
