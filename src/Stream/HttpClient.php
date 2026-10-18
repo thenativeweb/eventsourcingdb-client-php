@@ -83,10 +83,7 @@ class HttpClient
         return $this->curlMultiHandler->hasLastStreamBeenAborted();
     }
 
-    /**
-     * @param bool $takesAbortTime whether an abort time set while no stream was being read applies to this request, which it does not for a request that the client sends on its own behalf
-     */
-    public function get(string $uri, ?string $apiToken = null, bool $takesAbortTime = true): Response
+    public function get(string $uri, ?string $apiToken = null): Response
     {
         $this->hasLastRequestEstablishedConnection = false;
 
@@ -96,7 +93,7 @@ class HttpClient
             $this->buildHeaders($apiToken),
         );
 
-        return $this->sendRequest($request, $takesAbortTime);
+        return $this->sendRequest($request);
     }
 
     public function post(string $uri, ?string $apiToken = null, null|array|object $body = null): Response
@@ -131,7 +128,7 @@ class HttpClient
         return $this->sendRequest($request);
     }
 
-    public function sendRequest(Request $request, bool $takesAbortTime = true): Response
+    public function sendRequest(Request $request): Response
     {
         $this->hasLastRequestEstablishedConnection = false;
 
@@ -140,7 +137,7 @@ class HttpClient
                 implode(', ', self::SUPPORTED_METHODS) . '.');
         }
 
-        $this->curlMultiHandler->addHandle($request, $takesAbortTime);
+        $this->curlMultiHandler->addHandle($request);
 
         // A response that is refused is never read, so its connection is
         // closed here rather than kept open until the next request.

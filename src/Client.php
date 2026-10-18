@@ -28,7 +28,7 @@ final readonly class Client
         float $stallTimeout = CurlMultiHandler::DEFAULT_STALL_TIMEOUT,
     ) {
         $this->httpClient = new HttpClient($url, $stallTimeout);
-        $this->transportSelector = new TransportSelector($this->httpClient, $apiToken);
+        $this->transportSelector = new TransportSelector($this->httpClient, $apiToken, new HttpClient($url, $stallTimeout));
     }
 
     public function abortIn(float $seconds): void

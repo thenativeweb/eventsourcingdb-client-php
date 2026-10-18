@@ -29,9 +29,14 @@ final class TransportSelector
 
     private ?Transport $transport = null;
 
+    /**
+     * @param HttpClient $httpClient the HTTP client of the requests that the caller makes
+     * @param HttpClient $probingHttpClient an HTTP client of its own to ask the server with, so that asking leaves the abort time that the caller set to the request that the caller made
+     */
     public function __construct(
         private readonly HttpClient $httpClient,
         private readonly string $apiToken,
+        private readonly HttpClient $probingHttpClient,
     ) {
     }
 
@@ -45,9 +50,7 @@ final class TransportSelector
 
     private function detectTransport(): Transport
     {
-        // The client asks on its own behalf, so an abort time that the caller
-        // set applies to the request that the caller made, not to this one.
-        $response = $this->httpClient->get(self::PROBE_PATH, takesAbortTime: false);
+        $response = $this->probingHttpClient->get(self::PROBE_PATH);
 
         Responses::throwIfNotFromEventSourcingDb($response);
 

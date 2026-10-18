@@ -83,10 +83,7 @@ class CurlMultiHandler
         return $this->stallClock;
     }
 
-    /**
-     * @param bool $takesAbortTime whether an abort time set while no stream was being read applies to this request, which it does not for a request that the client sends on its own behalf, such as finding out which API the server offers
-     */
-    public function addHandle(Request $request, bool $takesAbortTime = true): void
+    public function addHandle(Request $request): void
     {
         $curlHandle = curl_init();
 
@@ -109,7 +106,7 @@ class CurlMultiHandler
 
         // An abort time set while no stream was being read applies to this
         // request.
-        if ($takesAbortTime && !$this->abortInCurlHandle instanceof CurlHandle) {
+        if (!$this->abortInCurlHandle instanceof CurlHandle) {
             $this->abortInCurlHandle = $curlHandle;
         }
     }
