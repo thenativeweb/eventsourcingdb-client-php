@@ -32,12 +32,12 @@ final class TransportSelector
 
     /**
      * @param HttpClient $httpClient the HTTP client of the requests that the caller makes
-     * @param HttpClient $probingHttpClient an HTTP client of its own to ask the server with, so that asking leaves the abort time that the caller set to the request that the caller made
+     * @param ProbingHttpClient $probingHttpClient an HTTP client of its own to ask the server with, so that asking leaves the abort time that the caller set to the request that the caller made, and that accepts an answer of any content type
      */
     public function __construct(
         private readonly HttpClient $httpClient,
         private readonly string $apiToken,
-        private readonly HttpClient $probingHttpClient,
+        private readonly ProbingHttpClient $probingHttpClient,
     ) {
     }
 
@@ -65,8 +65,9 @@ final class TransportSelector
 
         // A server that does not know the route offers the v1 API only, also if
         // the answer does not come from EventSourcingDB itself, but from a proxy
-        // in front of it that passes on only the routes of the v1 API. Every
-        // request through the v1 API checks that EventSourcingDB answers it.
+        // in front of it that passes on only the routes of the v1 API, whatever
+        // the content type or the body of its answer. Every request through the
+        // v1 API checks that EventSourcingDB answers it.
         $status = $response->getStatusCode();
         if ($status === 404 || $status === 405) {
             // The answer is not needed, so its connection is closed rather than

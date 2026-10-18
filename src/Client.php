@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Thenativeweb\Eventsourcingdb;
 
+use Thenativeweb\Eventsourcingdb\Api\ProbingHttpClient;
 use Thenativeweb\Eventsourcingdb\Api\Transport;
 use Thenativeweb\Eventsourcingdb\Api\TransportSelector;
 use Thenativeweb\Eventsourcingdb\Stream\CurlMultiHandler;
@@ -28,7 +29,7 @@ final readonly class Client
         float $stallTimeout = CurlMultiHandler::DEFAULT_STALL_TIMEOUT,
     ) {
         $this->httpClient = new HttpClient($url, $stallTimeout);
-        $this->transportSelector = new TransportSelector($this->httpClient, $apiToken, new HttpClient($url, $stallTimeout));
+        $this->transportSelector = new TransportSelector($this->httpClient, $apiToken, new ProbingHttpClient($url, $stallTimeout));
     }
 
     public function abortIn(float $seconds): void

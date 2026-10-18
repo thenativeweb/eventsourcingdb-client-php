@@ -126,6 +126,30 @@ final class TransportSelectorTest extends TestCase
         $this->assertSame('POST', $this->readRequests()[1]['method']);
     }
 
+    #[DataProvider('answersOfAServerWithoutTheV2Api')]
+    public function testUsesTheV1ApiIfAnotherServerInFrontOfTheDatabaseAnswersThePingOfV2WithAPage(int $status): void
+    {
+        // A proxy such as nginx answers a route it does not pass on with a
+        // page of its own.
+        $address = $this->startServerWithResponses([
+            $this->response(
+                ["<html>\r\n<head><title>{$status} Not Found</title></head>\r\n<body>\r\n<center><h1>{$status} Not Found</h1></center>\r\n<hr><center>nginx</center>\r\n</body>\r\n</html>"],
+                interval: 0.0,
+                holdFor: 0.0,
+                server: 'nginx',
+                contentType: 'text/html',
+                status: $status,
+            ),
+            $this->subjectsResponse('v1'),
+        ]);
+        $client = new Client("http://{$address}", 'secret');
+
+        $subjects = iterator_to_array($client->readSubjects('/test', new ReadSubjectsOptions(recursive: true)), false);
+
+        $this->assertSame(['/test'], $subjects);
+        $this->assertSame('POST', $this->readRequests()[1]['method']);
+    }
+
     public function testChecksThatTheV1ApiIsAnsweredByTheDatabaseIfAnotherServerDoesNotKnowThePingOfV2(): void
     {
         $address = $this->startServerWithResponses([
