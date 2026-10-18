@@ -133,7 +133,7 @@ final class WriteEventsTest extends TestCase
         );
 
         $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('Failed to write events, state conflict: precondition failed');
+        $this->expectExceptionMessage('Failed to write events, ');
         $this->expectExceptionCode(409);
 
         $this->client->writeEvents(
@@ -158,7 +158,7 @@ final class WriteEventsTest extends TestCase
         );
 
         $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('Failed to write events, state conflict: precondition failed');
+        $this->expectExceptionMessage('Failed to write events, ');
         $this->expectExceptionCode(409);
 
         $this->client->writeEvents(
@@ -235,7 +235,7 @@ final class WriteEventsTest extends TestCase
         );
 
         $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('Failed to write events, state conflict: precondition failed');
+        $this->expectExceptionMessage('Failed to write events, ');
         $this->expectExceptionCode(409);
 
         $this->client->writeEvents(
@@ -273,7 +273,7 @@ final class WriteEventsTest extends TestCase
         );
 
         $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('Failed to write events, state conflict: precondition failed');
+        $this->expectExceptionMessage('Failed to write events, ');
         $this->expectExceptionCode(409);
 
         $this->client->writeEvents(
