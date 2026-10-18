@@ -329,21 +329,26 @@ final class HttpClientTest extends TestCase
     {
         $address = $this->startServerWithResponses([
             $this->response([], interval: 0.0, holdFor: 0.0, dropConnection: true),
+            $this->response([], interval: 0.0, holdFor: 0.0, dropConnection: true),
         ]);
 
-        $httpClient = new HttpClient("http://{$address}");
-        $this->assertFailsToSend($httpClient);
+        // One client sends every request, so the answer must change with each.
+        $httpClient = new HttpClient();
 
-        $httpClient = new HttpClient('http://non-existent-host.invalid');
-        $this->assertFailsToSend($httpClient);
+        $this->assertFailsToSend($httpClient, "http://{$address}/api/v2/data/write-events");
+        $this->assertTrue($httpClient->hasLastRequestEstablishedConnection());
 
+        $this->assertFailsToSend($httpClient, 'http://non-existent-host.invalid/api/v2/data/write-events');
         $this->assertFalse($httpClient->hasLastRequestEstablishedConnection());
+
+        $this->assertFailsToSend($httpClient, "http://{$address}/api/v2/data/write-events");
+        $this->assertTrue($httpClient->hasLastRequestEstablishedConnection());
     }
 
-    private function assertFailsToSend(HttpClient $httpClient): void
+    private function assertFailsToSend(HttpClient $httpClient, string $uri = '/api/v2/data/write-events'): void
     {
         try {
-            $httpClient->post('/api/v2/data/write-events', 'secret', [
+            $httpClient->post($uri, 'secret', [
                 'events' => [],
             ]);
             $this->fail('Expected the request to fail, but it did not.');
