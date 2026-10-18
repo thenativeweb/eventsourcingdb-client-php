@@ -50,7 +50,7 @@ To change the stall timeout, pass the `stallTimeout` option in seconds when crea
 $client = new Client('http://localhost:3000', 'secret', stallTimeout: 10);
 ```
 
-If a request stalls, the client closes the connection and throws a `ConnectionStalledException`, which extends `RuntimeException`. While iterating over the results of `observeEvents` and `runEventQlQuery`, which receive a heartbeat every second, it throws a `HeartbeatTimeoutException` instead.
+If a request stalls, the client closes the connection and throws a `ConnectionStalledException`, which extends `RuntimeException`. This also holds for `observeEvents` and `runEventQlQuery` until their response has begun. Once it has, these streams, which receive a heartbeat every second, throw a `HeartbeatTimeoutException` instead.
 
 ### Writing Events
 
