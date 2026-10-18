@@ -9,11 +9,12 @@ declare(strict_types=1);
  * them the given header delay after the status line, and then the given lines
  * as NDJSON, one line every interval, and afterwards keeps the connection open
  * without sending anything. It reports "closed" once the client closes the
- * connection, or ends the response and reports "ended" once the hold time is
- * over.
+ * connection, at any of these steps, or ends the response and reports "ended"
+ * once the hold time is over.
  *
  * If the connection ends before a request arrives, it reports "no request"
- * instead.
+ * instead, and if it ends after only a part of a request arrived, e.g. the
+ * start of a TLS handshake that it does not answer, it reports "closed".
  *
  * If a certificate is given, it serves https with it and the given private
  * key. A client that does not trust the certificate either breaks off the TLS
@@ -28,13 +29,13 @@ function answer($connection, array $response): string
 {
     $request = '';
     while (!str_contains($request, "\r\n\r\n")) {
-        $chunk = fread($connection, 8192);
+        // A client that does not trust the certificate may close the
+        // connection only after the handshake, which makes reading from it
+        // warn. PHP would print the warning to the output that the outcome is
+        // reported on, so it is suppressed, and the outcome is reported below.
+        $chunk = @fread($connection, 8192);
         if ($chunk === false || $chunk === '') {
-            if ($request === '') {
-                return 'no request';
-            }
-
-            exit(1);
+            return $request === '' ? 'no request' : 'closed';
         }
 
         $request .= $chunk;
@@ -51,12 +52,16 @@ function answer($connection, array $response): string
         $body .= $chunk;
     }
 
-    usleep((int) ($response['delay'] * 1_000_000));
+    if (!waitFor($connection, $response['delay'])) {
+        return 'closed';
+    }
 
-    fwrite($connection, "HTTP/1.1 200 OK\r\n");
-    usleep((int) ($response['headerDelay'] * 1_000_000));
+    @fwrite($connection, "HTTP/1.1 200 OK\r\n");
+    if (!waitFor($connection, $response['headerDelay'])) {
+        return 'closed';
+    }
 
-    fwrite(
+    @fwrite(
         $connection,
         "Server: {$response['server']}\r\n" .
         "Content-Type: {$response['contentType']}\r\n" .
@@ -66,12 +71,34 @@ function answer($connection, array $response): string
 
     foreach ($response['lines'] as $line) {
         $data = $line . "\n";
-        fwrite($connection, dechex(strlen($data)) . "\r\n" . $data . "\r\n");
-        usleep((int) ($response['interval'] * 1_000_000));
+        @fwrite($connection, dechex(strlen($data)) . "\r\n" . $data . "\r\n");
+        if (!waitFor($connection, $response['interval'])) {
+            return 'closed';
+        }
     }
 
-    $holdUntil = microtime(true) + $response['holdFor'];
-    while (($remaining = $holdUntil - microtime(true)) > 0) {
+    if (!waitFor($connection, $response['holdFor'])) {
+        return 'closed';
+    }
+
+    @fwrite($connection, "0\r\n\r\n");
+
+    return 'ended';
+}
+
+/**
+ * Waits for the given number of seconds, and tells whether the connection is
+ * still open afterwards, so that nothing is sent to a client that has gone.
+ * Reading from or writing to a connection the client has closed may warn, and
+ * PHP would print the warning to the output that the outcome is reported on,
+ * so it is suppressed.
+ *
+ * @param resource $connection
+ */
+function waitFor($connection, float $seconds): bool
+{
+    $waitUntil = microtime(true) + $seconds;
+    while (($remaining = $waitUntil - microtime(true)) > 0) {
         $read = [$connection];
         $write = null;
         $except = null;
@@ -80,15 +107,13 @@ function answer($connection, array $response): string
             continue;
         }
 
-        $chunk = fread($connection, 8192);
+        $chunk = @fread($connection, 8192);
         if ($chunk === false || $chunk === '') {
-            return 'closed';
+            return false;
         }
     }
 
-    fwrite($connection, "0\r\n\r\n");
-
-    return 'ended';
+    return true;
 }
 
 $options = json_decode($argv[1], true, flags: JSON_THROW_ON_ERROR);

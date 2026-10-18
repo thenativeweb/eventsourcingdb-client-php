@@ -15,7 +15,7 @@ final readonly class NdJson
     {
         foreach ($stream as $chunk) {
             $line = $chunk;
-            if ($line === '') {
+            if (trim($line) === '') {
                 continue;
             }
 
@@ -31,6 +31,7 @@ final readonly class NdJson
             $eventLine = new ReadEventLine(
                 $item['type'] ?? 'unknown',
                 $item['payload'] ?? [],
+                $line,
             );
             yield $eventLine;
         }

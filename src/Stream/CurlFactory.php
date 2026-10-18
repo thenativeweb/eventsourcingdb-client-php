@@ -7,6 +7,8 @@ namespace Thenativeweb\Eventsourcingdb\Stream;
 use CurlHandle;
 
 /**
+ * @internal
+ *
  * @see \Thenativeweb\Eventsourcingdb\Tests\Stream\CurlFactoryTest
  */
 class CurlFactory
@@ -16,7 +18,10 @@ class CurlFactory
         Queue $queueHeader,
         Queue $queueWrite,
         int $timeout = 0,
+        ?StallClock $stallClock = null,
     ): array {
+        $stallClock ??= new StallClock(CurlMultiHandler::DEFAULT_STALL_TIMEOUT);
+
         $httpVersion = match ($request->getProtocolVersion()) {
             '2.0', '2' => CURL_HTTP_VERSION_2_0,
             '1.1' => CURL_HTTP_VERSION_1_1,
@@ -24,7 +29,11 @@ class CurlFactory
         };
 
         $options = [
-            CURLOPT_CONNECTTIMEOUT => 300,
+            // The stall timeout bounds connecting as well, and the handler
+            // enforces it itself, so the connect timeout of cURL lies beyond
+            // it, rather than at its default of 300 seconds, which may come
+            // first.
+            CURLOPT_CONNECTTIMEOUT_MS => (int) min(ceil($stallClock->getStallTimeout() * 1000) + 1000, PHP_INT_MAX),
             CURLOPT_CUSTOMREQUEST => $request->getMethod(),
             CURLOPT_HEADER => false,
             CURLOPT_HTTPHEADER => $request->getHeaders(),
@@ -35,7 +44,9 @@ class CurlFactory
         ];
 
         $contentType = null;
-        $options[CURLOPT_HEADERFUNCTION] = function (?CurlHandle $curlHandle, string $header) use (&$queueHeader, &$contentType): int {
+        $options[CURLOPT_HEADERFUNCTION] = function (?CurlHandle $curlHandle, string $header) use (&$queueHeader, &$contentType, $stallClock): int {
+            $stallClock->reset();
+
             // cURL also hands over the empty line that ends the headers.
             if (trim($header) === '') {
                 $queueHeader->complete();
@@ -53,7 +64,11 @@ class CurlFactory
         };
 
         $buffer = '';
-        $options[CURLOPT_WRITEFUNCTION] = function (?CurlHandle $curlHandle, string $chunk) use (&$buffer, &$queueWrite, &$contentType): int {
+        $options[CURLOPT_WRITEFUNCTION] = function (?CurlHandle $curlHandle, string $chunk) use (&$buffer, &$queueWrite, &$contentType, $stallClock): int {
+            // Every chunk resets the stall clock, even one that does not
+            // complete a line yet.
+            $stallClock->reset();
+
             $buffer .= $chunk;
             $write = true;
 

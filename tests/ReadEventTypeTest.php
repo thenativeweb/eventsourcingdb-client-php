@@ -17,7 +17,7 @@ final class ReadEventTypeTest extends TestCase
     public function testFailsIfTheEventTypeDoesNotExist(): void
     {
         $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage("Failed to read event type, event type 'non.existent.eventType' not found");
+        $this->expectExceptionMessage('Failed to read event type, ');
         $this->expectExceptionCode(404);
 
         $this->client->readEventType('non.existent.eventType');
@@ -26,7 +26,7 @@ final class ReadEventTypeTest extends TestCase
     public function testFailsIfTheEventTypeIsMalformed(): void
     {
         $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage("Failed to read event type, invalid event type: 'malformed.eventType.'");
+        $this->expectExceptionMessage('Failed to read event type, ');
         $this->expectExceptionCode(400);
 
         $this->client->readEventType('malformed.eventType.');

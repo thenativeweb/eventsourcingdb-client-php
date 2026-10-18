@@ -49,7 +49,11 @@ readonly class Stream implements IteratorAggregate, Stringable
 
     public function getJsonData(): array
     {
-        $contents = $this->getContents();
+        return self::decodeJson($this->getContents());
+    }
+
+    public static function decodeJson(string $contents): array
+    {
         if ($contents === '') {
             return [];
         }

@@ -6,21 +6,28 @@ namespace Thenativeweb\Eventsourcingdb;
 
 use DateTimeImmutable;
 use RuntimeException;
+use Thenativeweb\Eventsourcingdb\Stream\CurlMultiHandler;
 use Thenativeweb\Eventsourcingdb\Stream\HttpClient;
 use Thenativeweb\Eventsourcingdb\Stream\NdJson;
+use Thenativeweb\Eventsourcingdb\Stream\RawJson;
 use Thenativeweb\Eventsourcingdb\Stream\Response;
+use Thenativeweb\Eventsourcingdb\Stream\Stream;
 
 final readonly class Client
 {
     private string $apiToken;
     private HttpClient $httpClient;
 
+    /**
+     * @param float $stallTimeout the seconds after which a request fails if nothing at all has arrived from the server, neither data nor a heartbeat, counted from sending the request
+     */
     public function __construct(
         string $url,
         string $apiToken,
+        float $stallTimeout = CurlMultiHandler::DEFAULT_STALL_TIMEOUT,
     ) {
         $this->apiToken = $apiToken;
-        $this->httpClient = new HttpClient($url);
+        $this->httpClient = new HttpClient($url, $stallTimeout);
     }
 
     public function abortIn(float $seconds): void
@@ -38,6 +45,10 @@ final readonly class Client
         try {
             $data = $response->getStream()
                 ->getJsonData();
+        } catch (ConnectionStalledException $connectionStalledException) {
+            // A stalled connection keeps its own type, so that it can be told
+            // apart from a response that cannot be read.
+            throw $connectionStalledException;
         } catch (RuntimeException $runtimeException) {
             throw new RuntimeException(
                 'Failed to ping: ' . $runtimeException->getMessage(),
@@ -64,6 +75,10 @@ final readonly class Client
         try {
             $data = $response->getStream()
                 ->getJsonData();
+        } catch (ConnectionStalledException $connectionStalledException) {
+            // A stalled connection keeps its own type, so that it can be told
+            // apart from a response that cannot be read.
+            throw $connectionStalledException;
         } catch (RuntimeException $runtimeException) {
             throw new RuntimeException(
                 'Failed to verify API token: ' . $runtimeException->getMessage(),
@@ -96,8 +111,14 @@ final readonly class Client
         $this->throwIfNotSuccessStatusCode($response, 'Failed to write events');
 
         try {
-            $data = $response->getStream()
-                ->getJsonData();
+            $contents = $response->getStream()
+                ->getContents();
+            $data = Stream::decodeJson($contents);
+            $rawEvents = $data === [] ? [] : RawJson::getElements($contents);
+        } catch (ConnectionStalledException $connectionStalledException) {
+            // A stalled connection keeps its own type, so that it can be told
+            // apart from a response that cannot be read.
+            throw $connectionStalledException;
         } catch (RuntimeException $runtimeException) {
             throw new RuntimeException(
                 'Failed to read events, after writing: ' . $runtimeException->getMessage(),
@@ -107,23 +128,9 @@ final readonly class Client
         }
 
         $writtenEvents = array_map(
-            static fn (array $item): CloudEvent => new CloudEvent(
-                $item['specversion'],
-                $item['id'],
-                new DateTimeImmutable($item['time']),
-                $item['time'],
-                $item['source'],
-                $item['subject'],
-                $item['type'],
-                $item['datacontenttype'],
-                $item['data'],
-                $item['hash'],
-                $item['predecessorhash'],
-                $item['traceparent'] ?? null,
-                $item['tracestate'] ?? null,
-                $item['signature'],
-            ),
+            $this->createCloudEvent(...),
             $data,
+            $rawEvents,
         );
 
         return $writtenEvents;
@@ -146,22 +153,7 @@ final readonly class Client
         foreach (NdJson::readStream($response->getStream()) as $eventLine) {
             switch ($eventLine->type) {
                 case 'event':
-                    $cloudEvent = new CloudEvent(
-                        $eventLine->payload['specversion'],
-                        $eventLine->payload['id'],
-                        new DateTimeImmutable($eventLine->payload['time']),
-                        $eventLine->payload['time'],
-                        $eventLine->payload['source'],
-                        $eventLine->payload['subject'],
-                        $eventLine->payload['type'],
-                        $eventLine->payload['datacontenttype'],
-                        $eventLine->payload['data'],
-                        $eventLine->payload['hash'],
-                        $eventLine->payload['predecessorhash'],
-                        $eventLine->payload['traceparent'] ?? null,
-                        $eventLine->payload['tracestate'] ?? null,
-                        $eventLine->payload['signature'],
-                    );
+                    $cloudEvent = $this->createCloudEvent($eventLine->payload, RawJson::getMembers($eventLine->line)['payload'] ?? null);
                     yield $cloudEvent;
 
                     break;
@@ -222,22 +214,7 @@ final readonly class Client
                 case 'heartbeat':
                     break;
                 case 'event':
-                    $cloudEvent = new CloudEvent(
-                        $eventLine->payload['specversion'],
-                        $eventLine->payload['id'],
-                        new DateTimeImmutable($eventLine->payload['time']),
-                        $eventLine->payload['time'],
-                        $eventLine->payload['source'],
-                        $eventLine->payload['subject'],
-                        $eventLine->payload['type'],
-                        $eventLine->payload['datacontenttype'],
-                        $eventLine->payload['data'],
-                        $eventLine->payload['hash'],
-                        $eventLine->payload['predecessorhash'],
-                        $eventLine->payload['traceparent'] ?? null,
-                        $eventLine->payload['tracestate'] ?? null,
-                        $eventLine->payload['signature'],
-                    );
+                    $cloudEvent = $this->createCloudEvent($eventLine->payload, RawJson::getMembers($eventLine->line)['payload'] ?? null);
                     yield $cloudEvent;
 
                     break;
@@ -346,6 +323,10 @@ final readonly class Client
         try {
             $data = $response->getStream()
                 ->getJsonData();
+        } catch (ConnectionStalledException $connectionStalledException) {
+            // A stalled connection keeps its own type, so that it can be told
+            // apart from a response that cannot be read.
+            throw $connectionStalledException;
         } catch (RuntimeException $runtimeException) {
             throw new RuntimeException(
                 'Failed to read event type: ' . $runtimeException->getMessage(),
@@ -358,6 +339,31 @@ final readonly class Client
             $data['eventType'],
             $data['isPhantom'],
             $data['schema'] ?? [],
+        );
+    }
+
+    /**
+     * Creates an event from its payload, and keeps its data as the server
+     * sent it, so that its hash can be verified.
+     */
+    private function createCloudEvent(array $payload, ?string $rawPayload): CloudEvent
+    {
+        return new CloudEvent(
+            $payload['specversion'],
+            $payload['id'],
+            new DateTimeImmutable($payload['time']),
+            $payload['time'],
+            $payload['source'],
+            $payload['subject'],
+            $payload['type'],
+            $payload['datacontenttype'],
+            $payload['data'],
+            $payload['hash'],
+            $payload['predecessorhash'],
+            $payload['traceparent'] ?? null,
+            $payload['tracestate'] ?? null,
+            $payload['signature'],
+            $rawPayload === null ? null : (RawJson::getMembers($rawPayload)['data'] ?? null),
         );
     }
 

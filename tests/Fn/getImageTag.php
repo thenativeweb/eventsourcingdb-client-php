@@ -6,8 +6,19 @@ namespace Thenativeweb\Eventsourcingdb\Tests\Fn;
 
 use RuntimeException;
 
-function getImageVersionFromDockerfile(): string
+/**
+ * Returns the tag of the EventSourcingDB image to test against. The
+ * environment variable EVENTSOURCINGDB_IMAGE_TAG decides it, so that the same
+ * tests run against several tags; without it, the tag of the Dockerfile is
+ * used.
+ */
+function getImageTag(): string
 {
+    $imageTag = getenv('EVENTSOURCINGDB_IMAGE_TAG');
+    if ($imageTag !== false && trim($imageTag) !== '') {
+        return trim($imageTag);
+    }
+
     $dockerfile = __DIR__ . '/../../docker/Dockerfile';
 
     if (!file_exists($dockerfile)) {
