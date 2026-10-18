@@ -736,14 +736,33 @@ Version 2 of the client SDK speaks the v2 API of EventSourcingDB wherever the se
   }
   ```
 
-- **`HeartbeatTimeoutException` is removed.** Observing events and running EventQL queries throw a `ConnectionStalledException` once neither data nor a heartbeat has arrived for the stall timeout, as every other request does:
+- **The messages of errors that the server reports have changed.** The message of an error that the v1 API reports within a stream starts with the scope of the call, as the message of every other error does, and the message of an error that the server answers with a status no longer ends with the line break that the server sends. If the server sends no text at all, the message names the status. `description` holds the text of the server alone:
 
   ```php
   // Before
-  try { /* ... */ } catch (HeartbeatTimeoutException $exception) { /* ... */ }
+  $exception->getMessage(); // 'failed to read events'
+  $exception->getMessage(); // "Failed to write events, state conflict: precondition failed\n"
+  $exception->getMessage(); // 'Failed to write events, '
 
   // After
-  try { /* ... */ } catch (ConnectionStalledException $exception) { /* ... */ }
+  $exception->getMessage(); // 'Failed to read events, failed to read events'
+  $exception->getMessage(); // 'Failed to write events, state conflict: precondition failed'
+  $exception->getMessage(); // 'Failed to write events, the server answered with status 500.'
+  $exception->description;  // 'state conflict: precondition failed'
+  ```
+
+- **`HeartbeatTimeoutException` is removed.** Observing events and running EventQL queries throw a `ConnectionStalledException` once neither data nor a heartbeat has arrived for the stall timeout, as every other request does, and with its message:
+
+  ```php
+  // Before
+  try { /* ... */ } catch (HeartbeatTimeoutException $exception) {
+    $exception->getMessage(); // 'No event and no heartbeat arrived for 30 seconds.'
+  }
+
+  // After
+  try { /* ... */ } catch (ConnectionStalledException $exception) {
+    $exception->getMessage(); // 'No data arrived from the server for 30 seconds.'
+  }
   ```
 
 - **A write that may have been stored throws an `OutcomeUnknownException`**, whose previous exception is the cause, rather than the cause itself, see [Knowing Whether a Write Was Stored](#knowing-whether-a-write-was-stored). This applies to `writeEvents` and `registerEventSchema`:
@@ -756,6 +775,18 @@ Version 2 of the client SDK speaks the v2 API of EventSourcingDB wherever the se
   try { $client->writeEvents($events); } catch (OutcomeUnknownException $exception) {
     $cause = $exception->getPrevious(); // e.g. a ConnectionStalledException
   }
+  ```
+
+- **A write through the v1 API whose answer `abortIn` aborts throws an `OutcomeUnknownException`**, rather than return an empty array, or, if a part of the answer had arrived, throw that it cannot be read, since the server may have stored the write:
+
+  ```php
+  // Before
+  $client->abortIn(0.1);
+  $writtenEvents = $client->writeEvents($events); // [], if nothing of the answer had arrived
+
+  // After
+  $client->abortIn(0.1);
+  try { $client->writeEvents($events); } catch (OutcomeUnknownException $exception) { /* ... */ }
   ```
 
 - **An observation whose response ends cleanly without an error throws a `RuntimeException`**, since EventSourcingDB never ends an observation on its own, rather than ending quietly. This holds for both APIs. A connection that breaks threw before, and still does, and `abortIn` and leaving the loop still end an observation quietly:
@@ -773,4 +804,15 @@ Version 2 of the client SDK speaks the v2 API of EventSourcingDB wherever the se
   }
   ```
 
-- **`Stream::withHeartbeatTimeout()` is removed**, and `CurlMultiHandler::contentIterator()` no longer takes a parameter, since there is no heartbeat timeout any more.
+- **`Stream::withHeartbeatTimeout()` is removed**, the constructor of `Stream` no longer takes `$hasHeartbeatTimeout`, and `CurlMultiHandler::contentIterator()` no longer takes `$withHeartbeatTimeout`, since there is no heartbeat timeout any more:
+
+  ```php
+  // Before
+  $stream = new Stream($curlMultiHandler, hasHeartbeatTimeout: true);
+  $stream = $stream->withHeartbeatTimeout();
+  $chunks = $curlMultiHandler->contentIterator(withHeartbeatTimeout: true);
+
+  // After
+  $stream = new Stream($curlMultiHandler);
+  $chunks = $curlMultiHandler->contentIterator();
+  ```

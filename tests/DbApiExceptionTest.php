@@ -126,7 +126,10 @@ final class DbApiExceptionTest extends TestCase
 
         $this->assertSame($code, $dbApiException->code);
         $this->assertSame($code, $dbApiException->getCode());
+        // The server ends the text with a line break, which neither the
+        // description nor the message keeps.
         $this->assertSame($text, $dbApiException->description);
+        $this->assertStringEndsWith(", {$text}", $dbApiException->getMessage());
         $this->assertSame([], $dbApiException->details);
         $this->assertSame($status, $dbApiException->status);
         $this->assertNull($dbApiException->retryAfter);
@@ -223,6 +226,7 @@ final class DbApiExceptionTest extends TestCase
         $this->assertSame('', $dbApiException->code);
         $this->assertSame('failed to read events', $dbApiException->description);
         $this->assertSame(200, $dbApiException->status);
+        $this->assertSame('Failed to read events, failed to read events', $dbApiException->getMessage());
     }
 
     /**
