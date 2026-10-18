@@ -51,7 +51,7 @@ final class CurlFactoryTest extends TestCase
             $this->requestMock,
             $this->headerQueueMock,
             $this->writeQueueMock,
-            $this->stallClock,
+            stallClock: $this->stallClock,
         );
 
         $this->assertIsArray($options);
@@ -79,7 +79,7 @@ final class CurlFactoryTest extends TestCase
             $this->requestMock,
             $this->headerQueueMock,
             $this->writeQueueMock,
-            $this->stallClock,
+            stallClock: $this->stallClock,
         );
 
         $this->assertSame(CURL_HTTP_VERSION_2_0, $options[CURLOPT_HTTP_VERSION]);
@@ -98,7 +98,7 @@ final class CurlFactoryTest extends TestCase
             $this->requestMock,
             $this->headerQueueMock,
             $this->writeQueueMock,
-            $this->stallClock,
+            stallClock: $this->stallClock,
         );
 
         $this->assertArrayNotHasKey(CURLOPT_SSL_VERIFYPEER, $options);
@@ -118,11 +118,24 @@ final class CurlFactoryTest extends TestCase
             $this->requestMock,
             $this->headerQueueMock,
             $this->writeQueueMock,
-            $this->stallClock,
             timeout: 10,
+            stallClock: $this->stallClock,
         );
 
         $this->assertSame(10, $options[CURLOPT_TIMEOUT]);
+    }
+
+    public function testCreateKeepsTheSignatureOfThePreviousRelease(): void
+    {
+        $options = CurlFactory::create(
+            $this->requestMock,
+            $this->headerQueueMock,
+            $this->writeQueueMock,
+            10,
+        );
+
+        $this->assertSame(10, $options[CURLOPT_TIMEOUT]);
+        $this->assertSame(31000, $options[CURLOPT_CONNECTTIMEOUT_MS]);
     }
 
     public function testCreateSetsAConnectTimeoutBeyondTheStallTimeout(): void
@@ -131,7 +144,7 @@ final class CurlFactoryTest extends TestCase
             $this->requestMock,
             $this->headerQueueMock,
             $this->writeQueueMock,
-            new StallClock(0.5),
+            stallClock: new StallClock(0.5),
         );
 
         $this->assertSame(1500, $options[CURLOPT_CONNECTTIMEOUT_MS]);
@@ -146,7 +159,7 @@ final class CurlFactoryTest extends TestCase
             $this->requestMock,
             $this->headerQueueMock,
             $this->writeQueueMock,
-            $stallClock,
+            stallClock: $stallClock,
         );
         $deadline = $stallClock->getDeadline();
 
@@ -165,7 +178,7 @@ final class CurlFactoryTest extends TestCase
             $this->requestMock,
             $this->headerQueueMock,
             $this->writeQueueMock,
-            $stallClock,
+            stallClock: $stallClock,
         );
         $options[CURLOPT_HEADERFUNCTION](null, 'Content-Type: application/x-ndjson');
         $deadline = $stallClock->getDeadline();
@@ -194,7 +207,7 @@ final class CurlFactoryTest extends TestCase
             $this->requestMock,
             $this->headerQueueMock,
             $this->writeQueueMock,
-            $this->stallClock,
+            stallClock: $this->stallClock,
         );
 
         $this->assertSame($body, $options[CURLOPT_POSTFIELDS]);
@@ -213,7 +226,7 @@ final class CurlFactoryTest extends TestCase
             $this->requestMock,
             $this->headerQueueMock,
             $this->writeQueueMock,
-            $this->stallClock,
+            stallClock: $this->stallClock,
         );
 
         $this->assertTrue($options[CURLOPT_NOBODY]);
@@ -237,7 +250,7 @@ final class CurlFactoryTest extends TestCase
             $this->requestMock,
             $this->headerQueueMock,
             $this->writeQueueMock,
-            $this->stallClock,
+            stallClock: $this->stallClock,
         );
 
         $headerFunction = $options[CURLOPT_HEADERFUNCTION];
@@ -261,7 +274,7 @@ final class CurlFactoryTest extends TestCase
             $this->requestMock,
             $this->headerQueueMock,
             $this->writeQueueMock,
-            $this->stallClock,
+            stallClock: $this->stallClock,
         );
 
         $headerFunction = $options[CURLOPT_HEADERFUNCTION];
@@ -284,7 +297,7 @@ final class CurlFactoryTest extends TestCase
             $this->requestMock,
             $this->headerQueueMock,
             $this->writeQueueMock,
-            $this->stallClock,
+            stallClock: $this->stallClock,
         );
 
         $writeFunction = $options[CURLOPT_WRITEFUNCTION];
@@ -305,7 +318,7 @@ final class CurlFactoryTest extends TestCase
             $this->requestMock,
             $this->headerQueueMock,
             $this->writeQueueMock,
-            $this->stallClock,
+            stallClock: $this->stallClock,
         );
 
         $this->assertSame(implode(',', $acceptEncoding), $options[CURLOPT_ENCODING]);

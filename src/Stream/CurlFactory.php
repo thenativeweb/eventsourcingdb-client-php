@@ -7,6 +7,8 @@ namespace Thenativeweb\Eventsourcingdb\Stream;
 use CurlHandle;
 
 /**
+ * @internal
+ *
  * @see \Thenativeweb\Eventsourcingdb\Tests\Stream\CurlFactoryTest
  */
 class CurlFactory
@@ -15,9 +17,11 @@ class CurlFactory
         Request $request,
         Queue $queueHeader,
         Queue $queueWrite,
-        StallClock $stallClock,
         int $timeout = 0,
+        ?StallClock $stallClock = null,
     ): array {
+        $stallClock ??= new StallClock(CurlMultiHandler::DEFAULT_STALL_TIMEOUT);
+
         $httpVersion = match ($request->getProtocolVersion()) {
             '2.0', '2' => CURL_HTTP_VERSION_2_0,
             '1.1' => CURL_HTTP_VERSION_1_1,

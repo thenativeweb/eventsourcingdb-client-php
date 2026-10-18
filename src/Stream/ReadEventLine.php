@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Thenativeweb\Eventsourcingdb\Stream;
 
+/**
+ * @internal
+ */
 final readonly class ReadEventLine
 {
     /**
@@ -16,7 +19,7 @@ final readonly class ReadEventLine
     public function __construct(
         public string $type,
         public mixed $payload,
-        public string $line,
+        public string $line = '',
     ) {
     }
 }

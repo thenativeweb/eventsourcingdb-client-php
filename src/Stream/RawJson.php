@@ -15,6 +15,8 @@ use RuntimeException;
  * It expects valid JSON, which is checked before, and does not validate it
  * again.
  *
+ * @internal
+ *
  * @see \Thenativeweb\Eventsourcingdb\Tests\Stream\RawJsonTest
  */
 final class RawJson

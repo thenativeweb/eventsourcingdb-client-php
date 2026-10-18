@@ -11,6 +11,8 @@ namespace Thenativeweb\Eventsourcingdb\Stream;
  * so a request that keeps receiving something never stalls, however long it
  * takes.
  *
+ * @internal
+ *
  * @see \Thenativeweb\Eventsourcingdb\Tests\Stream\StallClockTest
  */
 final class StallClock

@@ -95,7 +95,7 @@ class CurlMultiHandler
             $request,
             $this->header,
             $this->write,
-            $this->stallClock,
+            stallClock: $this->stallClock,
         );
 
         if (!curl_setopt_array($curlHandle, $options)) {

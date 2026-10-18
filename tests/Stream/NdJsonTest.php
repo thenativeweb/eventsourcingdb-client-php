@@ -97,6 +97,16 @@ final class NdJsonTest extends TestCase
         $this->assertSame('TestEvent', $result[0]->type);
     }
 
+    public function testReadEventLineKeepsTheSignatureOfThePreviousRelease(): void
+    {
+        $readEventLine = new ReadEventLine('row', [
+            'foo' => 'bar',
+        ]);
+
+        $this->assertSame('row', $readEventLine->type);
+        $this->assertSame('', $readEventLine->line);
+    }
+
     public function testReadStreamSkipsLinesThatAreOnlyWhitespace(): void
     {
         $jsonLines = json_encode([
