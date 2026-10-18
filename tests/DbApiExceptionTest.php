@@ -208,6 +208,27 @@ final class DbApiExceptionTest extends TestCase
         $this->assertSame('Failed to read events, /foo: unknown field', $dbApiException->getMessage());
     }
 
+    /**
+     * @param 'v1'|'v2' $apiVersion
+     */
+    #[DataProvider('apiVersions')]
+    public function testKeepsTheTextOfTheServerApartFromTheLineBreakThatEndsIt(string $apiVersion): void
+    {
+        // The server ends the text with a line break, which is not a part of
+        // it, unlike the spaces around it.
+        $address = $this->startDatabase($apiVersion, [
+            $this->textResponse(400, '  invalid request  '),
+        ]);
+        $client = new Client("http://{$address}", 'secret');
+
+        $dbApiException = $this->catchDbApiException(static function (Client $client): void {
+            iterator_count($client->readEvents('/', new ReadEventsOptions(recursive: true)));
+        }, $client);
+
+        $this->assertSame('  invalid request  ', $dbApiException->description);
+        $this->assertSame('Failed to read events,   invalid request  ', $dbApiException->getMessage());
+    }
+
     public function testReportsAnErrorThatTheV1ApiSendsWithinAStream(): void
     {
         $address = $this->startDatabase('v1', [

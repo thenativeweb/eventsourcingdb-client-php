@@ -46,9 +46,24 @@ final class Responses
      */
     public static function createErrorFromStatus(Response $response, string $scope, string $code = ''): DbApiException
     {
-        $description = trim($response->getStream()->getContents());
+        return self::createError($response, $scope, $code, self::readErrorText($response));
+    }
 
-        return self::createError($response, $scope, $code, $description);
+    /**
+     * Reads the text of a response whose status is not 200, without the line
+     * break that EventSourcingDB appends to it, as Go's http.Error does, but
+     * with any other whitespace, which is a part of the text.
+     */
+    public static function readErrorText(Response $response): string
+    {
+        $text = $response->getStream()
+            ->getContents();
+
+        if (str_ends_with($text, "\n")) {
+            return substr($text, 0, -1);
+        }
+
+        return $text;
     }
 
     /**

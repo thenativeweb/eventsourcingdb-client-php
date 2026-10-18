@@ -359,7 +359,7 @@ final readonly class V1Transport implements Transport
             return;
         }
 
-        $description = trim($response->getStream()->getContents());
+        $description = Responses::readErrorText($response);
 
         throw Responses::createError(
             $response,
