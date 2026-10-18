@@ -50,7 +50,7 @@ To change the stall timeout, pass the `stallTimeout` option in seconds when crea
 $client = new Client('http://localhost:3000', 'secret', stallTimeout: 10);
 ```
 
-If a request stalls, the client closes the connection and throws a `ConnectionStalledException`, which extends `RuntimeException`. This also holds for `observeEvents` and `runEventQlQuery` until their response has begun. Once it has, these streams, which receive a heartbeat every second, throw a `HeartbeatTimeoutException` instead.
+If a request stalls, the client closes the connection and throws a `ConnectionStalledException`, which extends `RuntimeException`. This holds for every request, including streams such as `observeEvents` and `runEventQlQuery`, which receive a heartbeat every second while there is nothing else to send.
 
 ### Writing Events
 
@@ -275,7 +275,7 @@ foreach ($rows as $row) {
 
 *Note that each row returned by the iterator is an associative array and matches the projection specified in your query.*
 
-*Note that EventSourcingDB sends a heartbeat every second while there is nothing else to send. If neither a row nor a heartbeat arrives for the [stall timeout](#configuring-the-stall-timeout), which is 30 seconds by default, e.g. because the connection stalled, the iterator closes the connection and throws a `HeartbeatTimeoutException`.*
+*Note that EventSourcingDB sends a heartbeat every second while there is nothing else to send. If neither a row nor a heartbeat arrives for the [stall timeout](#configuring-the-stall-timeout), which is 30 seconds by default, e.g. because the connection stalled, the iterator closes the connection and throws a `ConnectionStalledException`.*
 
 ### Observing Events
 
@@ -298,7 +298,7 @@ foreach ($events as $event) {
 }
 ```
 
-*Note that EventSourcingDB sends a heartbeat every second while there are no events to send. If neither an event nor a heartbeat arrives for the [stall timeout](#configuring-the-stall-timeout), which is 30 seconds by default, e.g. because the connection stalled, the iterator closes the connection and throws a `HeartbeatTimeoutException`.*
+*Note that EventSourcingDB sends a heartbeat every second while there are no events to send. If neither an event nor a heartbeat arrives for the [stall timeout](#configuring-the-stall-timeout), which is 30 seconds by default, e.g. because the connection stalled, the iterator closes the connection and throws a `ConnectionStalledException`.*
 
 *Note that if you leave the `foreach` loop early, e.g. with `break`, the connection is closed once the iterator is released. If you keep the iterator in a variable, such as `$events`, the connection therefore stays open until you release the variable, e.g. with `unset($events)`.*
 

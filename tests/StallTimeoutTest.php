@@ -12,7 +12,6 @@ use PHPUnit\Framework\TestCase;
 use RuntimeException;
 use Thenativeweb\Eventsourcingdb\Client;
 use Thenativeweb\Eventsourcingdb\ConnectionStalledException;
-use Thenativeweb\Eventsourcingdb\HeartbeatTimeoutException;
 use Thenativeweb\Eventsourcingdb\ObserveEventsOptions;
 use Thenativeweb\Eventsourcingdb\ReadEventsOptions;
 use Thenativeweb\Eventsourcingdb\Tests\Trait\ReflectionTestTrait;
@@ -86,19 +85,17 @@ final class StallTimeoutTest extends TestCase
             ConnectionStalledException::class,
         ];
 
-        // Streams with heartbeats ended with a heartbeat timeout before the
-        // stall timeout replaced it, and keep doing so.
         yield 'observeEvents' => [
             static function (Client $client): void {
                 iterator_count($client->observeEvents('/', new ObserveEventsOptions(recursive: true)));
             },
-            HeartbeatTimeoutException::class,
+            ConnectionStalledException::class,
         ];
         yield 'runEventQlQuery' => [
             static function (Client $client): void {
                 iterator_count($client->runEventQlQuery('FROM e IN events PROJECT INTO e'));
             },
-            HeartbeatTimeoutException::class,
+            ConnectionStalledException::class,
         ];
     }
 
@@ -141,12 +138,7 @@ final class StallTimeoutTest extends TestCase
         $address = $this->startServer([], interval: 0.0, holdFor: 5.0);
         $client = new Client("http://{$address}", 'secret', stallTimeout: self::STALL_TIMEOUT);
 
-        $this->assertStalls(
-            $call,
-            $client,
-            $exceptionClass,
-            $exceptionClass === HeartbeatTimeoutException::class ? 'No event and no heartbeat arrived for 0.5 seconds.' : self::STALL_MESSAGE,
-        );
+        $this->assertStalls($call, $client, $exceptionClass, self::STALL_MESSAGE);
     }
 
     public function testFailsIfConnectingDoesNotFinishWithinTheStallTimeout(): void

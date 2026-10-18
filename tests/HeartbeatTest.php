@@ -9,15 +9,15 @@ use Iterator;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Thenativeweb\Eventsourcingdb\Client;
-use Thenativeweb\Eventsourcingdb\HeartbeatTimeoutException;
+use Thenativeweb\Eventsourcingdb\ConnectionStalledException;
 use Thenativeweb\Eventsourcingdb\ObserveEventsOptions;
 use Thenativeweb\Eventsourcingdb\Tests\Trait\ServerTestTrait;
 
-final class HeartbeatTimeoutTest extends TestCase
+final class HeartbeatTest extends TestCase
 {
     use ServerTestTrait;
 
-    private const HEARTBEAT_TIMEOUT = 0.5;
+    private const STALL_TIMEOUT = 0.5;
     private const HEARTBEAT_LINE = '{"type":"heartbeat","payload":{}}';
 
     public static function callsWithHeartbeats(): Iterator
@@ -55,22 +55,22 @@ final class HeartbeatTimeoutTest extends TestCase
     }
 
     #[DataProvider('callsWithHeartbeats')]
-    public function testEndsWithAHeartbeatTimeoutIfNeitherAnEventNorAHeartbeatArrives(Closure $call): void
+    public function testEndsWithAStalledConnectionIfNeitherAnEventNorAHeartbeatArrives(Closure $call): void
     {
         $client = $this->startClient([self::HEARTBEAT_LINE], interval: 0.0, holdFor: 5.0);
 
         $startTime = microtime(true);
         try {
             iterator_count($call($client));
-            $this->fail('Expected the stream to end with a heartbeat timeout, but it ended without one.');
-        } catch (HeartbeatTimeoutException $heartbeatTimeoutException) {
-            $this->assertSame('No event and no heartbeat arrived for 0.5 seconds.', $heartbeatTimeoutException->getMessage());
+            $this->fail('Expected the stream to end with a stalled connection, but it ended without one.');
+        } catch (ConnectionStalledException $connectionStalledException) {
+            $this->assertSame('No data arrived from the server for 0.5 seconds.', $connectionStalledException->getMessage());
         }
 
         $processTime = microtime(true) - $startTime;
 
-        $this->assertGreaterThanOrEqual(self::HEARTBEAT_TIMEOUT, $processTime);
-        $this->assertLessThan(self::HEARTBEAT_TIMEOUT + 1.0, $processTime);
+        $this->assertGreaterThanOrEqual(self::STALL_TIMEOUT, $processTime);
+        $this->assertLessThan(self::STALL_TIMEOUT + 1.0, $processTime);
         $this->assertSame('closed', $this->readServerReport(), 'Expected the connection to be closed.');
     }
 
@@ -84,7 +84,7 @@ final class HeartbeatTimeoutTest extends TestCase
         $processTime = microtime(true) - $startTime;
 
         $this->assertSame(0, $itemsRead);
-        $this->assertGreaterThan(self::HEARTBEAT_TIMEOUT * 3, $processTime);
+        $this->assertGreaterThan(self::STALL_TIMEOUT * 3, $processTime);
         $this->assertSame('ended', $this->readServerReport());
     }
 
@@ -99,7 +99,7 @@ final class HeartbeatTimeoutTest extends TestCase
     }
 
     #[DataProvider('callsWithHeartbeats')]
-    public function testEndsWithoutAHeartbeatTimeoutIfAborted(Closure $call): void
+    public function testEndsWithoutAStalledConnectionIfAborted(Closure $call): void
     {
         $client = $this->startClient([self::HEARTBEAT_LINE], interval: 0.0, holdFor: 5.0);
 
@@ -111,7 +111,7 @@ final class HeartbeatTimeoutTest extends TestCase
     }
 
     #[DataProvider('callsWithHeartbeats')]
-    public function testEndsWithoutAHeartbeatTimeoutIfTheLoopIsLeft(Closure $call, string $itemLine): void
+    public function testEndsWithoutAStalledConnectionIfTheLoopIsLeft(Closure $call, string $itemLine): void
     {
         $client = $this->startClient([$itemLine], interval: 0.0, holdFor: 5.0);
 
@@ -130,7 +130,7 @@ final class HeartbeatTimeoutTest extends TestCase
         $address = $this->startServer($lines, $interval, $holdFor);
 
         // The stall timeout sets after how long a stream with heartbeats ends
-        // with a heartbeat timeout.
-        return new Client("http://{$address}", 'secret', stallTimeout: self::HEARTBEAT_TIMEOUT);
+        // with a stalled connection.
+        return new Client("http://{$address}", 'secret', stallTimeout: self::STALL_TIMEOUT);
     }
 }

@@ -9,7 +9,6 @@ use CurlMultiHandle;
 use InvalidArgumentException;
 use RuntimeException;
 use Thenativeweb\Eventsourcingdb\ConnectionStalledException;
-use Thenativeweb\Eventsourcingdb\HeartbeatTimeoutException;
 
 /**
  * @see \Thenativeweb\Eventsourcingdb\Tests\Stream\CurlMultiHandlerTest
@@ -191,11 +190,9 @@ class CurlMultiHandler
 
     /**
      * Yields the body as it arrives. If nothing arrives for the stall timeout,
-     * it throws a HeartbeatTimeoutException for a stream with heartbeats, as
-     * it did before the stall timeout replaced the heartbeat timeout, and a
-     * ConnectionStalledException otherwise.
+     * it throws a ConnectionStalledException.
      */
-    public function contentIterator(bool $withHeartbeatTimeout = false): iterable
+    public function contentIterator(): iterable
     {
         $curlHandle = $this->curlHandle();
         $curlMultiHandle = $this->curlMultiHandle();
@@ -226,9 +223,7 @@ class CurlMultiHandler
                 $status = curl_multi_exec($curlMultiHandle, $isRunning);
                 if ($queue->isEmpty() && $isRunning) {
                     if ($stallClock->hasStalled()) {
-                        throw $withHeartbeatTimeout
-                            ? new HeartbeatTimeoutException("No event and no heartbeat arrived for {$stallClock->getStallTimeout()} seconds.")
-                            : $this->createConnectionStalledException($stallClock);
+                        throw $this->createConnectionStalledException($stallClock);
                     }
 
                     // Waiting for data ends at the stall deadline, or earlier at
