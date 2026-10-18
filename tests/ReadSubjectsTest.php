@@ -59,6 +59,15 @@ final class ReadSubjectsTest extends TestCase
         $this->assertSame(['/'], $subjectsRead);
     }
 
+    public function testReadsTheGivenSubjectAsTheServerNormalizesItIfNotRecursive(): void
+    {
+        $this->writeEvents();
+
+        $subjectsRead = iterator_to_array($this->client->readSubjects('/test/', new ReadSubjectsOptions(recursive: false)), false);
+
+        $this->assertSame(['/test'], $subjectsRead);
+    }
+
     public function testReadsASubjectWithoutSubjectsBelowItIfNotRecursive(): void
     {
         $this->writeEvents();

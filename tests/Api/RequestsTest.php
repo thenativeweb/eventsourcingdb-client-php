@@ -316,6 +316,34 @@ final class RequestsTest extends TestCase
         $this->assertSame(['/test', '/test/1', '/test/2'], $subjectsRead);
     }
 
+    public static function subjectsAsTheServerNormalizesThem(): Iterator
+    {
+        yield 'a subject with a trailing slash' => ['/a/b/', ['/a/b', '/a/b/c'], '/a/b'];
+        yield 'the root subject' => ['/', ['/', '/a'], '/'];
+    }
+
+    /**
+     * @param list<string> $listing
+     */
+    #[DataProvider('subjectsAsTheServerNormalizesThem')]
+    public function testListsTheGivenSubjectAloneThroughTheV1ApiAsTheServerNormalizesIt(string $subject, array $listing, string $expected): void
+    {
+        $subjects = array_map(
+            static fn (string $subject): string => self::item('v1', 'subject', [
+                'subject' => $subject,
+            ]),
+            $listing,
+        );
+        $address = $this->startDatabase('v1', [
+            $this->response($subjects, interval: 0.0, holdFor: 0.0),
+        ]);
+        $client = new Client("http://{$address}", 'secret');
+
+        $subjectsRead = iterator_to_array($client->readSubjects($subject, new ReadSubjectsOptions(recursive: false)), false);
+
+        $this->assertSame([$expected], $subjectsRead);
+    }
+
     public function testListsNoSubjectThroughTheV1ApiIfTheGivenOneIsNotListedAndNotRecursive(): void
     {
         $address = $this->startDatabase('v1', [

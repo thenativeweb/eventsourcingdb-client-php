@@ -205,6 +205,10 @@ final readonly class V1Transport implements Transport
 
         $this->throwIfNotSuccessful($response, 'Failed to read subjects');
 
+        // The server lists the subject as it normalizes it, i.e. with a single
+        // leading slash and no trailing one, as the v2 API reads it.
+        $normalizedSubject = '/' . trim($subject, '/');
+
         foreach (NdJson::readStream($response->getStream()) as $eventLine) {
             switch ($eventLine->type) {
                 case 'heartbeat':
@@ -220,7 +224,7 @@ final readonly class V1Transport implements Transport
 
                     // The listing holds every subject once, so it is done once
                     // the given subject has been found.
-                    if ($subjectRead === $subject) {
+                    if ($subjectRead === $normalizedSubject) {
                         yield $subjectRead;
 
                         return;
