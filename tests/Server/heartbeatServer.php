@@ -28,7 +28,11 @@ function answer($connection, array $response): string
 {
     $request = '';
     while (!str_contains($request, "\r\n\r\n")) {
-        $chunk = fread($connection, 8192);
+        // A client that does not trust the certificate may close the
+        // connection only after the handshake, which makes reading from it
+        // warn. PHP would print the warning to the output that the outcome is
+        // reported on, so it is suppressed, and the outcome is reported below.
+        $chunk = @fread($connection, 8192);
         if ($chunk === false || $chunk === '') {
             if ($request === '') {
                 return 'no request';
