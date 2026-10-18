@@ -12,9 +12,10 @@ use Throwable;
  */
 class HttpClient
 {
-    private const SUPPORTED_METHODS = ['GET', 'POST'];
+    private const SUPPORTED_METHODS = ['GET', 'POST', 'QUERY'];
     private const SUPPORTED_CONTENT_TYPES = ['application/json', 'application/x-ndjson', 'text/plain'];
     private CurlMultiHandler $curlMultiHandler;
+    private bool $hasLastRequestEstablishedConnection = false;
 
     public function __construct(
         private readonly ?string $baseUrl = null,
@@ -63,19 +64,45 @@ class HttpClient
         return $json;
     }
 
-    public function get(string $uri, ?string $apiToken = null): Response
+    /**
+     * Tells whether the last request got as far as a connection to the
+     * server. If it failed before, nothing of it was sent, so a write that
+     * failed that way was certainly not stored.
+     */
+    public function hasLastRequestEstablishedConnection(): bool
     {
+        return $this->hasLastRequestEstablishedConnection;
+    }
+
+    /**
+     * Tells whether the stream that was read last ended because the time that
+     * abortIn set was over, rather than because the server ended it.
+     */
+    public function hasLastStreamBeenAborted(): bool
+    {
+        return $this->curlMultiHandler->hasLastStreamBeenAborted();
+    }
+
+    /**
+     * @param bool $takesAbortTime whether an abort time set while no stream was being read applies to this request, which it does not for a request that the client sends on its own behalf
+     */
+    public function get(string $uri, ?string $apiToken = null, bool $takesAbortTime = true): Response
+    {
+        $this->hasLastRequestEstablishedConnection = false;
+
         $request = new Request(
             'GET',
             $this->buildUri($uri),
             $this->buildHeaders($apiToken),
         );
 
-        return $this->sendRequest($request);
+        return $this->sendRequest($request, $takesAbortTime);
     }
 
     public function post(string $uri, ?string $apiToken = null, null|array|object $body = null): Response
     {
+        $this->hasLastRequestEstablishedConnection = false;
+
         $request = new Request(
             'POST',
             $this->buildUri($uri),
@@ -86,14 +113,34 @@ class HttpClient
         return $this->sendRequest($request);
     }
 
-    public function sendRequest(Request $request): Response
+    /**
+     * Sends a request with the method QUERY (RFC 10008), which reads like GET
+     * does, but carries a body like POST.
+     */
+    public function query(string $uri, ?string $apiToken = null, null|array|object $body = null): Response
     {
+        $this->hasLastRequestEstablishedConnection = false;
+
+        $request = new Request(
+            'QUERY',
+            $this->buildUri($uri),
+            $this->buildHeaders($apiToken, $body),
+            $this->buildBody($body),
+        );
+
+        return $this->sendRequest($request);
+    }
+
+    public function sendRequest(Request $request, bool $takesAbortTime = true): Response
+    {
+        $this->hasLastRequestEstablishedConnection = false;
+
         if (!in_array($request->getMethod(), self::SUPPORTED_METHODS, true)) {
             throw new InvalidArgumentException("Internal HttpClient: got Request Method '{$request->getMethod()}', expected one of: " .
                 implode(', ', self::SUPPORTED_METHODS) . '.');
         }
 
-        $this->curlMultiHandler->addHandle($request);
+        $this->curlMultiHandler->addHandle($request, $takesAbortTime);
 
         // A response that is refused is never read, so its connection is
         // closed here rather than kept open until the next request.
@@ -117,10 +164,13 @@ class HttpClient
                 protocolVersion: $responseHeader->httpVersion,
             );
         } catch (Throwable $throwable) {
+            $this->hasLastRequestEstablishedConnection = $this->curlMultiHandler->hasEstablishedConnection();
             $this->curlMultiHandler->close();
 
             throw $throwable;
         }
+
+        $this->hasLastRequestEstablishedConnection = true;
 
         return $response;
     }

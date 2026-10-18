@@ -26,6 +26,7 @@ class CurlMultiHandler
     private ?Queue $header = null;
     private ?Queue $write = null;
     private ?StallClock $stallClock = null;
+    private bool $hasLastStreamBeenAborted = false;
 
     /**
      * @var array<int, CurlHandle>
@@ -83,7 +84,10 @@ class CurlMultiHandler
         return $this->stallClock;
     }
 
-    public function addHandle(Request $request): void
+    /**
+     * @param bool $takesAbortTime whether an abort time set while no stream was being read applies to this request, which it does not for a request that the client sends on its own behalf, such as finding out which API the server offers
+     */
+    public function addHandle(Request $request, bool $takesAbortTime = true): void
     {
         $curlHandle = curl_init();
 
@@ -106,7 +110,7 @@ class CurlMultiHandler
 
         // An abort time set while no stream was being read applies to this
         // request.
-        if (!$this->abortInCurlHandle instanceof CurlHandle) {
+        if ($takesAbortTime && !$this->abortInCurlHandle instanceof CurlHandle) {
             $this->abortInCurlHandle = $curlHandle;
         }
     }
@@ -159,6 +163,33 @@ class CurlMultiHandler
     }
 
     /**
+     * Tells whether the request being sent got as far as a connection to the
+     * server, including a TLS handshake for https, so that a failure can be
+     * told apart from one that happened before anything was sent. cURL
+     * records the time until the transfer starts, or the size of the request
+     * it has sent, only once the connection is established.
+     */
+    public function hasEstablishedConnection(): bool
+    {
+        if (!$this->curlHandle instanceof CurlHandle) {
+            return false;
+        }
+
+        return curl_getinfo($this->curlHandle, CURLINFO_PRETRANSFER_TIME_T) > 0
+            || curl_getinfo($this->curlHandle, CURLINFO_REQUEST_SIZE) > 0;
+    }
+
+    /**
+     * Tells whether the stream that was read last ended because the time that
+     * abortIn set was over, rather than because the server ended it, so that
+     * an aborted stream can be told apart from one that broke off.
+     */
+    public function hasLastStreamBeenAborted(): bool
+    {
+        return $this->hasLastStreamBeenAborted;
+    }
+
+    /**
      * Yields the body as it arrives. If nothing arrives for the stall timeout,
      * it throws a HeartbeatTimeoutException for a stream with heartbeats, as
      * it did before the stall timeout replaced the heartbeat timeout, and a
@@ -176,6 +207,7 @@ class CurlMultiHandler
         }
 
         $this->readingCurlHandles[spl_object_id($curlHandle)] = $curlHandle;
+        $isAborted = false;
 
         // The finally block also runs when the caller stops reading early and
         // the generator is destroyed, so the connection does not stay open.
@@ -186,6 +218,8 @@ class CurlMultiHandler
                     && $this->abortIn > 0
                     && (microtime(true) - $this->iteratorTime) >= $this->abortIn
                 ) {
+                    $isAborted = true;
+
                     break;
                 }
 
@@ -214,6 +248,10 @@ class CurlMultiHandler
                 }
             } while ($isRunning && $status === CURLM_OK);
         } finally {
+            // This is set last, so that a stream read within the loop of this
+            // one does not leave its own outcome behind.
+            $this->hasLastStreamBeenAborted = $isAborted;
+
             unset($this->readingCurlHandles[spl_object_id($curlHandle)]);
 
             $this->closeHandles($curlHandle, $curlMultiHandle);
