@@ -18,7 +18,7 @@ use RuntimeException;
 use Testcontainers\ContainerClient\DockerContainerClient;
 use Testcontainers\Exception\ContainerException;
 use Thenativeweb\Eventsourcingdb\Container;
-use function Thenativeweb\Eventsourcingdb\Tests\Fn\getImageVersionFromDockerfile;
+use function Thenativeweb\Eventsourcingdb\Tests\Fn\getImageTag;
 
 final class ContainerTest extends TestCase
 {
@@ -60,9 +60,9 @@ final class ContainerTest extends TestCase
 
     public function testStartsWithACustomPort(): void
     {
-        $imageVersion = getImageVersionFromDockerfile();
+        $imageTag = getImageTag();
         $this->container = (new Container())
-            ->withImageTag($imageVersion)
+            ->withImageTag($imageTag)
             ->withPort(4000);
         $this->container->start();
 
@@ -74,12 +74,12 @@ final class ContainerTest extends TestCase
 
     public function testRemovesContainersThatDoNotBecomeReady(): void
     {
-        $imageVersion = getImageVersionFromDockerfile();
+        $imageTag = getImageTag();
         $containerIdsBefore = $this->getStartedContainerIds();
 
         // Without an API token, EventSourcingDB exits right away.
         $this->container = (new Container())
-            ->withImageTag($imageVersion)
+            ->withImageTag($imageTag)
             ->withApiToken('');
 
         $exception = null;

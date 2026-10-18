@@ -6,7 +6,7 @@ namespace Thenativeweb\Eventsourcingdb\Tests\Trait;
 
 use Thenativeweb\Eventsourcingdb\Client;
 use Thenativeweb\Eventsourcingdb\Container;
-use function Thenativeweb\Eventsourcingdb\Tests\Fn\getImageVersionFromDockerfile;
+use function Thenativeweb\Eventsourcingdb\Tests\Fn\getImageTag;
 
 trait ClientTestTrait
 {
@@ -29,8 +29,8 @@ trait ClientTestTrait
 
     protected function startContainer(): Container
     {
-        $imageVersion = getImageVersionFromDockerfile();
-        $container = (new Container())->withImageTag($imageVersion);
+        $imageTag = getImageTag();
+        $container = (new Container())->withImageTag($imageTag);
         $container->start();
 
         return $container;

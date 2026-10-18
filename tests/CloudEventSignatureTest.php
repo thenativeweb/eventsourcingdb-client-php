@@ -12,7 +12,7 @@ use Thenativeweb\Eventsourcingdb\Container;
 use Thenativeweb\Eventsourcingdb\EventCandidate;
 use Thenativeweb\Eventsourcingdb\SigningKey;
 use Thenativeweb\Eventsourcingdb\Tests\Trait\ReflectionTestTrait;
-use function Thenativeweb\Eventsourcingdb\Tests\Fn\getImageVersionFromDockerfile;
+use function Thenativeweb\Eventsourcingdb\Tests\Fn\getImageTag;
 
 final class CloudEventSignatureTest extends TestCase
 {
@@ -28,9 +28,9 @@ final class CloudEventSignatureTest extends TestCase
 
     public function testThrowsAnErrorIfVerificationKeyIsEmpty(): void
     {
-        $imageVersion = getImageVersionFromDockerfile();
+        $imageTag = getImageTag();
         $container = (new Container())
-            ->withImageTag($imageVersion)
+            ->withImageTag($imageTag)
             ->withSigningKey();
         $container->start();
         $this->container = $container;
@@ -59,9 +59,9 @@ final class CloudEventSignatureTest extends TestCase
 
     public function testThrowsAnErrorIfSignatureHasInvalidLength(): void
     {
-        $imageVersion = getImageVersionFromDockerfile();
+        $imageTag = getImageTag();
         $container = (new Container())
-            ->withImageTag($imageVersion)
+            ->withImageTag($imageTag)
             ->withSigningKey();
         $container->start();
         $this->container = $container;
@@ -110,9 +110,9 @@ final class CloudEventSignatureTest extends TestCase
 
     public function testThrowsAnErrorIfTheSignatureIsNull(): void
     {
-        $imageVersion = getImageVersionFromDockerfile();
+        $imageTag = getImageTag();
         $container = (new Container())
-            ->withImageTag($imageVersion);
+            ->withImageTag($imageTag);
         $container->start();
         $this->container = $container;
 
@@ -147,9 +147,9 @@ final class CloudEventSignatureTest extends TestCase
 
     public function testThrowsAnErrorIfTheHashVerificationFails(): void
     {
-        $imageVersion = getImageVersionFromDockerfile();
+        $imageTag = getImageTag();
         $container = (new Container())
-            ->withImageTag($imageVersion)
+            ->withImageTag($imageTag)
             ->withSigningKey();
         $container->start();
         $this->container = $container;
@@ -202,9 +202,9 @@ final class CloudEventSignatureTest extends TestCase
 
     public function testThrowsAnErrorIfTheSignatureVerificationFails(): void
     {
-        $imageVersion = getImageVersionFromDockerfile();
+        $imageTag = getImageTag();
         $container = (new Container())
-            ->withImageTag($imageVersion)
+            ->withImageTag($imageTag)
             ->withSigningKey();
         $container->start();
         $this->container = $container;
@@ -257,9 +257,9 @@ final class CloudEventSignatureTest extends TestCase
 
     public function testVerifiesTheSignature(): void
     {
-        $imageVersion = getImageVersionFromDockerfile();
+        $imageTag = getImageTag();
         $container = (new Container())
-            ->withImageTag($imageVersion)
+            ->withImageTag($imageTag)
             ->withSigningKey();
         $container->start();
         $this->container = $container;
