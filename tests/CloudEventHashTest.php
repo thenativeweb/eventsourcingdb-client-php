@@ -35,6 +35,10 @@ final class CloudEventHashTest extends TestCase
     // with a hash of version 1, also taken from its test fixtures.
     private const EVENT_WITH_HASH_OF_VERSION_1 = '{"source":"tag:thenativeweb.io,2023:library","subject":"/books/42","type":"io.eventsourcingdb.library.book-acquired","traceparent":"00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01","tracestate":"vendor=value","specversion":"1.0","id":"1","time":"2026-10-13T12:00:00.123456789Z","datacontenttype":"application/json","predecessorhash":"eb04f1ac44859220f999560512a6d8067fade3c8e3cd59a5fbeb4cf30c8428f6","data":{"copies":3,"isbn":"978-0756906788","meta":{"shelf":"A\u0026B"},"nanos":9007199254740993,"price":12.5,"tags":["sf","\u003cclassic\u003e"],"title":"2001 – A Space Odyssey"},"hash":"82c1ccb26afe7554ede4478a0f5c89f9dd1f5fcf995f3602ddf149edd7aec159","signature":null}';
 
+    // An event that the previous release of this client SDK serialized, with
+    // a hash of version 1 over the data {"value":23}, encoded as Base64.
+    private const EVENT_SERIALIZED_BY_THE_PREVIOUS_RELEASE = 'TzozOToiVGhlbmF0aXZld2ViXEV2ZW50c291cmNpbmdkYlxDbG91ZEV2ZW50IjoxNDp7czoxMToic3BlY1ZlcnNpb24iO3M6MzoiMS4wIjtzOjI6ImlkIjtzOjE6IjEiO3M6NDoidGltZSI7TzoxNzoiRGF0ZVRpbWVJbW11dGFibGUiOjM6e3M6NDoiZGF0ZSI7czoyNjoiMjAyNi0xMC0xMyAxMjowMDowMC4xMjM0NTYiO3M6MTM6InRpbWV6b25lX3R5cGUiO2k6MjtzOjg6InRpbWV6b25lIjtzOjE6IloiO31zOjU1OiIAVGhlbmF0aXZld2ViXEV2ZW50c291cmNpbmdkYlxDbG91ZEV2ZW50AHRpbWVGcm9tU2VydmVyIjtzOjMwOiIyMDI2LTEwLTEzVDEyOjAwOjAwLjEyMzQ1Njc4OVoiO3M6Njoic291cmNlIjtzOjMwOiJodHRwczovL3d3dy5ldmVudHNvdXJjaW5nZGIuaW8iO3M6Nzoic3ViamVjdCI7czo1OiIvdGVzdCI7czo0OiJ0eXBlIjtzOjIzOiJpby5ldmVudHNvdXJjaW5nZGIudGVzdCI7czoxNToiZGF0YUNvbnRlbnRUeXBlIjtzOjE2OiJhcHBsaWNhdGlvbi9qc29uIjtzOjQ6ImRhdGEiO2E6MTp7czo1OiJ2YWx1ZSI7aToyMzt9czo0OiJoYXNoIjtzOjY0OiIxMTc1YjA5MzMwOTFiOGZlZDBhMTdjNTYyYmFkMjU0MmVlMWU0OTZlOWVkOTE3ZmY5ZjlhMzgxZDczYjRhOGM4IjtzOjE1OiJwcmVkZWNlc3Nvckhhc2giO3M6NjQ6IjAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAiO3M6MTE6InRyYWNlUGFyZW50IjtOO3M6MTA6InRyYWNlU3RhdGUiO047czo5OiJzaWduYXR1cmUiO047fQ==';
+
     // A trace parent other than the one of the events above.
     private const OTHER_TRACE_PARENT = '00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01';
 
@@ -135,6 +139,14 @@ final class CloudEventHashTest extends TestCase
         $this->expectExceptionMessage("Failed to verify hash, since its version 'v3' is not supported.");
 
         $cloudEvent->verifyHash();
+    }
+
+    public function testVerifiesTheHashOfAnEventThatThePreviousReleaseSerialized(): void
+    {
+        $event = unserialize(base64_decode(self::EVENT_SERIALIZED_BY_THE_PREVIOUS_RELEASE, true));
+        $this->assertInstanceOf(CloudEvent::class, $event);
+
+        $event->verifyHash();
     }
 
     #[DataProvider('eventsOfEveryHashVersion')]

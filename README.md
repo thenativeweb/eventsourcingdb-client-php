@@ -504,6 +504,8 @@ The function supports both versions of the hash: version 1, which events written
 
 *Note that both exceptions extend `RuntimeException`, so code that catches a `RuntimeException` keeps working.*
 
+*Note that an event returned by the client keeps its data exactly as the server sent it, to verify the hash. It therefore does not compare equal, e.g. with `==` or `assertEquals`, to an event you build by hand from the same fields. Compare their fields instead.*
+
 *Note that this only verifies the hash. If you also want to verify the signature, you can skip this step and call `verifySignature` directly, which performs a hash verification internally.*
 
 ### Verifying an Event's Signature

@@ -143,10 +143,15 @@ final readonly class CloudEvent
     private function getDataAsReceived(): string
     {
         // The server hashes the data as it sends it, so the data is hashed as
-        // it was received. Only an event that was not received from the server
-        // lacks it, so its data is encoded again instead.
-        if ($this->dataFromServer !== null) {
-            return $this->dataFromServer;
+        // it was received. An event that was not received from the server
+        // lacks it, and so does one that an earlier release serialized, whose
+        // property stays uninitialized when it is unserialized, since a
+        // readonly property cannot have a default value, and the null
+        // coalescing operator reads it without failing. The data of such an
+        // event is encoded again instead, as before.
+        $dataFromServer = $this->dataFromServer ?? null;
+        if ($dataFromServer !== null) {
+            return $dataFromServer;
         }
 
         $dataJson = json_encode($this->data);
