@@ -40,6 +40,18 @@ If you want to verify the API token, call `verifyApiToken`. If the token is inva
 $client->verifyApiToken();
 ```
 
+### Configuring the Stall Timeout
+
+A request fails once nothing at all, neither data nor a heartbeat, has arrived from the server for 30 seconds, counted from sending the request, including connecting and waiting for the response headers. This keeps a stalled connection from blocking forever. Since anything that arrives resets this time, a long request that keeps receiving data, such as reading many events or observing events, is never cut off.
+
+To change the stall timeout, pass the `stallTimeout` option in seconds when creating the client:
+
+```php
+$client = new Client('http://localhost:3000', 'secret', stallTimeout: 10);
+```
+
+If a request stalls, the client closes the connection and throws a `ConnectionStalledException`, which extends `RuntimeException`. While iterating over the results of `observeEvents` and `runEventQlQuery`, which receive a heartbeat every second, it throws a `HeartbeatTimeoutException` instead.
+
 ### Writing Events
 
 Call the `writeEvents` function and hand over an array with one or more events. You do not have to provide all event fields – some are automatically added by the server.
@@ -263,7 +275,7 @@ foreach ($rows as $row) {
 
 *Note that each row returned by the iterator is an associative array and matches the projection specified in your query.*
 
-*Note that EventSourcingDB sends a heartbeat every second while there is nothing else to send. If neither a row nor a heartbeat arrives for 30 seconds, e.g. because the connection stalled, the iterator closes the connection and throws a `HeartbeatTimeoutException`.*
+*Note that EventSourcingDB sends a heartbeat every second while there is nothing else to send. If neither a row nor a heartbeat arrives for the [stall timeout](#configuring-the-stall-timeout), which is 30 seconds by default, e.g. because the connection stalled, the iterator closes the connection and throws a `HeartbeatTimeoutException`.*
 
 ### Observing Events
 
@@ -286,7 +298,7 @@ foreach ($events as $event) {
 }
 ```
 
-*Note that EventSourcingDB sends a heartbeat every second while there are no events to send. If neither an event nor a heartbeat arrives for 30 seconds, e.g. because the connection stalled, the iterator closes the connection and throws a `HeartbeatTimeoutException`.*
+*Note that EventSourcingDB sends a heartbeat every second while there are no events to send. If neither an event nor a heartbeat arrives for the [stall timeout](#configuring-the-stall-timeout), which is 30 seconds by default, e.g. because the connection stalled, the iterator closes the connection and throws a `HeartbeatTimeoutException`.*
 
 *Note that if you leave the `foreach` loop early, e.g. with `break`, the connection is closed once the iterator is released. If you keep the iterator in a variable, such as `$events`, the connection therefore stays open until you release the variable, e.g. with `unset($events)`.*
 

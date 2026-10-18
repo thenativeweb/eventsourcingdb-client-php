@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Thenativeweb\Eventsourcingdb\Tests\Stream;
 
+use InvalidArgumentException;
+use Iterator;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 use Thenativeweb\Eventsourcingdb\Stream\CurlMultiHandler;
@@ -20,6 +23,30 @@ final class CurlMultiHandlerTest extends TestCase
     public function removeLineBrakes(string $line): string
     {
         return preg_replace('/\r\n|\r|\n/', '', $line);
+    }
+
+    public static function invalidStallTimeouts(): Iterator
+    {
+        yield 'zero' => [0.0];
+        yield 'negative' => [-1.0];
+        yield 'infinite' => [INF];
+        yield 'not a number' => [NAN];
+    }
+
+    public function testUsesAStallTimeoutOfThirtySecondsByDefault(): void
+    {
+        $curlMultiHandler = new CurlMultiHandler();
+
+        $this->assertEqualsWithDelta(30.0, $this->getPropertyValue($curlMultiHandler, 'stallTimeout'), PHP_FLOAT_EPSILON);
+    }
+
+    #[DataProvider('invalidStallTimeouts')]
+    public function testThrowsIfTheStallTimeoutIsNotAPositiveNumber(float $stallTimeout): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('The stall timeout must be a positive number of seconds');
+
+        new CurlMultiHandler($stallTimeout);
     }
 
     public function testAbortInWithPositiveValue(): void

@@ -6,7 +6,9 @@ namespace Thenativeweb\Eventsourcingdb\Stream;
 
 use CurlHandle;
 use CurlMultiHandle;
+use InvalidArgumentException;
 use RuntimeException;
+use Thenativeweb\Eventsourcingdb\ConnectionStalledException;
 use Thenativeweb\Eventsourcingdb\HeartbeatTimeoutException;
 
 /**
@@ -14,21 +16,35 @@ use Thenativeweb\Eventsourcingdb\HeartbeatTimeoutException;
  */
 class CurlMultiHandler
 {
-    private const HEARTBEAT_TIMEOUT = 30.0;
+    public const DEFAULT_STALL_TIMEOUT = 30.0;
 
     private ?CurlHandle $curlHandle = null;
     private ?CurlMultiHandle $curlMultiHandle = null;
     private float $abortIn = 0.0;
     private ?CurlHandle $abortInCurlHandle = null;
     private float $iteratorTime;
-    private float $heartbeatTimeout = self::HEARTBEAT_TIMEOUT;
     private ?Queue $header = null;
     private ?Queue $write = null;
+    private ?StallClock $stallClock = null;
 
     /**
      * @var array<int, CurlHandle>
      */
     private array $readingCurlHandles = [];
+
+    /**
+     * @param float $stallTimeout the seconds after which a request fails if nothing at all has arrived from the server
+     */
+    public function __construct(
+        private readonly float $stallTimeout = self::DEFAULT_STALL_TIMEOUT,
+    ) {
+        if (!is_finite($stallTimeout) || $stallTimeout <= 0) {
+            throw new InvalidArgumentException(sprintf(
+                'The stall timeout must be a positive number of seconds, got %s.',
+                var_export($stallTimeout, true),
+            ));
+        }
+    }
 
     public function abortIn(float $seconds): void
     {
@@ -58,17 +74,28 @@ class CurlMultiHandler
         return $this->write;
     }
 
+    public function getStallClock(): StallClock
+    {
+        if (!$this->stallClock instanceof StallClock) {
+            throw new RuntimeException('Internal HttpClient: No stall clock available.');
+        }
+
+        return $this->stallClock;
+    }
+
     public function addHandle(Request $request): void
     {
         $curlHandle = curl_init();
 
         $this->header = new Queue(maxSize: 100);
         $this->write = new Queue();
+        $this->stallClock = new StallClock($this->stallTimeout);
 
         $options = CurlFactory::create(
             $request,
             $this->header,
             $this->write,
+            $this->stallClock,
         );
 
         if (!curl_setopt_array($curlHandle, $options)) {
@@ -88,6 +115,7 @@ class CurlMultiHandler
     {
         $curlHandle = $this->curlHandle();
         $queue = $this->getHeaderQueue();
+        $stallClock = $this->getStallClock();
 
         $curlMultiHandle = curl_multi_init();
         $this->curlMultiHandle = $curlMultiHandle;
@@ -96,12 +124,20 @@ class CurlMultiHandler
             throw new RuntimeException('Internal HttpClient: Failed to add cURL handle to multi handle: ' . curl_multi_strerror(curl_multi_errno($curlMultiHandle)));
         }
 
+        // The stall timeout counts from sending the request, so it also bounds
+        // connecting and waiting for the headers.
+        $stallClock->reset();
+
         // The headers may arrive in several packets, so this waits for all of
         // them, not only for the first line.
         do {
             $status = curl_multi_exec($curlMultiHandle, $isRunning);
             if (!$queue->isComplete() && $isRunning) {
-                curl_multi_select($curlMultiHandle);
+                if ($stallClock->hasStalled()) {
+                    throw $this->createConnectionStalledException($stallClock);
+                }
+
+                curl_multi_select($curlMultiHandle, $this->selectTimeout($stallClock->getDeadline()));
             }
 
             $this->verifyCurlHandle($curlMultiHandle);
@@ -122,19 +158,22 @@ class CurlMultiHandler
         $this->closeHandles($curlHandle, $this->curlMultiHandle);
     }
 
+    /**
+     * Yields the body as it arrives. If nothing arrives for the stall timeout,
+     * it throws a HeartbeatTimeoutException for a stream with heartbeats, as
+     * it did before the stall timeout replaced the heartbeat timeout, and a
+     * ConnectionStalledException otherwise.
+     */
     public function contentIterator(bool $withHeartbeatTimeout = false): iterable
     {
         $curlHandle = $this->curlHandle();
         $curlMultiHandle = $this->curlMultiHandle();
         $queue = $this->getWriteQueue();
-
-        $heartbeatTimeout = $withHeartbeatTimeout ? $this->heartbeatTimeout : INF;
+        $stallClock = $this->getStallClock();
 
         if ($this->abortInCurlHandle === $curlHandle) {
             $this->iteratorTime = microtime(true);
         }
-
-        $lineTime = microtime(true);
 
         $this->readingCurlHandles[spl_object_id($curlHandle)] = $curlHandle;
 
@@ -151,12 +190,21 @@ class CurlMultiHandler
                 }
 
                 $status = curl_multi_exec($curlMultiHandle, $isRunning);
-                if (!$queue->isEmpty()) {
-                    $lineTime = microtime(true);
-                } elseif ($isRunning && (microtime(true) - $lineTime) >= $heartbeatTimeout) {
-                    throw new HeartbeatTimeoutException("No event and no heartbeat arrived for {$heartbeatTimeout} seconds.");
-                } elseif ($isRunning) {
-                    curl_multi_select($curlMultiHandle, $this->selectTimeout($curlHandle, $lineTime + $heartbeatTimeout));
+                if ($queue->isEmpty() && $isRunning) {
+                    if ($stallClock->hasStalled()) {
+                        throw $withHeartbeatTimeout
+                            ? new HeartbeatTimeoutException("No event and no heartbeat arrived for {$stallClock->getStallTimeout()} seconds.")
+                            : $this->createConnectionStalledException($stallClock);
+                    }
+
+                    // Waiting for data ends at the stall deadline, or earlier at
+                    // the abort time of the stream being read.
+                    $deadline = $stallClock->getDeadline();
+                    if ($this->abortInCurlHandle === $curlHandle && $this->abortIn > 0) {
+                        $deadline = min($deadline, $this->iteratorTime + $this->abortIn);
+                    }
+
+                    curl_multi_select($curlMultiHandle, $this->selectTimeout($deadline));
                 }
 
                 $this->verifyCurlHandle($curlMultiHandle);
@@ -172,16 +220,16 @@ class CurlMultiHandler
         }
     }
 
-    private function selectTimeout(CurlHandle $curlHandle, float $heartbeatDeadline): float
+    private function selectTimeout(float $deadline): float
     {
         // Waiting for data ends after a second at the latest, or earlier at
-        // the heartbeat deadline or at the abort time of the stream being read.
-        $deadline = $heartbeatDeadline;
-        if ($this->abortInCurlHandle === $curlHandle && $this->abortIn > 0) {
-            $deadline = min($deadline, $this->iteratorTime + $this->abortIn);
-        }
-
+        // the given deadline.
         return max(0.0, min(1.0, $deadline - microtime(true)));
+    }
+
+    private function createConnectionStalledException(StallClock $stallClock): ConnectionStalledException
+    {
+        return new ConnectionStalledException("No data arrived from the server for {$stallClock->getStallTimeout()} seconds.");
     }
 
     private function closeHandles(CurlHandle $curlHandle, ?CurlMultiHandle $curlMultiHandle): void
@@ -207,12 +255,14 @@ class CurlMultiHandler
             $this->curlMultiHandle,
             $this->header,
             $this->write,
+            $this->stallClock,
         );
 
         $this->curlHandle = null;
         $this->curlMultiHandle = null;
         $this->header = null;
         $this->write = null;
+        $this->stallClock = null;
     }
 
     private function verifyCurlHandle(CurlMultiHandle $curlMultiHandle): void

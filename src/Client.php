@@ -6,6 +6,7 @@ namespace Thenativeweb\Eventsourcingdb;
 
 use DateTimeImmutable;
 use RuntimeException;
+use Thenativeweb\Eventsourcingdb\Stream\CurlMultiHandler;
 use Thenativeweb\Eventsourcingdb\Stream\HttpClient;
 use Thenativeweb\Eventsourcingdb\Stream\NdJson;
 use Thenativeweb\Eventsourcingdb\Stream\RawJson;
@@ -17,12 +18,16 @@ final readonly class Client
     private string $apiToken;
     private HttpClient $httpClient;
 
+    /**
+     * @param float $stallTimeout the seconds after which a request fails if nothing at all has arrived from the server, neither data nor a heartbeat, counted from sending the request
+     */
     public function __construct(
         string $url,
         string $apiToken,
+        float $stallTimeout = CurlMultiHandler::DEFAULT_STALL_TIMEOUT,
     ) {
         $this->apiToken = $apiToken;
-        $this->httpClient = new HttpClient($url);
+        $this->httpClient = new HttpClient($url, $stallTimeout);
     }
 
     public function abortIn(float $seconds): void
@@ -40,6 +45,10 @@ final readonly class Client
         try {
             $data = $response->getStream()
                 ->getJsonData();
+        } catch (ConnectionStalledException $connectionStalledException) {
+            // A stalled connection keeps its own type, so that it can be told
+            // apart from a response that cannot be read.
+            throw $connectionStalledException;
         } catch (RuntimeException $runtimeException) {
             throw new RuntimeException(
                 'Failed to ping: ' . $runtimeException->getMessage(),
@@ -66,6 +75,10 @@ final readonly class Client
         try {
             $data = $response->getStream()
                 ->getJsonData();
+        } catch (ConnectionStalledException $connectionStalledException) {
+            // A stalled connection keeps its own type, so that it can be told
+            // apart from a response that cannot be read.
+            throw $connectionStalledException;
         } catch (RuntimeException $runtimeException) {
             throw new RuntimeException(
                 'Failed to verify API token: ' . $runtimeException->getMessage(),
@@ -102,6 +115,10 @@ final readonly class Client
                 ->getContents();
             $data = Stream::decodeJson($contents);
             $rawEvents = $data === [] ? [] : RawJson::getElements($contents);
+        } catch (ConnectionStalledException $connectionStalledException) {
+            // A stalled connection keeps its own type, so that it can be told
+            // apart from a response that cannot be read.
+            throw $connectionStalledException;
         } catch (RuntimeException $runtimeException) {
             throw new RuntimeException(
                 'Failed to read events, after writing: ' . $runtimeException->getMessage(),
@@ -306,6 +323,10 @@ final readonly class Client
         try {
             $data = $response->getStream()
                 ->getJsonData();
+        } catch (ConnectionStalledException $connectionStalledException) {
+            // A stalled connection keeps its own type, so that it can be told
+            // apart from a response that cannot be read.
+            throw $connectionStalledException;
         } catch (RuntimeException $runtimeException) {
             throw new RuntimeException(
                 'Failed to read event type: ' . $runtimeException->getMessage(),

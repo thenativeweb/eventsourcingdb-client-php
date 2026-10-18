@@ -18,8 +18,9 @@ class HttpClient
 
     public function __construct(
         private readonly ?string $baseUrl = null,
+        float $stallTimeout = CurlMultiHandler::DEFAULT_STALL_TIMEOUT,
     ) {
-        $this->curlMultiHandler = new CurlMultiHandler();
+        $this->curlMultiHandler = new CurlMultiHandler($stallTimeout);
     }
 
     public function abortIn(float $seconds): void

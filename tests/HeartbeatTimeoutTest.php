@@ -11,13 +11,10 @@ use PHPUnit\Framework\TestCase;
 use Thenativeweb\Eventsourcingdb\Client;
 use Thenativeweb\Eventsourcingdb\HeartbeatTimeoutException;
 use Thenativeweb\Eventsourcingdb\ObserveEventsOptions;
-use Thenativeweb\Eventsourcingdb\ReadEventsOptions;
-use Thenativeweb\Eventsourcingdb\Tests\Trait\ReflectionTestTrait;
 use Thenativeweb\Eventsourcingdb\Tests\Trait\ServerTestTrait;
 
 final class HeartbeatTimeoutTest extends TestCase
 {
-    use ReflectionTestTrait;
     use ServerTestTrait;
 
     private const HEARTBEAT_TIMEOUT = 0.5;
@@ -55,29 +52,6 @@ final class HeartbeatTimeoutTest extends TestCase
                 ],
             ], JSON_THROW_ON_ERROR),
         ];
-    }
-
-    public static function callsWithoutHeartbeats(): Iterator
-    {
-        yield 'readEvents' => [
-            static fn (Client $client): iterable => $client->readEvents('/', new ReadEventsOptions(recursive: true)),
-        ];
-        yield 'readSubjects' => [
-            static fn (Client $client): iterable => $client->readSubjects('/'),
-        ];
-        yield 'readEventTypes' => [
-            static fn (Client $client): iterable => $client->readEventTypes(),
-        ];
-    }
-
-    public function testUsesAHeartbeatTimeoutOfThirtySeconds(): void
-    {
-        $client = new Client('http://localhost:3000', 'secret');
-
-        $httpClient = $this->getPropertyValue($client, 'httpClient');
-        $curlMultiHandler = $this->getPropertyValue($httpClient, 'curlMultiHandler');
-
-        $this->assertEqualsWithDelta(30.0, $this->getPropertyValue($curlMultiHandler, 'heartbeatTimeout'), PHP_FLOAT_EPSILON);
     }
 
     #[DataProvider('callsWithHeartbeats')]
@@ -151,26 +125,12 @@ final class HeartbeatTimeoutTest extends TestCase
         $this->assertSame(1, $itemsRead);
     }
 
-    #[DataProvider('callsWithoutHeartbeats')]
-    public function testDoesNotApplyTheHeartbeatTimeoutToStreamsWithoutHeartbeats(Closure $call): void
-    {
-        $client = $this->startClient([], interval: 0.0, holdFor: self::HEARTBEAT_TIMEOUT * 3);
-
-        $itemsRead = iterator_count($call($client));
-
-        $this->assertSame(0, $itemsRead);
-        $this->assertSame('ended', $this->readServerReport());
-    }
-
     private function startClient(array $lines, float $interval, float $holdFor): Client
     {
         $address = $this->startServer($lines, $interval, $holdFor);
-        $client = new Client("http://{$address}", 'secret');
 
-        $httpClient = $this->getPropertyValue($client, 'httpClient');
-        $curlMultiHandler = $this->getPropertyValue($httpClient, 'curlMultiHandler');
-        $this->setPropertyValue($curlMultiHandler, 'heartbeatTimeout', self::HEARTBEAT_TIMEOUT);
-
-        return $client;
+        // The stall timeout sets after how long a stream with heartbeats ends
+        // with a heartbeat timeout.
+        return new Client("http://{$address}", 'secret', stallTimeout: self::HEARTBEAT_TIMEOUT);
     }
 }
