@@ -47,7 +47,10 @@ class Queue implements IteratorAggregate
 
     public function write(string $data): void
     {
-        if (trim($data) === '') {
+        // Data that is only whitespace is kept, since it may be a chunk of a
+        // response, e.g. from the middle of a long string of spaces, and the
+        // response must arrive byte for byte.
+        if ($data === '') {
             return;
         }
 

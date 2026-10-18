@@ -72,6 +72,29 @@ final class WriteEventsTest extends TestCase
         $this->assertSame(42, $writtenEvents[1]->data['value']);
     }
 
+    public function testReturnsDataWithLongRunsOfWhitespaceCompletely(): void
+    {
+        // cURL hands over a large response in chunks, some of which consist
+        // of nothing but the spaces in the middle of the value.
+        $value = str_repeat(' ', 40_000) . 'x' . str_repeat(' ', 20_000);
+
+        $writtenEvents = $this->client->writeEvents([
+            new EventCandidate(
+                source: 'https://www.eventsourcingdb.io',
+                subject: '/test',
+                type: 'io.eventsourcingdb.test',
+                data: [
+                    'value' => $value,
+                ],
+            ),
+        ]);
+
+        $this->assertCount(1, $writtenEvents);
+        $this->assertSame($value, $writtenEvents[0]->data['value']);
+
+        $writtenEvents[0]->verifyHash();
+    }
+
     public function testWritesTheTraceContextOfAnEvent(): void
     {
         $traceParent = '00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01';

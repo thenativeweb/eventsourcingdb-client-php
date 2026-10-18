@@ -15,7 +15,7 @@ final readonly class NdJson
     {
         foreach ($stream as $chunk) {
             $line = $chunk;
-            if ($line === '') {
+            if (trim($line) === '') {
                 continue;
             }
 

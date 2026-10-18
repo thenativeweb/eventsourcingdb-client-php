@@ -80,13 +80,19 @@ final class QueueTest extends TestCase
         $this->assertSame(['first', 'second'], $items);
     }
 
-    public function testWriteTabAndLineBreak(): void
+    public function testWriteKeepsDataThatIsOnlyWhitespace(): void
     {
+        // A response may arrive in chunks that consist of whitespace only,
+        // e.g. in the middle of a long string of spaces, and dropping them
+        // would change the response.
         $queue = new Queue();
         $queue->write("\n");
         $queue->write("\t");
-        $queue->write("\t\n");
+        $queue->write('   ');
 
+        $this->assertSame("\n", $queue->read());
+        $this->assertSame("\t", $queue->read());
+        $this->assertSame('   ', $queue->read());
         $this->assertTrue($queue->isEmpty());
     }
 }
