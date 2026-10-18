@@ -63,8 +63,10 @@ final class TransportSelector
     {
         $response = $this->probingHttpClient->get(self::PROBE_PATH);
 
-        Responses::throwIfNotFromEventSourcingDb($response);
-
+        // A server that does not know the route offers the v1 API only, also if
+        // the answer does not come from EventSourcingDB itself, but from a proxy
+        // in front of it that passes on only the routes of the v1 API. Every
+        // request through the v1 API checks that EventSourcingDB answers it.
         $status = $response->getStatusCode();
         if ($status === 404 || $status === 405) {
             // The answer is not needed, so its connection is closed rather than
@@ -74,6 +76,8 @@ final class TransportSelector
 
             return new V1Transport($this->httpClient, $this->apiToken);
         }
+
+        Responses::throwIfNotFromEventSourcingDb($response);
 
         $scope = 'Failed to find out the API of the server';
 

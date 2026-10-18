@@ -109,6 +109,41 @@ final class TransportSelectorTest extends TestCase
         ], $this->readRequests());
     }
 
+    #[DataProvider('answersOfAServerWithoutTheV2Api')]
+    public function testUsesTheV1ApiIfAnotherServerInFrontOfTheDatabaseDoesNotKnowThePingOfV2(int $status): void
+    {
+        // A proxy that passes on only the routes of the v1 API answers every
+        // other route itself.
+        $address = $this->startServerWithResponses([
+            $this->textResponse($status, 'not found', server: 'nginx'),
+            $this->subjectsResponse('v1'),
+        ]);
+        $client = new Client("http://{$address}", 'secret');
+
+        $subjects = iterator_to_array($client->readSubjects('/test', new ReadSubjectsOptions(recursive: true)), false);
+
+        $this->assertSame(['/test'], $subjects);
+        $this->assertSame('POST', $this->readRequests()[1]['method']);
+    }
+
+    public function testChecksThatTheV1ApiIsAnsweredByTheDatabaseIfAnotherServerDoesNotKnowThePingOfV2(): void
+    {
+        $address = $this->startServerWithResponses([
+            $this->textResponse(404, 'not found', server: 'nginx'),
+            $this->textResponse(404, 'not found', server: 'nginx'),
+        ]);
+        $client = new Client("http://{$address}", 'secret');
+
+        try {
+            iterator_count($client->readSubjects('/test', new ReadSubjectsOptions(recursive: true)));
+            $this->fail('Expected the request to fail, but it did not.');
+        } catch (RuntimeException $runtimeException) {
+            $this->assertSame('Server must be EventSourcingDB.', $runtimeException->getMessage());
+        }
+
+        $this->assertSame('/api/v1/read-subjects', $this->readRequests()[1]['path']);
+    }
+
     /**
      * @param 'v1'|'v2' $apiVersion
      */
