@@ -95,7 +95,7 @@ $writtenEvents = $client->writeEvents([
 ]);
 ```
 
-If a precondition does not hold, the function throws a `DbApiException` whose code is `ErrorCode::PRECONDITION_VIOLATED`, and writes no event:
+If a precondition does not hold, the function throws a `DbApiException` whose `errorCode` is `ErrorCode::PRECONDITION_VIOLATED`, and writes no event:
 
 ```php
 use Thenativeweb\Eventsourcingdb\DbApiException;
@@ -108,7 +108,7 @@ try {
     new IsSubjectPristine('/books/42'),
   ]);
 } catch (DbApiException $exception) {
-  if ($exception->code === ErrorCode::PRECONDITION_VIOLATED) {
+  if ($exception->errorCode === ErrorCode::PRECONDITION_VIOLATED) {
     // ...
   }
 }
@@ -325,7 +325,7 @@ foreach ($events as $event) {
 
 *Note that EventSourcingDB sends a heartbeat every second while there are no events to send. If neither an event nor a heartbeat arrives for the [stall timeout](#configuring-the-stall-timeout), which is 30 seconds by default, e.g. because the connection stalled, the iterator closes the connection and throws a `ConnectionStalledException`.*
 
-*Note that EventSourcingDB never ends an observation on its own, other than with an error, which the iterator throws as a `DbApiException`, e.g. with the code `ErrorCode::SERVER_SHUTTING_DOWN` once the server shuts down. If its response ends cleanly nonetheless, e.g. because a proxy ends it, the iterator throws a `RuntimeException` that says the stream broke off, and if the connection breaks, it throws a `RuntimeException` that says so. Only `abortIn` and leaving the loop end an observation without an exception.*
+*Note that EventSourcingDB never ends an observation on its own, other than with an error, which the iterator throws as a `DbApiException`, e.g. with the `errorCode` `ErrorCode::SERVER_SHUTTING_DOWN` once the server shuts down. If its response ends cleanly nonetheless, e.g. because a proxy ends it, the iterator throws a `RuntimeException` that says the stream broke off, and if the connection breaks, it throws a `RuntimeException` that says so. Only `abortIn` and leaving the loop end an observation without an exception.*
 
 *Note that if you leave the `foreach` loop early, e.g. with `break`, the connection is closed once the iterator is released. If you keep the iterator in a variable, such as `$events`, the connection therefore stays open until you release the variable, e.g. with `unset($events)`.*
 
@@ -449,7 +449,7 @@ $schema = [
 $client->registerEventSchema($eventType, $schema);
 ```
 
-If a schema is already registered for the event type, the function throws a `DbApiException` whose code is `ErrorCode::EVENT_SCHEMA_ALREADY_REGISTERED`.
+If a schema is already registered for the event type, the function throws a `DbApiException` whose `errorCode` is `ErrorCode::EVENT_SCHEMA_ALREADY_REGISTERED`.
 
 ### Listing Subjects
 
@@ -546,16 +546,16 @@ To list a specific event type, call the `readEventType` function with the event 
 $eventType = $client->readEventType('io.eventsourcingdb.library.book-acquired');
 ```
 
-If the event type does not exist, the function throws a `DbApiException` whose code is `ErrorCode::EVENT_TYPE_UNKNOWN`.
+If the event type does not exist, the function throws a `DbApiException` whose `errorCode` is `ErrorCode::EVENT_TYPE_UNKNOWN`.
 
 ### Handling Errors
 
 If the server reports an error, the client throws a `DbApiException`, which extends `RuntimeException`. It has the following properties:
 
-- `code` is the code of the error exactly as the server sends it, which is the URL of the page that documents the error, such as `https://docs.eventsourcingdb.io/errors/precondition-violated`, or an empty string for an error without a code. `getCode()` returns it as well, as it does for a `PDOException`.
+- `errorCode` is the code of the error exactly as the server sends it, which is the URL of the page that documents the error, such as `https://docs.eventsourcingdb.io/errors/precondition-violated`, or an empty string for an error without a code. It is called `errorCode` because PHP reserves `code` and `getCode()` for the integer code of every exception.
 - `description` is the text that describes the error.
 - `details` is an associative array with the details of the error, or an empty array if there are none.
-- `status` is the HTTP status of the response. Note that the v2 API reports an error of a request, such as a precondition that does not hold, in the body of a response with the status `200`, so tell errors apart by their code rather than by their status.
+- `status` is the HTTP status of the response. Note that the v2 API reports an error of a request, such as a precondition that does not hold, in the body of a response with the status `200`, so tell errors apart by their `errorCode` rather than by their status.
 - `retryAfter` is, for a request that was limited, whose status is `429`, the number of seconds after which it may be repeated, if the server names them, and `null` otherwise. The client never repeats a request on its own.
 
 The `ErrorCode` class has a constant for every code, so that you can tell errors apart without comparing strings:
@@ -567,7 +567,7 @@ use Thenativeweb\Eventsourcingdb\ErrorCode;
 try {
   $eventType = $client->readEventType('io.eventsourcingdb.library.book-acquired');
 } catch (DbApiException $exception) {
-  if ($exception->code === ErrorCode::EVENT_TYPE_UNKNOWN) {
+  if ($exception->errorCode === ErrorCode::EVENT_TYPE_UNKNOWN) {
     // ...
   }
 }
@@ -722,7 +722,7 @@ Version 2 of the client SDK speaks the v2 API of EventSourcingDB wherever the se
   $subjects = $client->readSubjects('/books', new ReadSubjectsOptions(recursive: true));
   ```
 
-- **Every error that the server reports is a `DbApiException`**, which extends `RuntimeException`, as the exceptions thrown before did, see [Handling Errors](#handling-errors). Its `getCode()` returns the code of the error, such as `ErrorCode::PRECONDITION_VIOLATED`, rather than the HTTP status, which `status` holds now. An error that the server reports within a stream is a `DbApiException` as well, with the status `200`, as is every error of a request that the v2 API reports:
+- **Every error that the server reports is a `DbApiException`**, which extends `RuntimeException`, as the exceptions thrown before did, see [Handling Errors](#handling-errors). Before, its `getCode()` returned the HTTP status. Now the code of the error, such as `ErrorCode::PRECONDITION_VIOLATED`, is in `errorCode`, the status is in `status`, and `getCode()` returns 0. An error that the server reports within a stream is a `DbApiException` as well, with the status `200`, as is every error of a request that the v2 API reports:
 
   ```php
   // Before
@@ -732,7 +732,7 @@ Version 2 of the client SDK speaks the v2 API of EventSourcingDB wherever the se
 
   // After
   try { /* ... */ } catch (DbApiException $exception) {
-    if ($exception->code === ErrorCode::PRECONDITION_VIOLATED) { /* ... */ }
+    if ($exception->errorCode === ErrorCode::PRECONDITION_VIOLATED) { /* ... */ }
   }
   ```
 

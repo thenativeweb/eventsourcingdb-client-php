@@ -281,7 +281,7 @@ final readonly class V2Transport implements Transport
     private function isRefusal(DbApiException $dbApiException): bool
     {
         if ($dbApiException->status === 200) {
-            return $dbApiException->code !== ErrorCode::STORE_FAILED;
+            return $dbApiException->errorCode !== ErrorCode::STORE_FAILED;
         }
 
         return in_array($dbApiException->status, self::REFUSING_STATUSES, true);

@@ -124,8 +124,8 @@ final class DbApiExceptionTest extends TestCase
 
         $dbApiException = $this->catchDbApiException($call, $client);
 
-        $this->assertSame($code, $dbApiException->code);
-        $this->assertSame($code, $dbApiException->getCode());
+        $this->assertSame($code, $dbApiException->errorCode);
+        $this->assertSame(0, $dbApiException->getCode());
         // The server ends the text with a line break, which neither the
         // description nor the message keeps.
         $this->assertSame($text, $dbApiException->description);
@@ -153,7 +153,7 @@ final class DbApiExceptionTest extends TestCase
 
         $dbApiException = $this->catchDbApiException(self::writeEvents(...), $client);
 
-        $this->assertSame(ErrorCode::PRECONDITION_VIOLATED, $dbApiException->code);
+        $this->assertSame(ErrorCode::PRECONDITION_VIOLATED, $dbApiException->errorCode);
         $this->assertSame('/preconditions/0: precondition isSubjectPristine does not hold', $dbApiException->description);
         $this->assertSame([
             'precondition' => 0,
@@ -182,7 +182,7 @@ final class DbApiExceptionTest extends TestCase
             $client->readEventType('io.eventsourcingdb.test');
         }, $client);
 
-        $this->assertSame(ErrorCode::EVENT_TYPE_UNKNOWN, $dbApiException->code);
+        $this->assertSame(ErrorCode::EVENT_TYPE_UNKNOWN, $dbApiException->errorCode);
         $this->assertSame('event type is unknown: it has neither events nor a registered schema', $dbApiException->description);
         $this->assertSame([
             'value' => 'io.eventsourcingdb.test',
@@ -201,7 +201,7 @@ final class DbApiExceptionTest extends TestCase
             iterator_count($client->readEvents('/', new ReadEventsOptions(recursive: true)));
         }, $client);
 
-        $this->assertSame('', $dbApiException->code);
+        $this->assertSame('', $dbApiException->errorCode);
         $this->assertSame('/foo: unknown field', $dbApiException->description);
         $this->assertSame([], $dbApiException->details);
         $this->assertSame(400, $dbApiException->status);
@@ -264,7 +264,7 @@ final class DbApiExceptionTest extends TestCase
             iterator_count($client->readEvents('/', new ReadEventsOptions(recursive: true)));
         }, $client);
 
-        $this->assertSame('', $dbApiException->code);
+        $this->assertSame('', $dbApiException->errorCode);
         $this->assertSame('failed to read events', $dbApiException->description);
         $this->assertSame(200, $dbApiException->status);
         $this->assertSame('Failed to read events, failed to read events', $dbApiException->getMessage());
@@ -285,7 +285,7 @@ final class DbApiExceptionTest extends TestCase
 
         $this->assertSame(429, $dbApiException->status);
         $this->assertSame(7, $dbApiException->retryAfter);
-        $this->assertSame('', $dbApiException->code);
+        $this->assertSame('', $dbApiException->errorCode);
         $this->assertSame('too many requests', $dbApiException->description);
     }
 
@@ -339,6 +339,41 @@ final class DbApiExceptionTest extends TestCase
         $this->catchDbApiException(self::writeEvents(...), $client);
 
         $this->assertCount(2, $this->readRequests(), 'Expected the client to ask for the API, and to send the write once.');
+    }
+
+    public function testKeepsTheCodeOfTheErrorApartFromTheIntegerCodeOfTheException(): void
+    {
+        $address = $this->startDatabase('v2', [
+            $this->textResponse(401, 'unauthorized'),
+        ]);
+        $client = new Client("http://{$address}", 'secret');
+
+        $dbApiException = $this->catchDbApiException(static function (Client $client): void {
+            $client->verifyApiToken();
+        }, $client);
+
+        $this->assertSame(0, $dbApiException->getCode());
+        $this->assertSame(401, $dbApiException->status);
+    }
+
+    public function testCanBeWrappedTheWayAnyOtherExceptionIs(): void
+    {
+        $dbApiException = new DbApiException(
+            message: 'Failed to write events, /preconditions/0: precondition isSubjectPristine does not hold',
+            errorCode: ErrorCode::PRECONDITION_VIOLATED,
+            description: '/preconditions/0: precondition isSubjectPristine does not hold',
+            details: [
+                'precondition' => 0,
+            ],
+            status: 200,
+        );
+
+        // PHP takes the code of an exception as an integer, so wrapping one
+        // whose code is not one fails with a TypeError.
+        $runtimeException = new RuntimeException($dbApiException->getMessage(), $dbApiException->getCode(), $dbApiException);
+
+        $this->assertSame(ErrorCode::PRECONDITION_VIOLATED, $dbApiException->errorCode);
+        $this->assertSame($dbApiException, $runtimeException->getPrevious());
     }
 
     public function testFailsWithAnExceptionThatExistingCallersCatchAsARuntimeException(): void

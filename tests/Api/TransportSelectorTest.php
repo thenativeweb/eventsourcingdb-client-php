@@ -274,7 +274,7 @@ final class TransportSelectorTest extends TestCase
             $this->fail('Expected the request to fail, but it did not.');
         } catch (DbApiException $dbApiException) {
             $this->assertSame(503, $dbApiException->status);
-            $this->assertSame('', $dbApiException->code);
+            $this->assertSame('', $dbApiException->errorCode);
             $this->assertSame('server is shutting down', $dbApiException->description);
         }
     }

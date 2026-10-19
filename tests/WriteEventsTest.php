@@ -6,7 +6,6 @@ namespace Thenativeweb\Eventsourcingdb\Tests;
 
 use PHPUnit\Framework\TestCase;
 use Thenativeweb\Eventsourcingdb\CloudEvent;
-use Thenativeweb\Eventsourcingdb\DbApiException;
 use Thenativeweb\Eventsourcingdb\ErrorCode;
 use Thenativeweb\Eventsourcingdb\EventCandidate;
 use Thenativeweb\Eventsourcingdb\IsEventQlQueryTrue;
@@ -157,17 +156,14 @@ final class WriteEventsTest extends TestCase
             ],
         );
 
-        $this->expectException(DbApiException::class);
-        $this->expectExceptionCode(ErrorCode::PRECONDITION_VIOLATED);
-
-        $this->client->writeEvents(
+        $this->assertFailsWithErrorCode(ErrorCode::PRECONDITION_VIOLATED, fn (): mixed => $this->client->writeEvents(
             [
                 $secondEvent,
             ],
             [
                 new IsSubjectPristine('/test'),
             ],
-        );
+        ));
     }
 
     public function testRejectsWritingToEmptySubjectWhenUsingTheIsSubjectPopulatedPrecondition(): void
@@ -181,17 +177,14 @@ final class WriteEventsTest extends TestCase
             ],
         );
 
-        $this->expectException(DbApiException::class);
-        $this->expectExceptionCode(ErrorCode::PRECONDITION_VIOLATED);
-
-        $this->client->writeEvents(
+        $this->assertFailsWithErrorCode(ErrorCode::PRECONDITION_VIOLATED, fn (): mixed => $this->client->writeEvents(
             [
                 $eventCandidate,
             ],
             [
                 new IsSubjectPopulated('/test'),
             ],
-        );
+        ));
     }
 
     public function testSupportsTheIsSubjectPopulatedPrecondition(): void
@@ -257,17 +250,14 @@ final class WriteEventsTest extends TestCase
             ],
         );
 
-        $this->expectException(DbApiException::class);
-        $this->expectExceptionCode(ErrorCode::PRECONDITION_VIOLATED);
-
-        $this->client->writeEvents(
+        $this->assertFailsWithErrorCode(ErrorCode::PRECONDITION_VIOLATED, fn (): mixed => $this->client->writeEvents(
             [
                 $secondEvent,
             ],
             [
                 new IsSubjectOnEventId('/test', '1'),
             ],
-        );
+        ));
     }
 
     public function testSupportsTheIsEventQlQueryTruePrecondition(): void
@@ -294,16 +284,13 @@ final class WriteEventsTest extends TestCase
             ],
         );
 
-        $this->expectException(DbApiException::class);
-        $this->expectExceptionCode(ErrorCode::PRECONDITION_VIOLATED);
-
-        $this->client->writeEvents(
+        $this->assertFailsWithErrorCode(ErrorCode::PRECONDITION_VIOLATED, fn (): mixed => $this->client->writeEvents(
             [
                 $secondEvent,
             ],
             [
                 new IsEventQlQueryTrue('FROM e IN events PROJECT INTO COUNT() == 0'),
             ],
-        );
+        ));
     }
 }

@@ -31,7 +31,7 @@ final class VerifyApiTokenTest extends TestCase
             $this->fail('Expected verifying the API token to fail, but it did not.');
         } catch (DbApiException $dbApiException) {
             $this->assertSame(401, $dbApiException->status);
-            $this->assertSame('', $dbApiException->code);
+            $this->assertSame('', $dbApiException->errorCode);
             $this->assertSame('unauthorized', $dbApiException->description);
             $this->assertSame('Failed to verify API token, unauthorized', $dbApiException->getMessage());
         }

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Thenativeweb\Eventsourcingdb;
 
 /**
- * The codes of the errors that EventSourcingDB reports, as the code of a
+ * The codes of the errors that EventSourcingDB reports, as the errorCode of a
  * DbApiException holds them, so that a caller can tell errors apart without
  * comparing their descriptions. Each code is the URL of the page that
  * documents the error.

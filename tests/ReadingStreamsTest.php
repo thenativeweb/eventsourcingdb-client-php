@@ -242,7 +242,7 @@ final class ReadingStreamsTest extends TestCase
 
             $this->fail('Expected the observation to fail, but it did not.');
         } catch (DbApiException $dbApiException) {
-            $this->assertSame(ErrorCode::SERVER_SHUTTING_DOWN, $dbApiException->code);
+            $this->assertSame(ErrorCode::SERVER_SHUTTING_DOWN, $dbApiException->errorCode);
         }
 
         $this->assertSame(1, $eventsObserved);

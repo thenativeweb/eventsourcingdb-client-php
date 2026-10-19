@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Thenativeweb\Eventsourcingdb\Tests\Trait;
 
+use Closure;
 use ReflectionProperty;
 use Thenativeweb\Eventsourcingdb\Api\V2Transport;
 use Thenativeweb\Eventsourcingdb\Client;
 use Thenativeweb\Eventsourcingdb\Container;
+use Thenativeweb\Eventsourcingdb\DbApiException;
 use function Thenativeweb\Eventsourcingdb\Tests\Fn\getImageTag;
 
 trait ClientTestTrait
@@ -41,6 +43,20 @@ trait ClientTestTrait
         $transport = (new ReflectionProperty($transportSelector, 'transport'))->getValue($transportSelector);
 
         return $transport instanceof V2Transport;
+    }
+
+    /**
+     * Asserts that the call fails with a DbApiException whose errorCode is
+     * the given one.
+     */
+    protected function assertFailsWithErrorCode(string $errorCode, Closure $call): void
+    {
+        try {
+            $call();
+            $this->fail('Expected the call to fail with a DbApiException, but it did not fail.');
+        } catch (DbApiException $dbApiException) {
+            $this->assertSame($errorCode, $dbApiException->errorCode, $dbApiException->getMessage());
+        }
     }
 
     protected function startContainer(): Container

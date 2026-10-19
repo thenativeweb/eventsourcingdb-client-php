@@ -76,7 +76,7 @@ final class Responses
 
         return new DbApiException(
             message: self::createMessage($scope, $description, $status),
-            code: $code,
+            errorCode: $code,
             description: $description,
             details: [],
             status: $status,
@@ -97,7 +97,7 @@ final class Responses
 
         return new DbApiException(
             message: self::createMessage($scope, $description, 200),
-            code: $code,
+            errorCode: $code,
             description: $description,
             details: $details,
             status: 200,
@@ -114,7 +114,7 @@ final class Responses
 
         return new DbApiException(
             message: self::createMessage($scope, $description, 200),
-            code: '',
+            errorCode: '',
             description: $description,
             details: [],
             status: 200,

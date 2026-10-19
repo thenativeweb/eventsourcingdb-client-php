@@ -17,11 +17,7 @@ final class ReadEventTypeTest extends TestCase
 
     public function testFailsIfTheEventTypeDoesNotExist(): void
     {
-        $this->expectException(DbApiException::class);
-        $this->expectExceptionMessage('Failed to read event type, ');
-        $this->expectExceptionCode(ErrorCode::EVENT_TYPE_UNKNOWN);
-
-        $this->client->readEventType('non.existent.eventType');
+        $this->assertFailsWithErrorCode(ErrorCode::EVENT_TYPE_UNKNOWN, fn (): mixed => $this->client->readEventType('non.existent.eventType'));
     }
 
     public function testFailsIfTheEventTypeIsMalformed(): void
@@ -35,7 +31,7 @@ final class ReadEventTypeTest extends TestCase
             $this->fail('Expected reading the event type to fail, but it did not.');
         } catch (DbApiException $dbApiException) {
             $this->assertStringStartsWith('Failed to read event type, ', $dbApiException->getMessage());
-            $this->assertSame($usesV2Api ? ErrorCode::EVENT_TYPE_MALFORMED : '', $dbApiException->code);
+            $this->assertSame($usesV2Api ? ErrorCode::EVENT_TYPE_MALFORMED : '', $dbApiException->errorCode);
             $this->assertSame($usesV2Api ? 200 : 400, $dbApiException->status);
         }
     }
