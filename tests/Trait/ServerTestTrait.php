@@ -28,6 +28,27 @@ trait ServerTestTrait
     private ?string $requestLog = null;
 
     /**
+     * The file that the errors of the server go to, apart from its reports,
+     * so that a failure can name them.
+     */
+    private ?string $serverErrors = null;
+
+    /**
+     * The seconds to wait at most for a report of the server, which is far
+     * longer than any report takes, even on a machine that is busy, so that a
+     * slow start of the server or of a request does not fail a test, while a
+     * report that never comes still does. It is longer than the minute that
+     * the server waits for the next connection, so that a server that gives
+     * up on it exits first, and the test fails with a message that says so.
+     */
+    private static float $reportTimeout = 70.0;
+
+    /**
+     * The outcomes of a connection that the server reports.
+     */
+    private static string $outcomePattern = '/^(closed|ended|dropped|no request)$/';
+
+    /**
      * The number of reports to skip, those of the requests that find out which
      * API the server offers, so that a test reads the reports of the requests
      * it makes itself.
@@ -47,6 +68,10 @@ trait ServerTestTrait
 
         if ($this->requestLog !== null && file_exists($this->requestLog)) {
             unlink($this->requestLog);
+        }
+
+        if ($this->serverErrors !== null && file_exists($this->serverErrors)) {
+            unlink($this->serverErrors);
         }
 
         parent::tearDown();
@@ -140,23 +165,35 @@ trait ServerTestTrait
     /**
      * @param array{certificate: string, privateKey: string}|null $tls the files of the certificate and its private key to serve https with
      */
-    private function startServerWithResponses(array $responses, ?array $tls = null): string
+    private function startServerWithResponses(array $responses, ?array $tls = null, float $startDelay = 0.0, bool $failBeforeReporting = false): string
     {
         $this->requestLog = tempnam(sys_get_temp_dir(), 'eventsourcingdb-requests-') ?: null;
         $this->reportsToSkip = 0;
 
+        $serverErrors = tempnam(sys_get_temp_dir(), 'eventsourcingdb-server-errors-');
+        $this->assertIsString($serverErrors);
+        $this->serverErrors = $serverErrors;
+
+        // PHP displays errors on the output if a php.ini tells it to, which
+        // would mix them into the reports, so they go to the error output,
+        // which is kept apart.
         $server = proc_open(
             [
                 PHP_BINARY,
+                '-d',
+                'display_errors=stderr',
                 __DIR__ . '/../Server/heartbeatServer.php',
                 json_encode([
                     'responses' => $responses,
                     'tls' => $tls,
                     'requestLog' => $this->requestLog,
+                    'startDelay' => $startDelay,
+                    'failBeforeReporting' => $failBeforeReporting,
                 ], JSON_THROW_ON_ERROR),
             ],
             [
                 1 => ['pipe', 'w'],
+                2 => ['file', $serverErrors, 'w'],
             ],
             $pipes,
         );
@@ -165,7 +202,7 @@ trait ServerTestTrait
         $this->server = $server;
         $this->serverOutput = $pipes[1];
 
-        return $this->readReport();
+        return $this->readReport('its address', '/^\d{1,3}(\.\d{1,3}){3}:\d+$/');
     }
 
     /**
@@ -220,10 +257,10 @@ trait ServerTestTrait
     {
         while ($this->reportsToSkip > 0) {
             --$this->reportsToSkip;
-            $this->readReport();
+            $this->readReport('the outcome of a connection', self::$outcomePattern);
         }
 
-        return $this->readReport();
+        return $this->readReport('the outcome of a connection', self::$outcomePattern);
     }
 
     /**
@@ -246,16 +283,59 @@ trait ServerTestTrait
         );
     }
 
-    private function readReport(): string
+    /**
+     * Reads the next line that the server reports, and waits for it until the
+     * server reports it or exits, for the report timeout at most. If the line
+     * does not come, or does not match the given pattern, the test fails,
+     * rather than go on with it, such as with an empty address, which would
+     * fail the test later in a misleading way.
+     *
+     * @param string $what what the server is to report, for the message of a failure
+     * @param string $pattern the pattern that the report has to match
+     */
+    private function readReport(string $what, string $pattern): string
     {
-        $read = [$this->serverOutput];
-        $write = null;
-        $except = null;
+        $deadline = microtime(true) + self::$reportTimeout;
 
-        if (stream_select($read, $write, $except, 2) !== 1) {
-            return '';
+        while (($remaining = $deadline - microtime(true)) > 0) {
+            $read = [$this->serverOutput];
+            $write = null;
+            $except = null;
+
+            $seconds = (int) $remaining;
+            $ready = stream_select($read, $write, $except, $seconds, (int) (($remaining - $seconds) * 1_000_000));
+            if ($ready === false) {
+                $this->fail("Failed to wait for the test server to report {$what}.");
+            }
+
+            if ($ready === 0) {
+                continue;
+            }
+
+            $line = fgets($this->serverOutput);
+            if ($line === false) {
+                $this->fail("The test server exited without reporting {$what}." . $this->describeServerErrors());
+            }
+
+            $report = trim($line);
+            if (preg_match($pattern, $report) !== 1) {
+                $this->fail(sprintf('The test server reported %s rather than %s.', var_export($report, true), $what) . $this->describeServerErrors());
+            }
+
+            return $report;
         }
 
-        return trim((string) fgets($this->serverOutput));
+        $this->fail(sprintf('The test server did not report %s within %d seconds.', $what, self::$reportTimeout) . $this->describeServerErrors());
+    }
+
+    /**
+     * Returns the errors of the server, if there are any, to append to the
+     * message of a failure.
+     */
+    private function describeServerErrors(): string
+    {
+        $errors = $this->serverErrors === null ? '' : trim((string) @file_get_contents($this->serverErrors));
+
+        return $errors === '' ? '' : " Its errors: {$errors}";
     }
 }

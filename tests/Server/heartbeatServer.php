@@ -21,6 +21,11 @@ declare(strict_types=1);
  * If a request log is given, it appends every request to it, as a line of
  * JSON with its method, its path, and its body, before answering it.
  *
+ * It reports its address once it listens, after the given start delay, which
+ * stands in for a machine so busy that starting the server takes long. If it
+ * is told to fail before reporting, it throws instead, which stands in for a
+ * server that fails to start.
+ *
  * If a certificate is given, it serves https with it and the given private
  * key. A client that does not trust the certificate either breaks off the TLS
  * handshake or closes the connection right after it, so the server reports
@@ -159,10 +164,19 @@ if ($server === false) {
     exit(1);
 }
 
+usleep((int) (($options['startDelay'] ?? 0.0) * 1_000_000));
+
+if ($options['failBeforeReporting'] ?? false) {
+    throw new RuntimeException('The test server was told to fail before reporting its address.');
+}
+
 echo stream_socket_get_name($server, false) . "\n";
 
 foreach ($options['responses'] as $response) {
-    $connection = stream_socket_accept($server, 10);
+    // The test waits a minute at most for a report, so the server waits as
+    // long for the next request, which a busy machine may send late. The
+    // test ends the server in any case once it is done.
+    $connection = stream_socket_accept($server, 60);
     if ($connection === false) {
         exit(1);
     }
