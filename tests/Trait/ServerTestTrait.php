@@ -28,6 +28,14 @@ trait ServerTestTrait
     private ?string $requestLog = null;
 
     /**
+     * The seconds to wait at most for a report of the server, which is far
+     * longer than any report takes, even on a machine that is busy, so that a
+     * slow start of the server or of a request does not fail a test, while a
+     * report that never comes still does.
+     */
+    private static float $reportTimeout = 60.0;
+
+    /**
      * The number of reports to skip, those of the requests that find out which
      * API the server offers, so that a test reads the reports of the requests
      * it makes itself.
@@ -140,7 +148,7 @@ trait ServerTestTrait
     /**
      * @param array{certificate: string, privateKey: string}|null $tls the files of the certificate and its private key to serve https with
      */
-    private function startServerWithResponses(array $responses, ?array $tls = null): string
+    private function startServerWithResponses(array $responses, ?array $tls = null, float $startDelay = 0.0): string
     {
         $this->requestLog = tempnam(sys_get_temp_dir(), 'eventsourcingdb-requests-') ?: null;
         $this->reportsToSkip = 0;
@@ -153,6 +161,7 @@ trait ServerTestTrait
                     'responses' => $responses,
                     'tls' => $tls,
                     'requestLog' => $this->requestLog,
+                    'startDelay' => $startDelay,
                 ], JSON_THROW_ON_ERROR),
             ],
             [
@@ -165,7 +174,7 @@ trait ServerTestTrait
         $this->server = $server;
         $this->serverOutput = $pipes[1];
 
-        return $this->readReport();
+        return $this->readReport('its address');
     }
 
     /**
@@ -220,10 +229,10 @@ trait ServerTestTrait
     {
         while ($this->reportsToSkip > 0) {
             --$this->reportsToSkip;
-            $this->readReport();
+            $this->readReport('the outcome of a connection');
         }
 
-        return $this->readReport();
+        return $this->readReport('the outcome of a connection');
     }
 
     /**
@@ -246,16 +255,41 @@ trait ServerTestTrait
         );
     }
 
-    private function readReport(): string
+    /**
+     * Reads the next line that the server reports, and waits for it until the
+     * server reports it or exits, for the report timeout at most. If the line
+     * does not come, the test fails, rather than go on with an empty report,
+     * such as an empty address, which would fail it later in a misleading way.
+     *
+     * @param string $what what the server is to report, for the message of a failure
+     */
+    private function readReport(string $what): string
     {
-        $read = [$this->serverOutput];
-        $write = null;
-        $except = null;
+        $deadline = microtime(true) + self::$reportTimeout;
 
-        if (stream_select($read, $write, $except, 2) !== 1) {
-            return '';
+        while (($remaining = $deadline - microtime(true)) > 0) {
+            $read = [$this->serverOutput];
+            $write = null;
+            $except = null;
+
+            $seconds = (int) $remaining;
+            $ready = stream_select($read, $write, $except, $seconds, (int) (($remaining - $seconds) * 1_000_000));
+            if ($ready === false) {
+                $this->fail("Failed to wait for the test server to report {$what}.");
+            }
+
+            if ($ready === 0) {
+                continue;
+            }
+
+            $line = fgets($this->serverOutput);
+            if ($line === false) {
+                $this->fail("The test server exited without reporting {$what}.");
+            }
+
+            return trim($line);
         }
 
-        return trim((string) fgets($this->serverOutput));
+        $this->fail(sprintf('The test server did not report %s within %d seconds.', $what, self::$reportTimeout));
     }
 }

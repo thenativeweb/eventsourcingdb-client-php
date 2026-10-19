@@ -21,6 +21,9 @@ declare(strict_types=1);
  * If a request log is given, it appends every request to it, as a line of
  * JSON with its method, its path, and its body, before answering it.
  *
+ * It reports its address once it listens, after the given start delay, which
+ * stands in for a machine so busy that starting the server takes long.
+ *
  * If a certificate is given, it serves https with it and the given private
  * key. A client that does not trust the certificate either breaks off the TLS
  * handshake or closes the connection right after it, so the server reports
@@ -158,6 +161,8 @@ $server = stream_socket_server(
 if ($server === false) {
     exit(1);
 }
+
+usleep((int) (($options['startDelay'] ?? 0.0) * 1_000_000));
 
 echo stream_socket_get_name($server, false) . "\n";
 
