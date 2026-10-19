@@ -26,10 +26,6 @@ use Thenativeweb\Eventsourcingdb\Client;
 $client = new Client('http://localhost:3000', 'secret');
 ```
 
-Creating a client does not send a request. The client SDK works with servers that offer the v2 API of EventSourcingDB, which it offers since version 1.3, and with servers that only offer the v1 API. On its first request, the client asks the server for the ping of the v2 API, `GET /api/v2/system/ping`, and remembers the answer: if the server answers it, the client uses the v2 API, and if the server does not know the route, the client uses the v1 API. If asking fails, e.g. because the server is not reachable, the first request fails with that error, and the next request asks again.
-
-*Note that the v2 API reads with the HTTP method `QUERY` ([RFC 10008](https://www.rfc-editor.org/rfc/rfc10008)), which a proxy in front of the database has to let through. There is no fallback to `POST`.*
-
 Then call the `ping` function to check whether the instance is reachable. If it is not, the function will throw an exception:
 
 ```php
@@ -43,6 +39,12 @@ If you want to verify the API token, call `verifyApiToken`. If the token is inva
 ```php
 $client->verifyApiToken();
 ```
+
+### Talking to Servers With and Without the v2 API
+
+Creating a client does not send a request. The client SDK works with servers that offer the v2 API of EventSourcingDB, which it offers since version 1.3, and with servers that only offer the v1 API. On its first request, the client asks the server for the ping of the v2 API, `GET /api/v2/system/ping`, and remembers the answer: if the server answers it, the client uses the v2 API, and if the server does not know the route, the client uses the v1 API. If asking fails, e.g. because the server is not reachable, the first request fails with that error, and the next request asks again.
+
+*Note that the v2 API reads with the HTTP method `QUERY` ([RFC 10008](https://www.rfc-editor.org/rfc/rfc10008)), which a proxy in front of the database has to let through. There is no fallback to `POST`.*
 
 ### Configuring the Stall Timeout
 
