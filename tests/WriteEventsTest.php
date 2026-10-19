@@ -6,6 +6,7 @@ namespace Thenativeweb\Eventsourcingdb\Tests;
 
 use PHPUnit\Framework\TestCase;
 use Thenativeweb\Eventsourcingdb\CloudEvent;
+use Thenativeweb\Eventsourcingdb\ErrorCode;
 use Thenativeweb\Eventsourcingdb\EventCandidate;
 use Thenativeweb\Eventsourcingdb\IsEventQlQueryTrue;
 use Thenativeweb\Eventsourcingdb\IsSubjectOnEventId;
@@ -155,18 +156,14 @@ final class WriteEventsTest extends TestCase
             ],
         );
 
-        $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('Failed to write events, ');
-        $this->expectExceptionCode(409);
-
-        $this->client->writeEvents(
+        $this->assertFailsWithErrorCode(ErrorCode::PRECONDITION_VIOLATED, fn (): mixed => $this->client->writeEvents(
             [
                 $secondEvent,
             ],
             [
                 new IsSubjectPristine('/test'),
             ],
-        );
+        ), 'Failed to write events, ');
     }
 
     public function testRejectsWritingToEmptySubjectWhenUsingTheIsSubjectPopulatedPrecondition(): void
@@ -180,18 +177,14 @@ final class WriteEventsTest extends TestCase
             ],
         );
 
-        $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('Failed to write events, ');
-        $this->expectExceptionCode(409);
-
-        $this->client->writeEvents(
+        $this->assertFailsWithErrorCode(ErrorCode::PRECONDITION_VIOLATED, fn (): mixed => $this->client->writeEvents(
             [
                 $eventCandidate,
             ],
             [
                 new IsSubjectPopulated('/test'),
             ],
-        );
+        ), 'Failed to write events, ');
     }
 
     public function testSupportsTheIsSubjectPopulatedPrecondition(): void
@@ -257,18 +250,14 @@ final class WriteEventsTest extends TestCase
             ],
         );
 
-        $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('Failed to write events, ');
-        $this->expectExceptionCode(409);
-
-        $this->client->writeEvents(
+        $this->assertFailsWithErrorCode(ErrorCode::PRECONDITION_VIOLATED, fn (): mixed => $this->client->writeEvents(
             [
                 $secondEvent,
             ],
             [
                 new IsSubjectOnEventId('/test', '1'),
             ],
-        );
+        ), 'Failed to write events, ');
     }
 
     public function testSupportsTheIsEventQlQueryTruePrecondition(): void
@@ -295,17 +284,13 @@ final class WriteEventsTest extends TestCase
             ],
         );
 
-        $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('Failed to write events, ');
-        $this->expectExceptionCode(409);
-
-        $this->client->writeEvents(
+        $this->assertFailsWithErrorCode(ErrorCode::PRECONDITION_VIOLATED, fn (): mixed => $this->client->writeEvents(
             [
                 $secondEvent,
             ],
             [
                 new IsEventQlQueryTrue('FROM e IN events PROJECT INTO COUNT() == 0'),
             ],
-        );
+        ), 'Failed to write events, ');
     }
 }

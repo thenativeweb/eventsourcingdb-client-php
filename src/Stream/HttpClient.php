@@ -12,9 +12,10 @@ use Throwable;
  */
 class HttpClient
 {
-    private const SUPPORTED_METHODS = ['GET', 'POST'];
+    private const SUPPORTED_METHODS = ['GET', 'POST', 'QUERY'];
     private const SUPPORTED_CONTENT_TYPES = ['application/json', 'application/x-ndjson', 'text/plain'];
     private CurlMultiHandler $curlMultiHandler;
+    private bool $hasLastRequestEstablishedConnection = false;
 
     public function __construct(
         private readonly ?string $baseUrl = null,
@@ -63,8 +64,29 @@ class HttpClient
         return $json;
     }
 
+    /**
+     * Tells whether the last request got as far as a connection to the
+     * server. If it failed before, nothing of it was sent, so a write that
+     * failed that way was certainly not stored.
+     */
+    public function hasLastRequestEstablishedConnection(): bool
+    {
+        return $this->hasLastRequestEstablishedConnection;
+    }
+
+    /**
+     * Tells whether the stream that was read last ended because the time that
+     * abortIn set was over, rather than because the server ended it.
+     */
+    public function hasLastStreamBeenAborted(): bool
+    {
+        return $this->curlMultiHandler->hasLastStreamBeenAborted();
+    }
+
     public function get(string $uri, ?string $apiToken = null): Response
     {
+        $this->hasLastRequestEstablishedConnection = false;
+
         $request = new Request(
             'GET',
             $this->buildUri($uri),
@@ -76,6 +98,8 @@ class HttpClient
 
     public function post(string $uri, ?string $apiToken = null, null|array|object $body = null): Response
     {
+        $this->hasLastRequestEstablishedConnection = false;
+
         $request = new Request(
             'POST',
             $this->buildUri($uri),
@@ -86,8 +110,28 @@ class HttpClient
         return $this->sendRequest($request);
     }
 
+    /**
+     * Sends a request with the method QUERY (RFC 10008), which reads like GET
+     * does, but carries a body like POST.
+     */
+    public function query(string $uri, ?string $apiToken = null, null|array|object $body = null): Response
+    {
+        $this->hasLastRequestEstablishedConnection = false;
+
+        $request = new Request(
+            'QUERY',
+            $this->buildUri($uri),
+            $this->buildHeaders($apiToken, $body),
+            $this->buildBody($body),
+        );
+
+        return $this->sendRequest($request);
+    }
+
     public function sendRequest(Request $request): Response
     {
+        $this->hasLastRequestEstablishedConnection = false;
+
         if (!in_array($request->getMethod(), self::SUPPORTED_METHODS, true)) {
             throw new InvalidArgumentException("Internal HttpClient: got Request Method '{$request->getMethod()}', expected one of: " .
                 implode(', ', self::SUPPORTED_METHODS) . '.');
@@ -117,10 +161,13 @@ class HttpClient
                 protocolVersion: $responseHeader->httpVersion,
             );
         } catch (Throwable $throwable) {
+            $this->hasLastRequestEstablishedConnection = $this->curlMultiHandler->hasEstablishedConnection();
             $this->curlMultiHandler->close();
 
             throw $throwable;
         }
+
+        $this->hasLastRequestEstablishedConnection = true;
 
         return $response;
     }

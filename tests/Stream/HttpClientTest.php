@@ -8,6 +8,7 @@ use ArrayIterator;
 use InvalidArgumentException;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use RuntimeException;
 use Thenativeweb\Eventsourcingdb\Stream\Header;
 use Thenativeweb\Eventsourcingdb\Stream\HttpClient;
 use Thenativeweb\Eventsourcingdb\Stream\Queue;
@@ -229,5 +230,130 @@ final class HttpClientTest extends TestCase
         }
 
         $this->assertSame('closed', $this->readServerReport(), 'Expected the connection to be closed.');
+    }
+
+    public function testSendsAQueryWithItsBody(): void
+    {
+        $address = $this->startServerWithResponses([
+            $this->response(['{"type":"end","data":{}}'], interval: 0.0, holdFor: 0.0),
+        ]);
+
+        $httpClient = new HttpClient("http://{$address}");
+
+        $response = $httpClient->query('/api/v2/data/read-events', 'secret', [
+            'subject' => '/',
+        ]);
+        $response->getStream()
+            ->getContents();
+
+        $this->assertSame([
+            [
+                'method' => 'QUERY',
+                'path' => '/api/v2/data/read-events',
+                'body' => '{"subject":"\\/"}',
+            ],
+        ], $this->readRequests());
+    }
+
+    public function testSendsAQueryWithoutABody(): void
+    {
+        $address = $this->startServerWithResponses([
+            $this->response(['{"type":"end","data":{}}'], interval: 0.0, holdFor: 0.0),
+        ]);
+
+        $httpClient = new HttpClient("http://{$address}");
+
+        $response = $httpClient->query('/api/v2/data/read-event-types', 'secret');
+        $response->getStream()
+            ->getContents();
+
+        $this->assertSame([
+            [
+                'method' => 'QUERY',
+                'path' => '/api/v2/data/read-event-types',
+                'body' => '',
+            ],
+        ], $this->readRequests());
+    }
+
+    public function testTellsThatARequestThatGotAnAnswerEstablishedAConnection(): void
+    {
+        $address = $this->startServerWithResponses([
+            $this->response([], interval: 0.0, holdFor: 0.0),
+        ]);
+
+        $httpClient = new HttpClient("http://{$address}");
+        $httpClient->post('/api/v1/read-events', 'secret')
+            ->getStream()
+            ->getContents();
+
+        $this->assertTrue($httpClient->hasLastRequestEstablishedConnection());
+    }
+
+    public function testTellsThatARequestThatFailedAfterConnectingEstablishedAConnection(): void
+    {
+        $address = $this->startServerWithResponses([
+            $this->response([], interval: 0.0, holdFor: 0.0, dropConnection: true),
+        ]);
+
+        $httpClient = new HttpClient("http://{$address}");
+
+        $this->assertFailsToSend($httpClient);
+        $this->assertTrue($httpClient->hasLastRequestEstablishedConnection());
+        $this->assertSame('dropped', $this->readServerReport());
+    }
+
+    public function testTellsThatARequestToAHostThatDoesNotExistEstablishedNoConnection(): void
+    {
+        $httpClient = new HttpClient('http://non-existent-host.invalid');
+
+        $this->assertFailsToSend($httpClient);
+        $this->assertFalse($httpClient->hasLastRequestEstablishedConnection());
+    }
+
+    public function testTellsThatARequestThatTheHostRefusedEstablishedNoConnection(): void
+    {
+        // A port that was just free, and that nothing listens on any more.
+        $socket = stream_socket_server('tcp://127.0.0.1:0');
+        $this->assertIsResource($socket);
+        $address = stream_socket_get_name($socket, false);
+        fclose($socket);
+
+        $httpClient = new HttpClient("http://{$address}");
+
+        $this->assertFailsToSend($httpClient);
+        $this->assertFalse($httpClient->hasLastRequestEstablishedConnection());
+    }
+
+    public function testTellsForEachRequestWhetherItEstablishedAConnection(): void
+    {
+        $address = $this->startServerWithResponses([
+            $this->response([], interval: 0.0, holdFor: 0.0, dropConnection: true),
+            $this->response([], interval: 0.0, holdFor: 0.0, dropConnection: true),
+        ]);
+
+        // One client sends every request, so the answer must change with each.
+        $httpClient = new HttpClient();
+
+        $this->assertFailsToSend($httpClient, "http://{$address}/api/v2/data/write-events");
+        $this->assertTrue($httpClient->hasLastRequestEstablishedConnection());
+
+        $this->assertFailsToSend($httpClient, 'http://non-existent-host.invalid/api/v2/data/write-events');
+        $this->assertFalse($httpClient->hasLastRequestEstablishedConnection());
+
+        $this->assertFailsToSend($httpClient, "http://{$address}/api/v2/data/write-events");
+        $this->assertTrue($httpClient->hasLastRequestEstablishedConnection());
+    }
+
+    private function assertFailsToSend(HttpClient $httpClient, string $uri = '/api/v2/data/write-events'): void
+    {
+        try {
+            $httpClient->post($uri, 'secret', [
+                'events' => [],
+            ]);
+            $this->fail('Expected the request to fail, but it did not.');
+        } catch (RuntimeException $runtimeException) {
+            $this->assertStringStartsWith('Internal HttpClient: cURL handle execution failed with error: ', $runtimeException->getMessage());
+        }
     }
 }

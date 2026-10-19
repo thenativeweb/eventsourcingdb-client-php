@@ -151,4 +151,38 @@ final class NdJsonTest extends TestCase
 
         iterator_to_array(NdJson::readStream($stream));
     }
+
+    public function testReadStreamReadsEveryLineOfAChunk(): void
+    {
+        $stream = $this->createMock(Stream::class);
+        $stream->method('getIterator')
+            ->willReturn(new ArrayIterator(["{\"type\":\"subject\",\"payload\":{\"subject\":\"/a\"}}\n{\"type\":\"subject\",\"payload\":{\"subject\":\"/b\"}}\n"]));
+
+        $result = iterator_to_array(NdJson::readStream($stream), false);
+
+        $this->assertCount(2, $result);
+        $this->assertSame([
+            'subject' => '/a',
+        ], $result[0]->payload);
+        $this->assertSame('{"type":"subject","payload":{"subject":"/a"}}', $result[0]->line);
+        $this->assertSame([
+            'subject' => '/b',
+        ], $result[1]->payload);
+        $this->assertSame('{"type":"subject","payload":{"subject":"/b"}}', $result[1]->line);
+    }
+
+    public function testReadStreamTakesTheDataFromTheGivenMember(): void
+    {
+        $stream = $this->createMock(Stream::class);
+        $stream->method('getIterator')
+            ->willReturn(new ArrayIterator(["{\"type\":\"subject\",\"data\":{\"subject\":\"/a\"}}\n"]));
+
+        $result = iterator_to_array(NdJson::readStream($stream, 'data'));
+
+        $this->assertCount(1, $result);
+        $this->assertSame('subject', $result[0]->type);
+        $this->assertSame([
+            'subject' => '/a',
+        ], $result[0]->payload);
+    }
 }

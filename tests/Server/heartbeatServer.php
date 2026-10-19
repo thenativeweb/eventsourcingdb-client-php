@@ -5,16 +5,21 @@ declare(strict_types=1);
 /*
  * Answers one request per given response, one after another, each the way
  * EventSourcingDB answers a streaming request: after the given delay, it sends
- * the headers, with the given Server and Content-Type headers and the rest of
- * them the given header delay after the status line, and then the given lines
- * as NDJSON, one line every interval, and afterwards keeps the connection open
- * without sending anything. It reports "closed" once the client closes the
- * connection, at any of these steps, or ends the response and reports "ended"
- * once the hold time is over.
+ * the headers, with the given status, the given Server and Content-Type
+ * headers, any further given headers, and the rest of them the given header
+ * delay after the status line, and then the given lines as NDJSON, one line
+ * every interval, and afterwards keeps the connection open without sending
+ * anything. It reports "closed" once the client closes the connection, at any
+ * of these steps, or ends the response and reports "ended" once the hold time
+ * is over. A response that drops the connection closes it as soon as the
+ * request has arrived, without answering, and reports "dropped".
  *
  * If the connection ends before a request arrives, it reports "no request"
  * instead, and if it ends after only a part of a request arrived, e.g. the
  * start of a TLS handshake that it does not answer, it reports "closed".
+ *
+ * If a request log is given, it appends every request to it, as a line of
+ * JSON with its method, its path, and its body, before answering it.
  *
  * If a certificate is given, it serves https with it and the given private
  * key. A client that does not trust the certificate either breaks off the TLS
@@ -25,7 +30,7 @@ declare(strict_types=1);
 /**
  * @param resource $connection
  */
-function answer($connection, array $response): string
+function answer($connection, array $response, ?string $requestLog): string
 {
     $request = '';
     while (!str_contains($request, "\r\n\r\n")) {
@@ -52,19 +57,39 @@ function answer($connection, array $response): string
         $body .= $chunk;
     }
 
+    if ($requestLog !== null) {
+        [$method, $path] = explode(' ', strtok($head, "\r\n") ?: '', 3) + ['', ''];
+        file_put_contents($requestLog, json_encode([
+            'method' => $method,
+            'path' => $path,
+            'body' => $body,
+        ], JSON_THROW_ON_ERROR) . "\n", FILE_APPEND | LOCK_EX);
+    }
+
+    if ($response['dropConnection'] ?? false) {
+        return 'dropped';
+    }
+
     if (!waitFor($connection, $response['delay'])) {
         return 'closed';
     }
 
-    @fwrite($connection, "HTTP/1.1 200 OK\r\n");
+    $status = $response['status'] ?? 200;
+    @fwrite($connection, "HTTP/1.1 {$status} Status\r\n");
     if (!waitFor($connection, $response['headerDelay'])) {
         return 'closed';
+    }
+
+    $headers = '';
+    foreach ($response['headers'] ?? [] as $header) {
+        $headers .= "{$header}\r\n";
     }
 
     @fwrite(
         $connection,
         "Server: {$response['server']}\r\n" .
         "Content-Type: {$response['contentType']}\r\n" .
+        $headers .
         "Transfer-Encoding: chunked\r\n" .
         "\r\n",
     );
@@ -119,6 +144,7 @@ function waitFor($connection, float $seconds): bool
 $options = json_decode($argv[1], true, flags: JSON_THROW_ON_ERROR);
 
 $tls = $options['tls'] ?? null;
+$requestLog = $options['requestLog'] ?? null;
 
 $server = stream_socket_server(
     'tcp://127.0.0.1:0',
@@ -151,7 +177,7 @@ foreach ($options['responses'] as $response) {
         continue;
     }
 
-    echo answer($connection, $response) . "\n";
+    echo answer($connection, $response, $requestLog) . "\n";
 
     fclose($connection);
 }

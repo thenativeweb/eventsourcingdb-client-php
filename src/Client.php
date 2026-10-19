@@ -4,19 +4,21 @@ declare(strict_types=1);
 
 namespace Thenativeweb\Eventsourcingdb;
 
-use DateTimeImmutable;
-use RuntimeException;
+use Thenativeweb\Eventsourcingdb\Api\ProbingHttpClient;
+use Thenativeweb\Eventsourcingdb\Api\Transport;
+use Thenativeweb\Eventsourcingdb\Api\TransportSelector;
 use Thenativeweb\Eventsourcingdb\Stream\CurlMultiHandler;
 use Thenativeweb\Eventsourcingdb\Stream\HttpClient;
-use Thenativeweb\Eventsourcingdb\Stream\NdJson;
-use Thenativeweb\Eventsourcingdb\Stream\RawJson;
-use Thenativeweb\Eventsourcingdb\Stream\Response;
-use Thenativeweb\Eventsourcingdb\Stream\Stream;
 
+/**
+ * Talks to EventSourcingDB, through the v2 API if the server offers it, and
+ * through the v1 API otherwise. Creating a client does not send a request;
+ * the first request of a client finds out which API the server offers.
+ */
 final readonly class Client
 {
-    private string $apiToken;
     private HttpClient $httpClient;
+    private TransportSelector $transportSelector;
 
     /**
      * @param float $stallTimeout the seconds after which a request fails if nothing at all has arrived from the server, neither data nor a heartbeat, counted from sending the request
@@ -26,8 +28,8 @@ final readonly class Client
         string $apiToken,
         float $stallTimeout = CurlMultiHandler::DEFAULT_STALL_TIMEOUT,
     ) {
-        $this->apiToken = $apiToken;
         $this->httpClient = new HttpClient($url, $stallTimeout);
+        $this->transportSelector = new TransportSelector($this->httpClient, $apiToken, new ProbingHttpClient($url, $stallTimeout));
     }
 
     public function abortIn(float $seconds): void
@@ -37,368 +39,81 @@ final readonly class Client
 
     public function ping(): void
     {
-        $response = $this->httpClient->get('/api/v1/ping');
-
-        $this->throwIfNotValidServerHeader($response);
-        $this->throwIfNotSuccessStatusCode($response, 'Failed to ping');
-
-        try {
-            $data = $response->getStream()
-                ->getJsonData();
-        } catch (ConnectionStalledException $connectionStalledException) {
-            // A stalled connection keeps its own type, so that it can be told
-            // apart from a response that cannot be read.
-            throw $connectionStalledException;
-        } catch (RuntimeException $runtimeException) {
-            throw new RuntimeException(
-                'Failed to ping: ' . $runtimeException->getMessage(),
-                $runtimeException->getCode(),
-                $runtimeException,
-            );
-        }
-
-        if (!isset($data['type']) || $data['type'] !== 'io.eventsourcingdb.api.ping-received') {
-            throw new RuntimeException('Failed to ping');
-        }
+        $this->transport()
+            ->ping();
     }
 
     public function verifyApiToken(): void
     {
-        $response = $this->httpClient->post(
-            '/api/v1/verify-api-token',
-            $this->apiToken,
-        );
-
-        $this->throwIfNotValidServerHeader($response);
-        $this->throwIfNotSuccessStatusCode($response, 'Failed to verify API token');
-
-        try {
-            $data = $response->getStream()
-                ->getJsonData();
-        } catch (ConnectionStalledException $connectionStalledException) {
-            // A stalled connection keeps its own type, so that it can be told
-            // apart from a response that cannot be read.
-            throw $connectionStalledException;
-        } catch (RuntimeException $runtimeException) {
-            throw new RuntimeException(
-                'Failed to verify API token: ' . $runtimeException->getMessage(),
-                $runtimeException->getCode(),
-                $runtimeException,
-            );
-        }
-
-        if (!isset($data['type']) || $data['type'] !== 'io.eventsourcingdb.api.api-token-verified') {
-            throw new RuntimeException('Failed to verify API token');
-        }
+        $this->transport()
+            ->verifyApiToken();
     }
 
+    /**
+     * @return list<CloudEvent>
+     */
     public function writeEvents(array $events, array $preconditions = []): array
     {
-        $requestBody = [
-            'events' => $events,
-        ];
-        if ($preconditions !== []) {
-            $requestBody['preconditions'] = $preconditions;
-        }
-
-        $response = $this->httpClient->post(
-            '/api/v1/write-events',
-            $this->apiToken,
-            $requestBody,
-        );
-
-        $this->throwIfNotValidServerHeader($response);
-        $this->throwIfNotSuccessStatusCode($response, 'Failed to write events');
-
-        try {
-            $contents = $response->getStream()
-                ->getContents();
-            $data = Stream::decodeJson($contents);
-            $rawEvents = $data === [] ? [] : RawJson::getElements($contents);
-        } catch (ConnectionStalledException $connectionStalledException) {
-            // A stalled connection keeps its own type, so that it can be told
-            // apart from a response that cannot be read.
-            throw $connectionStalledException;
-        } catch (RuntimeException $runtimeException) {
-            throw new RuntimeException(
-                'Failed to read events, after writing: ' . $runtimeException->getMessage(),
-                $runtimeException->getCode(),
-                $runtimeException,
-            );
-        }
-
-        $writtenEvents = array_map(
-            $this->createCloudEvent(...),
-            $data,
-            $rawEvents,
-        );
-
-        return $writtenEvents;
+        return $this->transport()
+            ->writeEvents($events, $preconditions);
     }
 
+    /**
+     * @return iterable<CloudEvent>
+     */
     public function readEvents(string $subject, ReadEventsOptions $readEventsOptions): iterable
     {
-        $response = $this->httpClient->post(
-            '/api/v1/read-events',
-            $this->apiToken,
-            [
-                'subject' => $subject,
-                'options' => $readEventsOptions,
-            ],
-        );
-
-        $this->throwIfNotValidServerHeader($response);
-        $this->throwIfNotSuccessStatusCode($response, 'Failed to read events');
-
-        foreach (NdJson::readStream($response->getStream()) as $eventLine) {
-            switch ($eventLine->type) {
-                case 'event':
-                    $cloudEvent = $this->createCloudEvent($eventLine->payload, RawJson::getMembers($eventLine->line)['payload'] ?? null);
-                    yield $cloudEvent;
-
-                    break;
-                case 'error':
-                    throw new RuntimeException($eventLine->payload['error'] ?? 'unknown error');
-                default:
-                    throw new RuntimeException("Failed to handle unsupported line type {$eventLine->type}");
-            }
-        }
+        yield from $this->transport()
+            ->readEvents($subject, $readEventsOptions);
     }
 
     public function runEventQlQuery(string $query): iterable
     {
-        $response = $this->httpClient->post(
-            '/api/v1/run-eventql-query',
-            $this->apiToken,
-            [
-                'query' => $query,
-            ],
-        );
-
-        $this->throwIfNotValidServerHeader($response);
-        $this->throwIfNotSuccessStatusCode($response, 'Failed to run EventQL query');
-
-        foreach (NdJson::readStream($response->getStream()->withHeartbeatTimeout()) as $eventLine) {
-            switch ($eventLine->type) {
-                case 'heartbeat':
-                    break;
-                case 'row':
-                    $row = $eventLine->payload;
-                    yield $row;
-
-                    break;
-                case 'error':
-                    throw new RuntimeException($eventLine->payload['error'] ?? 'unknown error');
-                default:
-                    throw new RuntimeException("Failed to handle unsupported line type {$eventLine->type}");
-            }
-        }
+        yield from $this->transport()
+            ->runEventQlQuery($query);
     }
 
+    /**
+     * @return iterable<CloudEvent>
+     */
     public function observeEvents(string $subject, ObserveEventsOptions $observeEventsOptions): iterable
     {
-        $response = $this->httpClient->post(
-            '/api/v1/observe-events',
-            $this->apiToken,
-            [
-                'subject' => $subject,
-                'options' => $observeEventsOptions,
-            ],
-        );
-
-        $this->throwIfNotValidServerHeader($response);
-        $this->throwIfNotSuccessStatusCode($response, 'Failed to observe events');
-
-        foreach (NdJson::readStream($response->getStream()->withHeartbeatTimeout()) as $eventLine) {
-            switch ($eventLine->type) {
-                case 'heartbeat':
-                    break;
-                case 'event':
-                    $cloudEvent = $this->createCloudEvent($eventLine->payload, RawJson::getMembers($eventLine->line)['payload'] ?? null);
-                    yield $cloudEvent;
-
-                    break;
-                case 'error':
-                    throw new RuntimeException($eventLine->payload['error'] ?? 'unknown error');
-                default:
-                    throw new RuntimeException("Failed to handle unsupported line type {$eventLine->type}");
-            }
-        }
+        yield from $this->transport()
+            ->observeEvents($subject, $observeEventsOptions);
     }
 
     public function registerEventSchema(string $eventType, array $schema): void
     {
-        $response = $this->httpClient->post(
-            '/api/v1/register-event-schema',
-            $this->apiToken,
-            [
-                'eventType' => $eventType,
-                'schema' => $schema,
-            ],
-        );
-
-        $this->throwIfNotValidServerHeader($response);
-        $this->throwIfNotSuccessStatusCode($response, 'Failed to register event schema');
-
-        // The response is not needed, so its connection is closed rather than
-        // kept open until the next request.
-        $response->getStream()
-            ->close();
+        $this->transport()
+            ->registerEventSchema($eventType, $schema);
     }
 
-    public function readSubjects(string $baseSubject): iterable
+    /**
+     * @return iterable<string>
+     */
+    public function readSubjects(string $subject, ReadSubjectsOptions $readSubjectsOptions): iterable
     {
-        $response = $this->httpClient->post(
-            '/api/v1/read-subjects',
-            $this->apiToken,
-            [
-                'baseSubject' => $baseSubject,
-            ],
-        );
-
-        $this->throwIfNotValidServerHeader($response);
-        $this->throwIfNotSuccessStatusCode($response, 'Failed to read subjects');
-
-        foreach (NdJson::readStream($response->getStream()) as $eventLine) {
-            switch ($eventLine->type) {
-                case 'heartbeat':
-                    break;
-                case 'subject':
-                    $subject = $eventLine->payload['subject'];
-                    yield $subject;
-
-                    break;
-                case 'error':
-                    throw new RuntimeException($eventLine->payload['error'] ?? 'unknown error');
-                default:
-                    throw new RuntimeException("Failed to handle unsupported line type {$eventLine->type}");
-            }
-        }
+        yield from $this->transport()
+            ->readSubjects($subject, $readSubjectsOptions);
     }
 
+    /**
+     * @return iterable<EventType>
+     */
     public function readEventTypes(): iterable
     {
-        $response = $this->httpClient->post(
-            '/api/v1/read-event-types',
-            $this->apiToken,
-        );
-
-        $this->throwIfNotValidServerHeader($response);
-        $this->throwIfNotSuccessStatusCode($response, 'Failed to read event types');
-
-        foreach (NdJson::readStream($response->getStream()) as $eventLine) {
-            switch ($eventLine->type) {
-                case 'heartbeat':
-                    break;
-                case 'eventType':
-                    $eventType = new EventType(
-                        $eventLine->payload['eventType'],
-                        $eventLine->payload['isPhantom'],
-                        $eventLine->payload['schema'] ?? [],
-                    );
-                    yield $eventType;
-
-                    break;
-                case 'error':
-                    throw new RuntimeException($eventLine->payload['error'] ?? 'unknown error');
-                default:
-                    throw new RuntimeException("Failed to handle unsupported line type {$eventLine->type}");
-            }
-        }
+        yield from $this->transport()
+            ->readEventTypes();
     }
 
     public function readEventType(string $eventType): EventType
     {
-        $response = $this->httpClient->post(
-            '/api/v1/read-event-type',
-            $this->apiToken,
-            [
-                'eventType' => $eventType,
-            ],
-        );
-
-        $this->throwIfNotValidServerHeader($response);
-        $this->throwIfNotSuccessStatusCode($response, 'Failed to read event type');
-
-        try {
-            $data = $response->getStream()
-                ->getJsonData();
-        } catch (ConnectionStalledException $connectionStalledException) {
-            // A stalled connection keeps its own type, so that it can be told
-            // apart from a response that cannot be read.
-            throw $connectionStalledException;
-        } catch (RuntimeException $runtimeException) {
-            throw new RuntimeException(
-                'Failed to read event type: ' . $runtimeException->getMessage(),
-                $runtimeException->getCode(),
-                $runtimeException,
-            );
-        }
-
-        return new EventType(
-            $data['eventType'],
-            $data['isPhantom'],
-            $data['schema'] ?? [],
-        );
+        return $this->transport()
+            ->readEventType($eventType);
     }
 
-    /**
-     * Creates an event from its payload, and keeps its data as the server
-     * sent it, so that its hash can be verified.
-     */
-    private function createCloudEvent(array $payload, ?string $rawPayload): CloudEvent
+    private function transport(): Transport
     {
-        return new CloudEvent(
-            $payload['specversion'],
-            $payload['id'],
-            new DateTimeImmutable($payload['time']),
-            $payload['time'],
-            $payload['source'],
-            $payload['subject'],
-            $payload['type'],
-            $payload['datacontenttype'],
-            $payload['data'],
-            $payload['hash'],
-            $payload['predecessorhash'],
-            $payload['traceparent'] ?? null,
-            $payload['tracestate'] ?? null,
-            $payload['signature'],
-            $rawPayload === null ? null : (RawJson::getMembers($rawPayload)['data'] ?? null),
-        );
-    }
-
-    private function throwIfNotValidServerHeader(Response $response): void
-    {
-        $serverHeader = $response->getHeader('Server');
-
-        if ($serverHeader === []) {
-            $response->getStream()
-                ->close();
-
-            throw new RuntimeException('Server Header is empty.');
-        }
-
-        if (!str_starts_with($serverHeader[0], 'EventSourcingDB/')) {
-            $response->getStream()
-                ->close();
-
-            throw new RuntimeException('Server must be EventSourcingDB.');
-        }
-    }
-
-    private function throwIfNotSuccessStatusCode(Response $response, string $scope): void
-    {
-        $status = $response->getStatusCode();
-        if ($status !== 200) {
-            throw new RuntimeException(
-                message: sprintf(
-                    '%s, %s',
-                    $scope,
-                    $response->getStream()
-                        ->getContents(),
-                ),
-                code: $status,
-            );
-        }
+        return $this->transportSelector->getTransport();
     }
 }

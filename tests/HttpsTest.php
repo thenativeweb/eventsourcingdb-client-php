@@ -7,6 +7,8 @@ namespace Thenativeweb\Eventsourcingdb\Tests;
 use OpenSSLAsymmetricKey;
 use OpenSSLCertificate;
 use PHPUnit\Framework\TestCase;
+use RuntimeException;
+use Thenativeweb\Eventsourcingdb\Stream\HttpClient;
 use Thenativeweb\Eventsourcingdb\Tests\Trait\ServerTestTrait;
 
 final class HttpsTest extends TestCase
@@ -68,6 +70,28 @@ final class HttpsTest extends TestCase
 
         $this->assertSame('pinged', $result);
         $this->assertSame('ended', $this->readServerReport());
+        $this->assertSame('ended', $this->readServerReport());
+    }
+
+    public function testTellsThatARequestWhoseCertificateIsRefusedEstablishedNoConnection(): void
+    {
+        $address = $this->serveHttps($this->createCertificate('127.0.0.1', 'thisHost'));
+
+        // The client trusts the usual authorities, none of which issued the
+        // certificate.
+        $httpClient = new HttpClient("https://{$address}");
+
+        try {
+            $httpClient->post('/api/v2/data/write-events', 'secret', [
+                'events' => [],
+            ]);
+            $this->fail('Expected the request to fail, but it did not.');
+        } catch (RuntimeException $runtimeException) {
+            $this->assertStringStartsWith('Internal HttpClient: cURL handle execution failed with error: ', $runtimeException->getMessage());
+        }
+
+        $this->assertFalse($httpClient->hasLastRequestEstablishedConnection());
+        $this->assertSame('no request', $this->readServerReport(), 'Expected the client not to send the request.');
     }
 
     public function testRefusesTheConnectionIfNoTrustedAuthorityIssuedTheCertificate(): void
@@ -127,12 +151,13 @@ final class HttpsTest extends TestCase
     }
 
     /**
-     * Serves https with the given certificate and pings the server with a
-     * client that trusts the authority of this test, and nothing else.
+     * Serves https with the given certificate, and answers the ping of the v2
+     * API twice, since a client asks for it first, to find out which API the
+     * server offers, and then pings it through that API.
      *
      * @param array{certificate: OpenSSLCertificate, privateKey: OpenSSLAsymmetricKey} $serverCertificate
      */
-    private function pingOverHttps(array $serverCertificate): string
+    private function serveHttps(array $serverCertificate): string
     {
         $tls = [
             'certificate' => "{$this->directory}/server.pem",
@@ -143,14 +168,21 @@ final class HttpsTest extends TestCase
             'config' => "{$this->directory}/openssl.cnf",
         ]);
 
-        $address = $this->startServerWithResponses([
-            $this->response(
-                ['{"type":"io.eventsourcingdb.api.ping-received"}'],
-                interval: 0.0,
-                holdFor: 0.0,
-                contentType: 'application/json',
-            ),
+        return $this->startServerWithResponses([
+            $this->probeResponse('v2'),
+            $this->probeResponse('v2'),
         ], $tls);
+    }
+
+    /**
+     * Serves https with the given certificate and pings the server with a
+     * client that trusts the authority of this test, and nothing else.
+     *
+     * @param array{certificate: OpenSSLCertificate, privateKey: OpenSSLAsymmetricKey} $serverCertificate
+     */
+    private function pingOverHttps(array $serverCertificate): string
+    {
+        $address = $this->serveHttps($serverCertificate);
 
         $client = proc_open(
             [

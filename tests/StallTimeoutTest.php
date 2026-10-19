@@ -12,9 +12,11 @@ use PHPUnit\Framework\TestCase;
 use RuntimeException;
 use Thenativeweb\Eventsourcingdb\Client;
 use Thenativeweb\Eventsourcingdb\ConnectionStalledException;
-use Thenativeweb\Eventsourcingdb\HeartbeatTimeoutException;
+use Thenativeweb\Eventsourcingdb\EventCandidate;
 use Thenativeweb\Eventsourcingdb\ObserveEventsOptions;
+use Thenativeweb\Eventsourcingdb\OutcomeUnknownException;
 use Thenativeweb\Eventsourcingdb\ReadEventsOptions;
+use Thenativeweb\Eventsourcingdb\ReadSubjectsOptions;
 use Thenativeweb\Eventsourcingdb\Tests\Trait\ReflectionTestTrait;
 use Thenativeweb\Eventsourcingdb\Tests\Trait\ServerTestTrait;
 
@@ -26,80 +28,32 @@ final class StallTimeoutTest extends TestCase
     private const STALL_TIMEOUT = 0.5;
     private const STALL_MESSAGE = 'No data arrived from the server for 0.5 seconds.';
 
+    /**
+     * Every call, for every API, with whether it is a write, whose stall
+     * leaves its outcome open.
+     */
     public static function calls(): Iterator
     {
-        foreach (self::callsThatReadTheResponse() as $name => [$call]) {
-            yield $name => [$call];
+        foreach (['v1', 'v2'] as $apiVersion) {
+            foreach (self::allCalls() as $name => [$call, $isWrite]) {
+                yield "{$name} ({$apiVersion})" => [$apiVersion, $call, $isWrite];
+            }
         }
-
-        yield 'registerEventSchema' => [
-            static function (Client $client): void {
-                $client->registerEventSchema('io.eventsourcingdb.test', [
-                    'type' => 'object',
-                ]);
-            },
-        ];
     }
 
+    /**
+     * The calls that read the response, which registering an event schema
+     * through the v1 API does not do.
+     */
     public static function callsThatReadTheResponse(): Iterator
     {
-        yield 'ping' => [
-            static function (Client $client): void {
-                $client->ping();
-            },
-            ConnectionStalledException::class,
-        ];
-        yield 'verifyApiToken' => [
-            static function (Client $client): void {
-                $client->verifyApiToken();
-            },
-            ConnectionStalledException::class,
-        ];
-        yield 'writeEvents' => [
-            static function (Client $client): void {
-                $client->writeEvents([]);
-            },
-            ConnectionStalledException::class,
-        ];
-        yield 'readEventType' => [
-            static function (Client $client): void {
-                $client->readEventType('io.eventsourcingdb.test');
-            },
-            ConnectionStalledException::class,
-        ];
-        yield 'readEvents' => [
-            static function (Client $client): void {
-                iterator_count($client->readEvents('/', new ReadEventsOptions(recursive: true)));
-            },
-            ConnectionStalledException::class,
-        ];
-        yield 'readSubjects' => [
-            static function (Client $client): void {
-                iterator_count($client->readSubjects('/'));
-            },
-            ConnectionStalledException::class,
-        ];
-        yield 'readEventTypes' => [
-            static function (Client $client): void {
-                iterator_count($client->readEventTypes());
-            },
-            ConnectionStalledException::class,
-        ];
+        foreach (self::calls() as $name => [$apiVersion, $call, $isWrite]) {
+            if ($name === 'registerEventSchema (v1)') {
+                continue;
+            }
 
-        // Streams with heartbeats ended with a heartbeat timeout before the
-        // stall timeout replaced it, and keep doing so.
-        yield 'observeEvents' => [
-            static function (Client $client): void {
-                iterator_count($client->observeEvents('/', new ObserveEventsOptions(recursive: true)));
-            },
-            HeartbeatTimeoutException::class,
-        ];
-        yield 'runEventQlQuery' => [
-            static function (Client $client): void {
-                iterator_count($client->runEventQlQuery('FROM e IN events PROJECT INTO e'));
-            },
-            HeartbeatTimeoutException::class,
-        ];
+            yield $name => [$apiVersion, $call, $isWrite];
+        }
     }
 
     public static function invalidStallTimeouts(): Iterator
@@ -127,25 +81,42 @@ final class StallTimeoutTest extends TestCase
     }
 
     #[DataProvider('calls')]
-    public function testFailsIfTheHeadersDoNotArriveWithinTheStallTimeout(Closure $call): void
+    public function testFailsIfTheHeadersDoNotArriveWithinTheStallTimeout(string $apiVersion, Closure $call, bool $isWrite): void
     {
-        $address = $this->startServer([], interval: 0.0, holdFor: 0.0, delay: 5.0);
+        $address = $this->startDatabase($apiVersion, [
+            $this->response([], interval: 0.0, holdFor: 0.0, delay: 5.0),
+        ]);
         $client = new Client("http://{$address}", 'secret', stallTimeout: self::STALL_TIMEOUT);
 
-        $this->assertStalls($call, $client, ConnectionStalledException::class, self::STALL_MESSAGE);
+        $this->assertStalls($call, $client, $isWrite);
     }
 
     #[DataProvider('callsThatReadTheResponse')]
-    public function testFailsIfTheBodyDoesNotArriveWithinTheStallTimeout(Closure $call, string $exceptionClass): void
+    public function testFailsIfTheBodyDoesNotArriveWithinTheStallTimeout(string $apiVersion, Closure $call, bool $isWrite): void
     {
-        $address = $this->startServer([], interval: 0.0, holdFor: 5.0);
+        $address = $this->startDatabase($apiVersion, [
+            $this->response([], interval: 0.0, holdFor: 5.0),
+        ]);
         $client = new Client("http://{$address}", 'secret', stallTimeout: self::STALL_TIMEOUT);
 
+        $this->assertStalls($call, $client, $isWrite);
+    }
+
+    public function testFailsIfTheServerDoesNotAnswerWhichApiItOffersWithinTheStallTimeout(): void
+    {
+        $address = $this->startServerWithResponses([
+            $this->response([], interval: 0.0, holdFor: 0.0, delay: 5.0),
+        ]);
+        $client = new Client("http://{$address}", 'secret', stallTimeout: self::STALL_TIMEOUT);
+
+        // The write was not sent, since the client did not know yet which API
+        // to send it with, so its outcome is known.
         $this->assertStalls(
-            $call,
+            static function (Client $client): void {
+                $client->writeEvents([self::eventCandidate()]);
+            },
             $client,
-            $exceptionClass,
-            $exceptionClass === HeartbeatTimeoutException::class ? 'No event and no heartbeat arrived for 0.5 seconds.' : self::STALL_MESSAGE,
+            isWrite: false,
         );
     }
 
@@ -161,27 +132,25 @@ final class StallTimeoutTest extends TestCase
                 $client->ping();
             },
             $client,
-            ConnectionStalledException::class,
-            self::STALL_MESSAGE,
+            isWrite: false,
         );
     }
 
     public function testKeepsARequestThatReceivesSomethingWithinEveryStallTimeout(): void
     {
         $lines = array_map(
-            static fn (int $index): string => json_encode([
-                'type' => 'subject',
-                'payload' => [
-                    'subject' => "/test/{$index}",
-                ],
-            ], JSON_THROW_ON_ERROR),
+            static fn (int $index): string => self::item('v1', 'subject', [
+                'subject' => "/test/{$index}",
+            ]),
             range(1, 6),
         );
-        $address = $this->startServer($lines, interval: 0.3, holdFor: 0.0);
+        $address = $this->startDatabase('v1', [
+            $this->response($lines, interval: 0.3, holdFor: 0.0),
+        ]);
         $client = new Client("http://{$address}", 'secret', stallTimeout: self::STALL_TIMEOUT);
 
         $startTime = microtime(true);
-        $subjectsRead = iterator_count($client->readSubjects('/'));
+        $subjectsRead = iterator_count($client->readSubjects('/', new ReadSubjectsOptions(recursive: true)));
         $processTime = microtime(true) - $startTime;
 
         $this->assertSame(6, $subjectsRead);
@@ -193,12 +162,14 @@ final class StallTimeoutTest extends TestCase
     {
         // Together, the delays before the status line and before the other
         // headers last longer than the stall timeout, but each is shorter.
-        $address = $this->startServerWithResponses([
-            $this->response(['{"type":"subject","payload":{"subject":"/test"}}'], interval: 0.0, holdFor: 0.0, delay: 0.3, headerDelay: 0.3),
+        $address = $this->startDatabase('v1', [
+            $this->response([self::item('v1', 'subject', [
+                'subject' => '/test',
+            ])], interval: 0.0, holdFor: 0.0, delay: 0.3, headerDelay: 0.3),
         ]);
         $client = new Client("http://{$address}", 'secret', stallTimeout: self::STALL_TIMEOUT);
 
-        $subjectsRead = iterator_count($client->readSubjects('/'));
+        $subjectsRead = iterator_count($client->readSubjects('/', new ReadSubjectsOptions(recursive: true)));
 
         $this->assertSame(1, $subjectsRead);
         $this->assertSame('ended', $this->readServerReport());
@@ -209,18 +180,103 @@ final class StallTimeoutTest extends TestCase
         $this->assertTrue(is_a(ConnectionStalledException::class, RuntimeException::class, true));
     }
 
+    private static function allCalls(): Iterator
+    {
+        yield 'ping' => [
+            static function (Client $client): void {
+                $client->ping();
+            },
+            false,
+        ];
+        yield 'verifyApiToken' => [
+            static function (Client $client): void {
+                $client->verifyApiToken();
+            },
+            false,
+        ];
+        yield 'writeEvents' => [
+            static function (Client $client): void {
+                $client->writeEvents([self::eventCandidate()]);
+            },
+            true,
+        ];
+        yield 'registerEventSchema' => [
+            static function (Client $client): void {
+                $client->registerEventSchema('io.eventsourcingdb.test', [
+                    'type' => 'object',
+                ]);
+            },
+            true,
+        ];
+        yield 'readEventType' => [
+            static function (Client $client): void {
+                $client->readEventType('io.eventsourcingdb.test');
+            },
+            false,
+        ];
+        yield 'readEvents' => [
+            static function (Client $client): void {
+                iterator_count($client->readEvents('/', new ReadEventsOptions(recursive: true)));
+            },
+            false,
+        ];
+        yield 'readSubjects' => [
+            static function (Client $client): void {
+                iterator_count($client->readSubjects('/', new ReadSubjectsOptions(recursive: true)));
+            },
+            false,
+        ];
+        yield 'readEventTypes' => [
+            static function (Client $client): void {
+                iterator_count($client->readEventTypes());
+            },
+            false,
+        ];
+        yield 'observeEvents' => [
+            static function (Client $client): void {
+                iterator_count($client->observeEvents('/', new ObserveEventsOptions(recursive: true)));
+            },
+            false,
+        ];
+        yield 'runEventQlQuery' => [
+            static function (Client $client): void {
+                iterator_count($client->runEventQlQuery('FROM e IN events PROJECT INTO e'));
+            },
+            false,
+        ];
+    }
+
+    private static function eventCandidate(): EventCandidate
+    {
+        return new EventCandidate(
+            source: 'https://www.eventsourcingdb.io',
+            subject: '/test',
+            type: 'io.eventsourcingdb.test',
+            data: [
+                'value' => 23,
+            ],
+        );
+    }
+
     /**
-     * @param class-string<RuntimeException> $exceptionClass
+     * Asserts that the call stalls, with a ConnectionStalledException, which
+     * for a write that was sent comes wrapped in an OutcomeUnknownException,
+     * since the server may have stored the write before it stalled.
      */
-    private function assertStalls(Closure $call, Client $client, string $exceptionClass, string $message): void
+    private function assertStalls(Closure $call, Client $client, bool $isWrite): void
     {
         $startTime = microtime(true);
         try {
             $call($client);
-            $this->fail("Expected the request to fail with a {$exceptionClass}, but it did not fail.");
+            $this->fail('Expected the request to stall, but it did not.');
         } catch (RuntimeException $runtimeException) {
-            $this->assertInstanceOf($exceptionClass, $runtimeException, $runtimeException->getMessage());
-            $this->assertSame($message, $runtimeException->getMessage());
+            if ($isWrite) {
+                $this->assertInstanceOf(OutcomeUnknownException::class, $runtimeException, $runtimeException->getMessage());
+                $runtimeException = $runtimeException->getPrevious();
+            }
+
+            $this->assertInstanceOf(ConnectionStalledException::class, $runtimeException, (string) $runtimeException?->getMessage());
+            $this->assertSame(self::STALL_MESSAGE, $runtimeException->getMessage());
         }
 
         $processTime = microtime(true) - $startTime;
