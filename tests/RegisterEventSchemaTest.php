@@ -47,6 +47,10 @@ final class RegisterEventSchemaTest extends TestCase
 
         $this->client->registerEventSchema($eventType, $schema);
 
-        $this->assertFailsWithErrorCode(ErrorCode::EVENT_SCHEMA_ALREADY_REGISTERED, fn (): mixed => $this->client->registerEventSchema($eventType, $schema));
+        $this->assertFailsWithErrorCode(
+            ErrorCode::EVENT_SCHEMA_ALREADY_REGISTERED,
+            fn (): mixed => $this->client->registerEventSchema($eventType, $schema),
+            'Failed to register event schema, ',
+        );
     }
 }

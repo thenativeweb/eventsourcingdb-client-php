@@ -47,15 +47,20 @@ trait ClientTestTrait
 
     /**
      * Asserts that the call fails with a DbApiException whose errorCode is
-     * the given one.
+     * the given one, and, if a message is given, whose message contains it,
+     * as expectExceptionMessage checks it.
      */
-    protected function assertFailsWithErrorCode(string $errorCode, Closure $call): void
+    protected function assertFailsWithErrorCode(string $errorCode, Closure $call, ?string $message = null): void
     {
         try {
             $call();
             $this->fail('Expected the call to fail with a DbApiException, but it did not fail.');
         } catch (DbApiException $dbApiException) {
             $this->assertSame($errorCode, $dbApiException->errorCode, $dbApiException->getMessage());
+
+            if ($message !== null) {
+                $this->assertStringContainsString($message, $dbApiException->getMessage());
+            }
         }
     }
 

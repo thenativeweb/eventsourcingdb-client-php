@@ -17,7 +17,11 @@ final class ReadEventTypeTest extends TestCase
 
     public function testFailsIfTheEventTypeDoesNotExist(): void
     {
-        $this->assertFailsWithErrorCode(ErrorCode::EVENT_TYPE_UNKNOWN, fn (): mixed => $this->client->readEventType('non.existent.eventType'));
+        $this->assertFailsWithErrorCode(
+            ErrorCode::EVENT_TYPE_UNKNOWN,
+            fn (): mixed => $this->client->readEventType('non.existent.eventType'),
+            'Failed to read event type, ',
+        );
     }
 
     public function testFailsIfTheEventTypeIsMalformed(): void
