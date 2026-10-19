@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Thenativeweb\Eventsourcingdb\Tests;
 
+use Iterator;
 use PHPUnit\Framework\AssertionFailedError;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Thenativeweb\Eventsourcingdb\Client;
 use Thenativeweb\Eventsourcingdb\ReadSubjectsOptions;
@@ -55,6 +57,30 @@ final class ServerTestTraitTest extends TestCase
             unlink("{$iniDirectory}/display-errors.ini");
             rmdir($iniDirectory);
         }
+    }
+
+    public static function malformedReports(): Iterator
+    {
+        yield 'an empty line' => ["\n", "''"];
+        yield 'a line that is not an outcome' => ["Warning: something went wrong\n", "'Warning: something went wrong'"];
+    }
+
+    #[DataProvider('malformedReports')]
+    public function testFailsIfTheServerReportsSomethingOtherThanTheOutcomeOfAConnection(string $output, string $reported): void
+    {
+        // A process that writes the given output stands in for the server.
+        $server = proc_open([PHP_BINARY, '-r', 'echo ' . var_export($output, true) . ';'], [
+            1 => ['pipe', 'w'],
+        ], $pipes);
+        $this->assertIsResource($server);
+
+        $this->server = $server;
+        $this->serverOutput = $pipes[1];
+
+        $this->expectException(AssertionFailedError::class);
+        $this->expectExceptionMessage("The test server reported {$reported} rather than the outcome of a connection.");
+
+        $this->readServerReport();
     }
 
     public function testFailsIfTheServerExitsWithoutReporting(): void

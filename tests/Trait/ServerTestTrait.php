@@ -42,6 +42,11 @@ trait ServerTestTrait
     private static float $reportTimeout = 60.0;
 
     /**
+     * The outcomes of a connection that the server reports.
+     */
+    private static string $outcomePattern = '/^(closed|ended|dropped|no request)$/';
+
+    /**
      * The number of reports to skip, those of the requests that find out which
      * API the server offers, so that a test reads the reports of the requests
      * it makes itself.
@@ -195,7 +200,7 @@ trait ServerTestTrait
         $this->server = $server;
         $this->serverOutput = $pipes[1];
 
-        return $this->readReport('its address');
+        return $this->readReport('its address', '/^\d{1,3}(\.\d{1,3}){3}:\d+$/');
     }
 
     /**
@@ -250,10 +255,10 @@ trait ServerTestTrait
     {
         while ($this->reportsToSkip > 0) {
             --$this->reportsToSkip;
-            $this->readReport('the outcome of a connection');
+            $this->readReport('the outcome of a connection', self::$outcomePattern);
         }
 
-        return $this->readReport('the outcome of a connection');
+        return $this->readReport('the outcome of a connection', self::$outcomePattern);
     }
 
     /**
@@ -279,12 +284,14 @@ trait ServerTestTrait
     /**
      * Reads the next line that the server reports, and waits for it until the
      * server reports it or exits, for the report timeout at most. If the line
-     * does not come, the test fails, rather than go on with an empty report,
-     * such as an empty address, which would fail it later in a misleading way.
+     * does not come, or does not match the given pattern, the test fails,
+     * rather than go on with it, such as with an empty address, which would
+     * fail the test later in a misleading way.
      *
      * @param string $what what the server is to report, for the message of a failure
+     * @param string $pattern the pattern that the report has to match
      */
-    private function readReport(string $what): string
+    private function readReport(string $what, string $pattern): string
     {
         $deadline = microtime(true) + self::$reportTimeout;
 
@@ -308,7 +315,12 @@ trait ServerTestTrait
                 $this->fail("The test server exited without reporting {$what}." . $this->describeServerErrors());
             }
 
-            return trim($line);
+            $report = trim($line);
+            if (preg_match($pattern, $report) !== 1) {
+                $this->fail(sprintf('The test server reported %s rather than %s.', var_export($report, true), $what) . $this->describeServerErrors());
+            }
+
+            return $report;
         }
 
         $this->fail(sprintf('The test server did not report %s within %d seconds.', $what, self::$reportTimeout) . $this->describeServerErrors());
