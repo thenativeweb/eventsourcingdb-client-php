@@ -163,7 +163,7 @@ final class WriteEventsTest extends TestCase
             [
                 new IsSubjectPristine('/test'),
             ],
-        ));
+        ), 'Failed to write events, ');
     }
 
     public function testRejectsWritingToEmptySubjectWhenUsingTheIsSubjectPopulatedPrecondition(): void
@@ -184,7 +184,7 @@ final class WriteEventsTest extends TestCase
             [
                 new IsSubjectPopulated('/test'),
             ],
-        ));
+        ), 'Failed to write events, ');
     }
 
     public function testSupportsTheIsSubjectPopulatedPrecondition(): void
@@ -257,7 +257,7 @@ final class WriteEventsTest extends TestCase
             [
                 new IsSubjectOnEventId('/test', '1'),
             ],
-        ));
+        ), 'Failed to write events, ');
     }
 
     public function testSupportsTheIsEventQlQueryTruePrecondition(): void
@@ -291,6 +291,6 @@ final class WriteEventsTest extends TestCase
             [
                 new IsEventQlQueryTrue('FROM e IN events PROJECT INTO COUNT() == 0'),
             ],
-        ));
+        ), 'Failed to write events, ');
     }
 }
