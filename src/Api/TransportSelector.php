@@ -16,6 +16,9 @@ use Throwable;
  * the route, which it answers with 404 or 405, offers the v1 API only. Any
  * other outcome, such as a failed connection or a 503, fails the request that
  * asked, and leaves the choice open, so that the next request asks again.
+ * Once the server answers a route of the v2 API with 404 or 405, e.g. since
+ * it was rolled back to a version without it, the client forgets the choice,
+ * and the next request asks again, too.
  *
  * This is the one place that chooses between the APIs, so that removing the
  * v1 API means removing V1Transport, V1ErrorCodes, and its choice here.
@@ -107,6 +110,19 @@ final class TransportSelector
             throw new RuntimeException("{$scope}, since it answered the ping of the v2 API with something other than a ping.");
         }
 
-        return new V2Transport($this->httpClient, $this->apiToken);
+        return new V2Transport($this->httpClient, $this->apiToken, $this->forget(...));
+    }
+
+    /**
+     * Forgets the API, so that the next request asks again, if the client
+     * still remembers the given transport. An answer through a transport that
+     * the client has forgotten already thus never discards the transport that
+     * asking again chose since.
+     */
+    private function forget(Transport $transport): void
+    {
+        if ($this->transport === $transport) {
+            $this->transport = null;
+        }
     }
 }

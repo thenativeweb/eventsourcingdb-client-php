@@ -41,8 +41,14 @@ final class OutcomeUnknownTest extends TestCase
     public static function transports(): Iterator
     {
         foreach (self::writes() as $name => [$write]) {
-            yield "{$name} (v1)" => [V1Transport::class, $write];
-            yield "{$name} (v2)" => [V2Transport::class, $write];
+            yield "{$name} (v1)" => [
+                static fn (HttpClient $httpClient): Transport => new V1Transport($httpClient, 'secret'),
+                $write,
+            ];
+            yield "{$name} (v2)" => [
+                static fn (HttpClient $httpClient): Transport => new V2Transport($httpClient, 'secret', static function (): void {}),
+                $write,
+            ];
         }
     }
 
@@ -191,21 +197,21 @@ final class OutcomeUnknownTest extends TestCase
     }
 
     /**
-     * @param class-string<Transport> $transportClass
+     * @param Closure(HttpClient): Transport $createTransport
      */
     #[DataProvider('transports')]
-    public function testReportsAWriteToAHostThatDoesNotExistAsNotStored(string $transportClass, Closure $write): void
+    public function testReportsAWriteToAHostThatDoesNotExistAsNotStored(Closure $createTransport, Closure $write): void
     {
-        $transport = new $transportClass(new HttpClient('http://non-existent-host.invalid'), 'secret');
+        $transport = $createTransport(new HttpClient('http://non-existent-host.invalid'));
 
         $this->assertIsNotSent($write, $transport);
     }
 
     /**
-     * @param class-string<Transport> $transportClass
+     * @param Closure(HttpClient): Transport $createTransport
      */
     #[DataProvider('transports')]
-    public function testReportsAWriteThatTheHostRefusedToConnectAsNotStored(string $transportClass, Closure $write): void
+    public function testReportsAWriteThatTheHostRefusedToConnectAsNotStored(Closure $createTransport, Closure $write): void
     {
         // A port that was just free, and that nothing listens on any more.
         $socket = stream_socket_server('tcp://127.0.0.1:0');
@@ -213,22 +219,22 @@ final class OutcomeUnknownTest extends TestCase
         $address = stream_socket_get_name($socket, false);
         fclose($socket);
 
-        $transport = new $transportClass(new HttpClient("http://{$address}"), 'secret');
+        $transport = $createTransport(new HttpClient("http://{$address}"));
 
         $this->assertIsNotSent($write, $transport);
     }
 
     /**
-     * @param class-string<Transport> $transportClass
+     * @param Closure(HttpClient): Transport $createTransport
      */
     #[DataProvider('transports')]
-    public function testReportsAWriteWhoseTlsHandshakeDoesNotFinishAsNotStored(string $transportClass, Closure $write): void
+    public function testReportsAWriteWhoseTlsHandshakeDoesNotFinishAsNotStored(Closure $createTransport, Closure $write): void
     {
         // The server does not answer the TLS handshake, so the connection is
         // never established, and the request is never sent.
         $address = $this->startServer([], interval: 0.0, holdFor: 0.0);
 
-        $transport = new $transportClass(new HttpClient("https://{$address}", self::STALL_TIMEOUT), 'secret');
+        $transport = $createTransport(new HttpClient("https://{$address}", self::STALL_TIMEOUT));
 
         try {
             $write($transport);

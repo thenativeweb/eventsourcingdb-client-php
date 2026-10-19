@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Thenativeweb\Eventsourcingdb\Api;
 
+use Closure;
 use RuntimeException;
 use Thenativeweb\Eventsourcingdb\CloudEvent;
 use Thenativeweb\Eventsourcingdb\ConnectionStalledException;
@@ -37,17 +38,22 @@ final readonly class V2Transport implements Transport
      */
     private const REFUSING_STATUSES = [400, 401, 408, 413, 429, 503];
 
+    /**
+     * @param Closure(self): void $forgetApi makes the client forget the API that the server offers, so that its next request asks again, see TransportSelector
+     */
     public function __construct(
         private HttpClient $httpClient,
         private string $apiToken,
+        private Closure $forgetApi,
     ) {
     }
 
     public function ping(): void
     {
-        $response = $this->httpClient->get('/api/v2/system/ping');
-
-        $this->throwIfNotSuccessful($response, 'Failed to ping');
+        $response = $this->send(
+            fn (): Response => $this->httpClient->get('/api/v2/system/ping'),
+            'Failed to ping',
+        );
 
         $event = $this->readEvent($response, 'Failed to ping');
 
@@ -58,12 +64,13 @@ final readonly class V2Transport implements Transport
 
     public function verifyApiToken(): void
     {
-        $response = $this->httpClient->post(
-            '/api/v2/system/verify-token',
-            $this->apiToken,
+        $response = $this->send(
+            fn (): Response => $this->httpClient->post(
+                '/api/v2/system/verify-token',
+                $this->apiToken,
+            ),
+            'Failed to verify API token',
         );
-
-        $this->throwIfNotSuccessful($response, 'Failed to verify API token');
 
         $event = $this->readEvent($response, 'Failed to verify API token');
 
@@ -84,16 +91,17 @@ final readonly class V2Transport implements Transport
 
     public function readEvents(string $subject, ReadEventsOptions $readEventsOptions): iterable
     {
-        $response = $this->httpClient->query(
-            '/api/v2/data/read-events',
-            $this->apiToken,
-            [
-                'subject' => $subject,
-                'options' => $readEventsOptions,
-            ],
+        $response = $this->send(
+            fn (): Response => $this->httpClient->query(
+                '/api/v2/data/read-events',
+                $this->apiToken,
+                [
+                    'subject' => $subject,
+                    'options' => $readEventsOptions,
+                ],
+            ),
+            'Failed to read events',
         );
-
-        $this->throwIfNotSuccessful($response, 'Failed to read events');
 
         foreach ($this->readItems($response, 'Failed to read events', endsWithEndItem: true) as $item) {
             if ($item->type !== 'event') {
@@ -106,15 +114,16 @@ final readonly class V2Transport implements Transport
 
     public function runEventQlQuery(string $query): iterable
     {
-        $response = $this->httpClient->query(
-            '/api/v2/data/run-eventql-query',
-            $this->apiToken,
-            [
-                'query' => $query,
-            ],
+        $response = $this->send(
+            fn (): Response => $this->httpClient->query(
+                '/api/v2/data/run-eventql-query',
+                $this->apiToken,
+                [
+                    'query' => $query,
+                ],
+            ),
+            'Failed to run EventQL query',
         );
-
-        $this->throwIfNotSuccessful($response, 'Failed to run EventQL query');
 
         foreach ($this->readItems($response, 'Failed to run EventQL query', endsWithEndItem: true) as $item) {
             if ($item->type !== 'row') {
@@ -129,16 +138,17 @@ final readonly class V2Transport implements Transport
 
     public function observeEvents(string $subject, ObserveEventsOptions $observeEventsOptions): iterable
     {
-        $response = $this->httpClient->query(
-            '/api/v2/data/observe-events',
-            $this->apiToken,
-            [
-                'subject' => $subject,
-                'options' => $observeEventsOptions,
-            ],
+        $response = $this->send(
+            fn (): Response => $this->httpClient->query(
+                '/api/v2/data/observe-events',
+                $this->apiToken,
+                [
+                    'subject' => $subject,
+                    'options' => $observeEventsOptions,
+                ],
+            ),
+            'Failed to observe events',
         );
-
-        $this->throwIfNotSuccessful($response, 'Failed to observe events');
 
         foreach ($this->readItems($response, 'Failed to observe events', endsWithEndItem: false) as $item) {
             if ($item->type !== 'event') {
@@ -154,16 +164,17 @@ final readonly class V2Transport implements Transport
         WriteOutcome::guard(
             $this->httpClient,
             function () use ($eventType, $schema): void {
-                $response = $this->httpClient->post(
-                    '/api/v2/data/register-event-schema',
-                    $this->apiToken,
-                    [
-                        'type' => $eventType,
-                        'schema' => $schema,
-                    ],
+                $response = $this->send(
+                    fn (): Response => $this->httpClient->post(
+                        '/api/v2/data/register-event-schema',
+                        $this->apiToken,
+                        [
+                            'type' => $eventType,
+                            'schema' => $schema,
+                        ],
+                    ),
+                    'Failed to register event schema',
                 );
-
-                $this->throwIfNotSuccessful($response, 'Failed to register event schema');
 
                 // The registration is reported within the stream, so it is read
                 // to its end.
@@ -180,18 +191,19 @@ final readonly class V2Transport implements Transport
 
     public function readSubjects(string $subject, ReadSubjectsOptions $readSubjectsOptions): iterable
     {
-        $response = $this->httpClient->query(
-            '/api/v2/data/read-subjects',
-            $this->apiToken,
-            [
-                'subject' => $subject,
-                'options' => [
-                    'recursive' => $readSubjectsOptions->recursive,
+        $response = $this->send(
+            fn (): Response => $this->httpClient->query(
+                '/api/v2/data/read-subjects',
+                $this->apiToken,
+                [
+                    'subject' => $subject,
+                    'options' => [
+                        'recursive' => $readSubjectsOptions->recursive,
+                    ],
                 ],
-            ],
+            ),
+            'Failed to read subjects',
         );
-
-        $this->throwIfNotSuccessful($response, 'Failed to read subjects');
 
         foreach ($this->readItems($response, 'Failed to read subjects', endsWithEndItem: true) as $item) {
             if ($item->type !== 'subject') {
@@ -204,12 +216,13 @@ final readonly class V2Transport implements Transport
 
     public function readEventTypes(): iterable
     {
-        $response = $this->httpClient->query(
-            '/api/v2/data/read-event-types',
-            $this->apiToken,
+        $response = $this->send(
+            fn (): Response => $this->httpClient->query(
+                '/api/v2/data/read-event-types',
+                $this->apiToken,
+            ),
+            'Failed to read event types',
         );
-
-        $this->throwIfNotSuccessful($response, 'Failed to read event types');
 
         foreach ($this->readItems($response, 'Failed to read event types', endsWithEndItem: true) as $item) {
             if ($item->type !== 'eventType') {
@@ -222,15 +235,16 @@ final readonly class V2Transport implements Transport
 
     public function readEventType(string $eventType): EventType
     {
-        $response = $this->httpClient->query(
-            '/api/v2/data/read-event-type',
-            $this->apiToken,
-            [
-                'type' => $eventType,
-            ],
+        $response = $this->send(
+            fn (): Response => $this->httpClient->query(
+                '/api/v2/data/read-event-type',
+                $this->apiToken,
+                [
+                    'type' => $eventType,
+                ],
+            ),
+            'Failed to read event type',
         );
-
-        $this->throwIfNotSuccessful($response, 'Failed to read event type');
 
         $item = $this->readItem($response, 'Failed to read event type');
         if ($item['type'] !== 'eventType' || !is_array($item['data'] ?? null)) {
@@ -252,13 +266,14 @@ final readonly class V2Transport implements Transport
             $requestBody['preconditions'] = $preconditions;
         }
 
-        $response = $this->httpClient->post(
-            '/api/v2/data/write-events',
-            $this->apiToken,
-            $requestBody,
+        $response = $this->send(
+            fn (): Response => $this->httpClient->post(
+                '/api/v2/data/write-events',
+                $this->apiToken,
+                $requestBody,
+            ),
+            'Failed to write events',
         );
-
-        $this->throwIfNotSuccessful($response, 'Failed to write events');
 
         $writtenEvents = [];
         foreach ($this->readItems($response, 'Failed to write events', endsWithEndItem: true, isAnswerToWrite: true) as $item) {
@@ -384,6 +399,36 @@ final readonly class V2Transport implements Transport
             $data['hasEvents'],
             $data['schema'] ?? [],
         );
+    }
+
+    /**
+     * Sends a request, and returns its answer if the server answered it with
+     * 200, and throws otherwise.
+     *
+     * A server that answers a route of the v2 API with 404 or 405 no longer
+     * offers it, e.g. since it was rolled back to a version without it, so
+     * the client forgets the API, and its next request asks again, while this
+     * one fails as it would otherwise. As when asking, the status counts
+     * whoever answers, also another server in front of the database, so it
+     * counts before the answer is checked, even if the HTTP client refuses
+     * the answer for its content type.
+     *
+     * @param Closure(): Response $request the request, which sends exactly one with the HTTP client
+     */
+    private function send(Closure $request, string $scope): Response
+    {
+        try {
+            $response = $request();
+        } finally {
+            $status = $this->httpClient->getLastStatusCode();
+            if ($status === 404 || $status === 405) {
+                ($this->forgetApi)($this);
+            }
+        }
+
+        $this->throwIfNotSuccessful($response, $scope);
+
+        return $response;
     }
 
     private function throwIfNotSuccessful(Response $response, string $scope): void

@@ -16,6 +16,7 @@ class HttpClient
     private const SUPPORTED_CONTENT_TYPES = ['application/json', 'application/x-ndjson', 'text/plain'];
     private CurlMultiHandler $curlMultiHandler;
     private bool $hasLastRequestEstablishedConnection = false;
+    private ?int $lastStatusCode = null;
 
     public function __construct(
         private readonly ?string $baseUrl = null,
@@ -75,6 +76,16 @@ class HttpClient
     }
 
     /**
+     * Returns the status with which the server answered the last request, or
+     * null if it did not answer. It is known also if the request failed once
+     * the answer arrived, such as for a content type that is not supported.
+     */
+    public function getLastStatusCode(): ?int
+    {
+        return $this->lastStatusCode;
+    }
+
+    /**
      * Tells whether the stream that was read last ended because the time that
      * abortIn set was over, rather than because the server ended it.
      */
@@ -86,6 +97,7 @@ class HttpClient
     public function get(string $uri, ?string $apiToken = null): Response
     {
         $this->hasLastRequestEstablishedConnection = false;
+        $this->lastStatusCode = null;
 
         $request = new Request(
             'GET',
@@ -99,6 +111,7 @@ class HttpClient
     public function post(string $uri, ?string $apiToken = null, null|array|object $body = null): Response
     {
         $this->hasLastRequestEstablishedConnection = false;
+        $this->lastStatusCode = null;
 
         $request = new Request(
             'POST',
@@ -117,6 +130,7 @@ class HttpClient
     public function query(string $uri, ?string $apiToken = null, null|array|object $body = null): Response
     {
         $this->hasLastRequestEstablishedConnection = false;
+        $this->lastStatusCode = null;
 
         $request = new Request(
             'QUERY',
@@ -131,6 +145,7 @@ class HttpClient
     public function sendRequest(Request $request): Response
     {
         $this->hasLastRequestEstablishedConnection = false;
+        $this->lastStatusCode = null;
 
         if (!in_array($request->getMethod(), self::SUPPORTED_METHODS, true)) {
             throw new InvalidArgumentException("Internal HttpClient: got Request Method '{$request->getMethod()}', expected one of: " .
@@ -146,6 +161,7 @@ class HttpClient
 
             $headerQueue = $this->curlMultiHandler->getHeaderQueue();
             $responseHeader = $this->parseHeaderQueue($headerQueue);
+            $this->lastStatusCode = $responseHeader->statusCode;
 
             if (!$this->isContentTypeSupported($responseHeader->contentType)) {
                 throw new InvalidArgumentException(
