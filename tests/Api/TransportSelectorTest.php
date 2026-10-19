@@ -17,7 +17,9 @@ use Thenativeweb\Eventsourcingdb\DbApiException;
 use Thenativeweb\Eventsourcingdb\ErrorCode;
 use Thenativeweb\Eventsourcingdb\EventCandidate;
 use Thenativeweb\Eventsourcingdb\EventType;
+use Thenativeweb\Eventsourcingdb\ObserveEventsOptions;
 use Thenativeweb\Eventsourcingdb\OutcomeUnknownException;
+use Thenativeweb\Eventsourcingdb\ReadEventsOptions;
 use Thenativeweb\Eventsourcingdb\ReadSubjectsOptions;
 use Thenativeweb\Eventsourcingdb\Stream\HttpClient;
 use Thenativeweb\Eventsourcingdb\Tests\Trait\ServerTestTrait;
@@ -288,17 +290,22 @@ final class TransportSelectorTest extends TestCase
         }
     }
 
-    public static function readsThroughTheV2Api(): Iterator
+    public static function callsThroughTheV2Api(): Iterator
     {
-        $reads = [
+        $calls = [
             'ping' => static fn (Client $client) => $client->ping(),
-            'readEventType' => static fn (Client $client): EventType => $client->readEventType('io.eventsourcingdb.test'),
+            'verifyApiToken' => static fn (Client $client) => $client->verifyApiToken(),
+            'readEvents' => static fn (Client $client): int => iterator_count($client->readEvents('/test', new ReadEventsOptions(recursive: true))),
+            'runEventQlQuery' => static fn (Client $client): int => iterator_count($client->runEventQlQuery('FROM e IN events PROJECT INTO e')),
+            'observeEvents' => static fn (Client $client): int => iterator_count($client->observeEvents('/test', new ObserveEventsOptions(recursive: true))),
             'readSubjects' => static fn (Client $client): int => iterator_count($client->readSubjects('/test', new ReadSubjectsOptions(recursive: true))),
+            'readEventTypes' => static fn (Client $client): int => iterator_count($client->readEventTypes()),
+            'readEventType' => static fn (Client $client): EventType => $client->readEventType('io.eventsourcingdb.test'),
         ];
 
-        foreach ($reads as $name => $read) {
+        foreach ($calls as $name => $call) {
             foreach (self::answersOfAServerWithoutTheV2Api() as [$status]) {
-                yield "{$name}, {$status}" => [$read, $status];
+                yield "{$name}, {$status}" => [$call, $status];
             }
         }
     }
@@ -357,8 +364,8 @@ final class TransportSelectorTest extends TestCase
         }
     }
 
-    #[DataProvider('readsThroughTheV2Api')]
-    public function testFailsTheRequestAndAsksAgainOnceTheServerDoesNotKnowARouteOfTheV2Api(Closure $read, int $status): void
+    #[DataProvider('callsThroughTheV2Api')]
+    public function testFailsTheRequestAndAsksAgainOnceTheServerDoesNotKnowARouteOfTheV2Api(Closure $call, int $status): void
     {
         // A server that was rolled back to EventSourcingDB 1.2.0 answers the
         // routes of the v2 API as it answers its ping.
@@ -370,7 +377,7 @@ final class TransportSelectorTest extends TestCase
         $client = new Client("http://{$address}", 'secret');
 
         try {
-            $read($client);
+            $call($client);
             $this->fail('Expected the request to fail, but it did not.');
         } catch (DbApiException $dbApiException) {
             $this->assertSame($status, $dbApiException->status);

@@ -8,6 +8,8 @@ use InvalidArgumentException;
 use Throwable;
 
 /**
+ * @internal
+ *
  * @see \Thenativeweb\Eventsourcingdb\Tests\Stream\HttpClientTest
  */
 class HttpClient
@@ -79,6 +81,8 @@ class HttpClient
      * Returns the status with which the server answered the last request, or
      * null if it did not answer. It is known also if the request failed once
      * the answer arrived, such as for a content type that is not supported.
+     *
+     * @internal
      */
     public function getLastStatusCode(): ?int
     {
