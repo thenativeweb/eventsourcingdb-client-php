@@ -28,6 +28,12 @@ trait ServerTestTrait
     private ?string $requestLog = null;
 
     /**
+     * The file that the errors of the server go to, apart from its reports,
+     * so that a failure can name them.
+     */
+    private ?string $serverErrors = null;
+
+    /**
      * The seconds to wait at most for a report of the server, which is far
      * longer than any report takes, even on a machine that is busy, so that a
      * slow start of the server or of a request does not fail a test, while a
@@ -55,6 +61,10 @@ trait ServerTestTrait
 
         if ($this->requestLog !== null && file_exists($this->requestLog)) {
             unlink($this->requestLog);
+        }
+
+        if ($this->serverErrors !== null && file_exists($this->serverErrors)) {
+            unlink($this->serverErrors);
         }
 
         parent::tearDown();
@@ -148,24 +158,35 @@ trait ServerTestTrait
     /**
      * @param array{certificate: string, privateKey: string}|null $tls the files of the certificate and its private key to serve https with
      */
-    private function startServerWithResponses(array $responses, ?array $tls = null, float $startDelay = 0.0): string
+    private function startServerWithResponses(array $responses, ?array $tls = null, float $startDelay = 0.0, bool $failBeforeReporting = false): string
     {
         $this->requestLog = tempnam(sys_get_temp_dir(), 'eventsourcingdb-requests-') ?: null;
         $this->reportsToSkip = 0;
 
+        $serverErrors = tempnam(sys_get_temp_dir(), 'eventsourcingdb-server-errors-');
+        $this->assertIsString($serverErrors);
+        $this->serverErrors = $serverErrors;
+
+        // PHP displays errors on the output if a php.ini tells it to, which
+        // would mix them into the reports, so they go to the error output,
+        // which is kept apart.
         $server = proc_open(
             [
                 PHP_BINARY,
+                '-d',
+                'display_errors=stderr',
                 __DIR__ . '/../Server/heartbeatServer.php',
                 json_encode([
                     'responses' => $responses,
                     'tls' => $tls,
                     'requestLog' => $this->requestLog,
                     'startDelay' => $startDelay,
+                    'failBeforeReporting' => $failBeforeReporting,
                 ], JSON_THROW_ON_ERROR),
             ],
             [
                 1 => ['pipe', 'w'],
+                2 => ['file', $serverErrors, 'w'],
             ],
             $pipes,
         );
@@ -284,12 +305,23 @@ trait ServerTestTrait
 
             $line = fgets($this->serverOutput);
             if ($line === false) {
-                $this->fail("The test server exited without reporting {$what}.");
+                $this->fail("The test server exited without reporting {$what}." . $this->describeServerErrors());
             }
 
             return trim($line);
         }
 
-        $this->fail(sprintf('The test server did not report %s within %d seconds.', $what, self::$reportTimeout));
+        $this->fail(sprintf('The test server did not report %s within %d seconds.', $what, self::$reportTimeout) . $this->describeServerErrors());
+    }
+
+    /**
+     * Returns the errors of the server, if there are any, to append to the
+     * message of a failure.
+     */
+    private function describeServerErrors(): string
+    {
+        $errors = $this->serverErrors === null ? '' : trim((string) @file_get_contents($this->serverErrors));
+
+        return $errors === '' ? '' : " Its errors: {$errors}";
     }
 }

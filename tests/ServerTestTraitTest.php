@@ -33,6 +33,30 @@ final class ServerTestTraitTest extends TestCase
         $this->assertSame(['/test'], $subjects);
     }
 
+    public function testFailsIfTheServerFailsBeforeReportingItsAddressAlsoIfPhpDisplaysErrors(): void
+    {
+        // A php.ini may tell PHP to display errors, which it does on the
+        // output that the server reports on.
+        $iniDirectory = sys_get_temp_dir() . '/eventsourcingdb-ini-' . bin2hex(random_bytes(8));
+        mkdir($iniDirectory);
+        file_put_contents("{$iniDirectory}/display-errors.ini", "display_errors = On\n");
+
+        // An empty entry keeps the directory that PHP scans by default.
+        $scanDirectory = getenv('PHP_INI_SCAN_DIR');
+        putenv('PHP_INI_SCAN_DIR=' . PATH_SEPARATOR . $iniDirectory);
+
+        try {
+            $this->expectException(AssertionFailedError::class);
+            $this->expectExceptionMessage('The test server exited without reporting its address');
+
+            $this->startServerWithResponses([], failBeforeReporting: true);
+        } finally {
+            putenv($scanDirectory === false ? 'PHP_INI_SCAN_DIR' : 'PHP_INI_SCAN_DIR=' . $scanDirectory);
+            unlink("{$iniDirectory}/display-errors.ini");
+            rmdir($iniDirectory);
+        }
+    }
+
     public function testFailsIfTheServerExitsWithoutReporting(): void
     {
         // A server without responses exits right after reporting its address.

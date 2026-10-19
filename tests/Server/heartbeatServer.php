@@ -22,7 +22,9 @@ declare(strict_types=1);
  * JSON with its method, its path, and its body, before answering it.
  *
  * It reports its address once it listens, after the given start delay, which
- * stands in for a machine so busy that starting the server takes long.
+ * stands in for a machine so busy that starting the server takes long. If it
+ * is told to fail before reporting, it throws instead, which stands in for a
+ * server that fails to start.
  *
  * If a certificate is given, it serves https with it and the given private
  * key. A client that does not trust the certificate either breaks off the TLS
@@ -163,6 +165,10 @@ if ($server === false) {
 }
 
 usleep((int) (($options['startDelay'] ?? 0.0) * 1_000_000));
+
+if ($options['failBeforeReporting'] ?? false) {
+    throw new RuntimeException('The test server was told to fail before reporting its address.');
+}
 
 echo stream_socket_get_name($server, false) . "\n";
 
