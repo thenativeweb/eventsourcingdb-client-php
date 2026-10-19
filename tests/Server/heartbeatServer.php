@@ -167,7 +167,10 @@ usleep((int) (($options['startDelay'] ?? 0.0) * 1_000_000));
 echo stream_socket_get_name($server, false) . "\n";
 
 foreach ($options['responses'] as $response) {
-    $connection = stream_socket_accept($server, 10);
+    // The test waits a minute at most for a report, so the server waits as
+    // long for the next request, which a busy machine may send late. The
+    // test ends the server in any case once it is done.
+    $connection = stream_socket_accept($server, 60);
     if ($connection === false) {
         exit(1);
     }
