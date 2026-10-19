@@ -689,6 +689,15 @@ $verificationKey = $container->getVerificationKey();
 
 The `signingKey` is the private key EventSourcingDB signs events with. The `verificationKey` can be passed to `verifySignature` when verifying events read from the database.
 
+The `start` function pulls the image if it is missing, and then waits until the database in the container answers a ping, for 30 seconds at most, not counting the pull. To change this time, call the `withStartupTimeout` function with the seconds:
+
+```php
+$container = new Container()
+  ->withStartupTimeout(60);
+```
+
+If a container keeps running, but does not become reachable in time, `start` replaces it with a new one, up to three containers in total, and then throws a `RuntimeException`. If Docker fails, or if the container exits, `start` throws a `RuntimeException` at once, which, if the container exited, contains the last 20 lines of its log. In any case, `start` removes every container that it failed to start.
+
 #### Configuring the Client Manually
 
 In case you need to set up the client yourself, use the following functions to get details on the container:

@@ -7,21 +7,27 @@ namespace Thenativeweb\Eventsourcingdb\Tests;
 use Closure;
 use Docker\API\Exception\ContainerDeleteConflictException;
 use Docker\API\Exception\ContainerDeleteNotFoundException;
+use Docker\API\Exception\ImageCreateNotFoundException;
 use Docker\API\Model\ContainerCreateResponse;
 use Docker\API\Model\ContainerSummary;
 use Docker\API\Model\ErrorResponse;
 use Docker\Docker;
 use Exception;
+use InvalidArgumentException;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
 use RuntimeException;
 use Testcontainers\ContainerClient\DockerContainerClient;
-use Testcontainers\Exception\ContainerException;
 use Thenativeweb\Eventsourcingdb\Container;
+use Thenativeweb\Eventsourcingdb\Tests\Docker\RecordingDocker;
+use Thenativeweb\Eventsourcingdb\Tests\Trait\ReflectionTestTrait;
 use function Thenativeweb\Eventsourcingdb\Tests\Fn\getImageTag;
 
 final class ContainerTest extends TestCase
 {
+    use ReflectionTestTrait;
+
     private ?Container $container = null;
 
     private ?Docker $realDockerClient = null;
@@ -60,6 +66,8 @@ final class ContainerTest extends TestCase
 
     public function testStartsWithACustomPort(): void
     {
+        $recordingDocker = $this->useRecordingDocker();
+
         $imageTag = getImageTag();
         $this->container = (new Container())
             ->withImageTag($imageTag)
@@ -69,41 +77,144 @@ final class ContainerTest extends TestCase
         $client = $this->container->getClient();
 
         $client->ping();
-        $this->expectNotToPerformAssertions();
+        $this->assertCount(1, $recordingDocker->startLabels);
     }
 
-    public function testRemovesContainersThatDoNotBecomeReady(): void
+    public function testReadsTheMappedPortAgainOnEveryPoll(): void
     {
+        // Docker shows the published port of each container only from its
+        // fourth inspection on, as if it published the port late.
+        $recordingDocker = $this->useRecordingDocker(inspectionsWithoutPorts: 3);
+
         $imageTag = getImageTag();
-        $containerIdsBefore = $this->getStartedContainerIds();
+        $this->container = (new Container())->withImageTag($imageTag);
+        $this->container->start();
+
+        $client = $this->container->getClient();
+
+        $client->ping();
+        $this->assertCount(1, $recordingDocker->startLabels);
+    }
+
+    public function testReplacesContainersThatDoNotBecomeReachable(): void
+    {
+        // Docker never shows the published port, so the database runs, but
+        // never becomes reachable.
+        $recordingDocker = $this->useRecordingDocker(inspectionsWithoutPorts: null);
+
+        $imageTag = getImageTag();
+        $this->container = (new Container())
+            ->withImageTag($imageTag)
+            ->withStartupTimeout(0.5);
+
+        $startedAt = microtime(true);
+        $exception = $this->startAndCatch($this->container);
+        $elapsed = microtime(true) - $startedAt;
+
+        $this->assertInstanceOf(RuntimeException::class, $exception);
+        $this->assertSame(
+            'Failed to start the container, the database did not become reachable within 0.5s in any of 3 containers',
+            $exception->getMessage(),
+        );
+        $this->assertFalse($this->container->isRunning());
+        $this->assertCount(3, $recordingDocker->startLabels);
+        $this->assertCount(3, array_unique($recordingDocker->startLabels));
+        $this->assertNoContainersAreLeft($recordingDocker);
+
+        // Each of the three containers gets the configured startup timeout,
+        // rather than the default of 30 seconds.
+        $this->assertGreaterThanOrEqual(1.5, $elapsed);
+        $this->assertLessThan(30.0, $elapsed);
+    }
+
+    public function testFailsAtOnceIfTheContainerExits(): void
+    {
+        $recordingDocker = $this->useRecordingDocker();
 
         // Without an API token, EventSourcingDB exits right away.
+        $imageTag = getImageTag();
         $this->container = (new Container())
             ->withImageTag($imageTag)
             ->withApiToken('');
 
-        $exception = null;
-        try {
-            $this->container->start();
-        } catch (ContainerException $containerException) {
-            $exception = $containerException;
-        }
+        $exception = $this->startAndCatch($this->container);
 
-        $this->assertInstanceOf(ContainerException::class, $exception);
-        $this->assertSame([], array_values(array_diff($this->getStartedContainerIds(), $containerIdsBefore)));
+        $this->assertInstanceOf(RuntimeException::class, $exception);
+        $this->assertStringStartsWith(
+            'Failed to start the container, it exited before the database became reachable: ',
+            $exception->getMessage(),
+        );
+        $this->assertStringContainsString('you must specify an API token', $exception->getMessage());
+        $logTail = substr($exception->getMessage(), strlen('Failed to start the container, it exited before the database became reachable: '));
+        $this->assertLessThanOrEqual(20, count(explode("\n", $logTail)));
+        $this->assertFalse($this->container->isRunning());
+        $this->assertCount(1, $recordingDocker->startLabels);
+        $this->assertNoContainersAreLeft($recordingDocker);
     }
 
-    public function testRemovesContainersThatFailAfterTheyWereCreated(): void
+    public function testFailsAtOnceIfDockerFails(): void
+    {
+        $recordingDocker = $this->useRecordingDocker();
+
+        $this->container = (new Container())->withImageTag('this-tag-does-not-exist');
+
+        $exception = $this->startAndCatch($this->container);
+
+        $this->assertInstanceOf(RuntimeException::class, $exception);
+        $previous = $exception->getPrevious();
+        $this->assertInstanceOf(ImageCreateNotFoundException::class, $previous);
+        $this->assertSame(
+            'Failed to start the container: ' . $previous->getErrorResponse()->getMessage(),
+            $exception->getMessage(),
+        );
+        $this->assertStringContainsString('this-tag-does-not-exist', $exception->getMessage());
+        $this->assertFalse($this->container->isRunning());
+        $this->assertSame([], $recordingDocker->startLabels);
+    }
+
+    public function testUsesAStartupTimeoutOf30SecondsByDefault(): void
+    {
+        $this->assertEqualsWithDelta(30.0, $this->getPropertyValue(new Container(), 'startupTimeout'), PHP_FLOAT_EPSILON);
+    }
+
+    public function testUsesTheConfiguredStartupTimeout(): void
+    {
+        $container = (new Container())->withStartupTimeout(1.5);
+
+        $this->assertEqualsWithDelta(1.5, $this->getPropertyValue($container, 'startupTimeout'), PHP_FLOAT_EPSILON);
+    }
+
+    #[DataProvider('provideInvalidStartupTimeouts')]
+    public function testRejectsAStartupTimeoutThatIsNotAPositiveNumberOfSeconds(float $startupTimeout): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('The startup timeout must be a positive number of seconds');
+
+        (new Container())->withStartupTimeout($startupTimeout);
+    }
+
+    /**
+     * @return iterable<string, array{float}>
+     */
+    public static function provideInvalidStartupTimeouts(): iterable
+    {
+        yield 'zero' => [0.0];
+        yield 'negative' => [-1.0];
+        yield 'infinite' => [INF];
+        yield 'not a number' => [NAN];
+    }
+
+    public function testFailsAtOnceAndRemovesTheContainerIfDockerFailsToStartIt(): void
     {
         $this->useFakeDocker(function (string $containerId): void {
             unset($this->fakeContainers[$containerId]);
         });
 
-        $exception = $this->startAndCatch();
+        $exception = $this->startAndCatch(new Container());
 
-        $this->assertSame($this->startExceptions[1], $exception);
-        $this->assertNull($exception->getPrevious());
-        $this->assertSame(['container-1', 'container-2'], $this->deletedContainerIds);
+        $this->assertDockerFailure($exception);
+        $this->assertNull($exception?->getPrevious()?->getPrevious());
+        $this->assertSame(['container-1'], $this->deletedContainerIds);
         $this->assertSame([], $this->fakeContainers);
     }
 
@@ -115,11 +226,11 @@ final class ContainerTest extends TestCase
             throw new ContainerDeleteNotFoundException(new ErrorResponse(), $this->createStub(ResponseInterface::class));
         });
 
-        $exception = $this->startAndCatch();
+        $exception = $this->startAndCatch(new Container());
 
-        $this->assertSame($this->startExceptions[1], $exception);
-        $this->assertNull($exception->getPrevious());
-        $this->assertSame(['container-1', 'container-2'], $this->deletedContainerIds);
+        $this->assertDockerFailure($exception);
+        $this->assertNull($exception?->getPrevious()?->getPrevious());
+        $this->assertSame(['container-1'], $this->deletedContainerIds);
         $this->assertSame([], $this->fakeContainers);
     }
 
@@ -133,10 +244,10 @@ final class ContainerTest extends TestCase
             throw new ContainerDeleteConflictException(new ErrorResponse(), $this->createStub(ResponseInterface::class));
         });
 
-        $exception = $this->startAndCatch();
+        $exception = $this->startAndCatch(new Container());
 
-        $this->assertSame($this->startExceptions[1], $exception);
-        $this->assertNull($exception->getPrevious());
+        $this->assertDockerFailure($exception);
+        $this->assertNull($exception?->getPrevious()?->getPrevious());
         $this->assertSame([], $this->fakeContainers);
     }
 
@@ -145,15 +256,61 @@ final class ContainerTest extends TestCase
         // Docker accepts every removal, but keeps listing the containers.
         $this->useFakeDocker(static function (): void {});
 
-        $exception = $this->startAndCatch();
+        $exception = $this->startAndCatch(new Container());
 
-        $this->assertSame($this->startExceptions[1], $exception);
-        $previous = $exception->getPrevious();
+        $this->assertDockerFailure($exception);
+        $previous = $exception?->getPrevious()?->getPrevious();
         $this->assertInstanceOf(RuntimeException::class, $previous);
         $this->assertSame(
-            'Failed to remove containers container-1, container-2 within 5 seconds.',
+            'Failed to remove containers container-1 within 5 seconds.',
             $previous->getMessage(),
         );
+    }
+
+    /**
+     * Asserts that starting failed at once with the error of the fake
+     * Docker client, after it had created a single container.
+     */
+    private function assertDockerFailure(?Exception $exception): void
+    {
+        $this->assertCount(1, $this->startExceptions);
+        $this->assertInstanceOf(RuntimeException::class, $exception);
+        $this->assertSame('Failed to start the container: Failed to start container-1.', $exception->getMessage());
+        $this->assertSame($this->startExceptions[0], $exception->getPrevious());
+        $this->assertSame(1, $this->fakeContainersCreated);
+    }
+
+    /**
+     * Replaces the Docker client of Testcontainers with one that talks to the
+     * real Docker, and records the containers it creates.
+     */
+    private function useRecordingDocker(?int $inspectionsWithoutPorts = 0): RecordingDocker
+    {
+        $this->realDockerClient = DockerContainerClient::getDockerClient();
+
+        $recordingDocker = RecordingDocker::connect();
+        $recordingDocker->inspectionsWithoutPorts = $inspectionsWithoutPorts;
+        DockerContainerClient::setDockerClient($recordingDocker);
+
+        return $recordingDocker;
+    }
+
+    /**
+     * Asserts that no container is left that carries the start label of any
+     * container the recording Docker client created.
+     */
+    private function assertNoContainersAreLeft(RecordingDocker $recordingDocker): void
+    {
+        foreach ($recordingDocker->startLabels as $startLabel) {
+            $containers = $recordingDocker->containerList([
+                'all' => true,
+                'filters' => json_encode([
+                    'label' => ['io.eventsourcingdb.container-start=' . $startLabel],
+                ], JSON_THROW_ON_ERROR),
+            ]);
+
+            $this->assertSame([], $containers);
+        }
     }
 
     /**
@@ -214,40 +371,15 @@ final class ContainerTest extends TestCase
         DockerContainerClient::setDockerClient($docker);
     }
 
-    private function startAndCatch(): ?Exception
+    private function startAndCatch(Container $container): ?Exception
     {
         $exception = null;
         try {
-            (new Container())->start();
+            $container->start();
         } catch (Exception $caughtException) {
             $exception = $caughtException;
         }
 
         return $exception;
-    }
-
-    /**
-     * @return list<string>
-     */
-    // Lists the containers that a Container of this SDK started, by the label
-    // it puts on them. Containers that anything else starts at the same time,
-    // e.g. the test suite of another SDK, do not carry it.
-    private function getStartedContainerIds(): array
-    {
-        $containers = DockerContainerClient::getDockerClient()->containerList([
-            'all' => true,
-            'filters' => json_encode([
-                'label' => ['io.eventsourcingdb.container-start'],
-            ], JSON_THROW_ON_ERROR),
-        ]);
-        $this->assertIsArray($containers);
-
-        $containerIds = array_map(
-            static fn (ContainerSummary $containerSummary): string => (string) $containerSummary->getId(),
-            $containers,
-        );
-        sort($containerIds);
-
-        return $containerIds;
     }
 }
