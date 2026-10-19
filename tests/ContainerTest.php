@@ -5,16 +5,24 @@ declare(strict_types=1);
 namespace Thenativeweb\Eventsourcingdb\Tests;
 
 use Closure;
+use Docker\API\Exception\ContainerCreateBadRequestException;
 use Docker\API\Exception\ContainerDeleteConflictException;
 use Docker\API\Exception\ContainerDeleteNotFoundException;
 use Docker\API\Exception\ImageCreateNotFoundException;
+use Docker\API\Exception\ImageInspectNotFoundException;
 use Docker\API\Model\ContainerCreateResponse;
+use Docker\API\Model\ContainersIdJsonGetResponse200;
+use Docker\API\Model\ContainerState;
 use Docker\API\Model\ContainerSummary;
 use Docker\API\Model\ErrorResponse;
+use Docker\API\Runtime\Client\Endpoint;
 use Docker\Docker;
+use Docker\Stream\DockerRawStream;
 use Exception;
 use InvalidArgumentException;
+use Nyholm\Psr7\Stream;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
 use RuntimeException;
@@ -157,24 +165,98 @@ final class ContainerTest extends TestCase
         $this->assertNoContainersAreLeft($recordingDocker);
     }
 
-    public function testFailsAtOnceIfDockerFails(): void
+    public function testFailsAtOnceIfDockerRejectsTheImage(): void
     {
         $recordingDocker = $this->useRecordingDocker();
 
-        $this->container = (new Container())->withImageTag('this-tag-does-not-exist');
+        // Docker rejects the reference on its own, without asking a registry.
+        $this->container = (new Container())->withImageTag('not a valid tag');
 
         $exception = $this->startAndCatch($this->container);
 
         $this->assertInstanceOf(RuntimeException::class, $exception);
         $previous = $exception->getPrevious();
-        $this->assertInstanceOf(ImageCreateNotFoundException::class, $previous);
+        $this->assertInstanceOf(ContainerCreateBadRequestException::class, $previous);
         $this->assertSame(
             'Failed to start the container: ' . $previous->getErrorResponse()->getMessage(),
             $exception->getMessage(),
         );
-        $this->assertStringContainsString('this-tag-does-not-exist', $exception->getMessage());
         $this->assertFalse($this->container->isRunning());
-        $this->assertSame([], $recordingDocker->startLabels);
+        $this->assertCount(1, $recordingDocker->startLabels);
+        $this->assertNoContainersAreLeft($recordingDocker);
+    }
+
+    public function testFailsAtOnceIfPullingTheImageFails(): void
+    {
+        $docker = $this->useFakeDocker(function (string $containerId): void {
+            unset($this->fakeContainers[$containerId]);
+        });
+        $docker->method('imageInspect')
+            ->willThrowException(new ImageInspectNotFoundException(
+                (new ErrorResponse())->setMessage('No such image: thenativeweb/eventsourcingdb:latest'),
+                $this->createStub(ResponseInterface::class),
+            ));
+        $imageCreateNotFoundException = new ImageCreateNotFoundException(
+            (new ErrorResponse())->setMessage('manifest for thenativeweb/eventsourcingdb:latest not found: manifest unknown'),
+            $this->createStub(ResponseInterface::class),
+        );
+        $docker->method('executeEndpoint')
+            ->willThrowException($imageCreateNotFoundException);
+
+        $exception = $this->startAndCatch(new Container());
+
+        $this->assertInstanceOf(RuntimeException::class, $exception);
+        $this->assertSame(
+            'Failed to start the container: manifest for thenativeweb/eventsourcingdb:latest not found: manifest unknown',
+            $exception->getMessage(),
+        );
+        $this->assertSame($imageCreateNotFoundException, $exception->getPrevious());
+        $this->assertSame(0, $this->fakeContainersCreated);
+    }
+
+    public function testEndsTheMessageOfAnExitedContainerWithTheLast20LinesOfItsLog(): void
+    {
+        // Docker's own tail counts the blank lines at the end of a log, so
+        // asking it for 20 lines would yield only the last 18 of these.
+        $logLines = [...array_map(static fn (int $number): string => "line {$number}", range(1, 25)), '', ''];
+
+        $docker = $this->useFakeDocker(
+            function (string $containerId): void {
+                unset($this->fakeContainers[$containerId]);
+            },
+            static function (): void {},
+        );
+        $docker->method('containerInspect')
+            ->willReturn(
+                (new ContainersIdJsonGetResponse200())->setState((new ContainerState())->setStatus('exited')),
+            );
+        $docker->method('executeEndpoint')
+            ->willReturnCallback(static function (Endpoint $endpoint) use ($logLines): DockerRawStream {
+                // Answers like Docker, which returns the given number of log
+                // entries from the end, blank ones included, as frames of
+                // stdout and stderr.
+                parse_str($endpoint->getQueryString(), $queryParameters);
+                $tail = $queryParameters['tail'] ?? 'all';
+                $entries = $tail === 'all' ? $logLines : array_slice($logLines, -(int) $tail);
+
+                $frames = '';
+                foreach ($entries as $index => $entry) {
+                    $frames .= pack('CxxxN', $index % 2 === 0 ? 1 : 2, strlen($entry) + 1) . $entry . "\n";
+                }
+
+                return new DockerRawStream(Stream::create($frames));
+            });
+
+        $exception = $this->startAndCatch(new Container());
+
+        $this->assertInstanceOf(RuntimeException::class, $exception);
+        $this->assertSame(
+            'Failed to start the container, it exited before the database became reachable: ' .
+            implode("\n", array_slice($logLines, 5, 20)),
+            $exception->getMessage(),
+        );
+        $this->assertSame(1, $this->fakeContainersCreated);
+        $this->assertSame(['container-1'], $this->deletedContainerIds);
     }
 
     public function testUsesAStartupTimeoutOf30SecondsByDefault(): void
@@ -320,12 +402,13 @@ final class ContainerTest extends TestCase
 
     /**
      * Replaces the Docker client of Testcontainers with a fake one, which
-     * creates containers that then fail to start. Removing a container is
-     * left to the given function.
+     * creates containers that then fail to start, unless the given function
+     * starts them instead. Removing a container is left to the given function.
      *
      * @param Closure(string): void $deleteContainer
+     * @param (Closure(string): void)|null $startContainer
      */
-    private function useFakeDocker(Closure $deleteContainer): void
+    private function useFakeDocker(Closure $deleteContainer, ?Closure $startContainer = null): Stub&Docker
     {
         $this->realDockerClient = DockerContainerClient::getDockerClient();
 
@@ -338,7 +421,7 @@ final class ContainerTest extends TestCase
                 return (new ContainerCreateResponse())->setId($containerId);
             });
         $docker->method('containerStart')
-            ->willReturnCallback(function (string $containerId): never {
+            ->willReturnCallback($startContainer ?? function (string $containerId): never {
                 $runtimeException = new RuntimeException("Failed to start {$containerId}.");
                 $this->startExceptions[] = $runtimeException;
 
@@ -374,6 +457,8 @@ final class ContainerTest extends TestCase
             );
 
         DockerContainerClient::setDockerClient($docker);
+
+        return $docker;
     }
 
     private function startAndCatch(Container $container): ?Exception
