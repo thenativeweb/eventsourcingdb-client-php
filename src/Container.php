@@ -355,11 +355,13 @@ final class Container
         $logs = $this->callDocker(static function () use ($docker, $containerId): string {
             $logs = '';
             // The endpoint is executed directly, since the declared return
-            // type of containerLogs does not cover the stream it returns.
+            // type of containerLogs does not cover the stream it returns. The
+            // whole log is read rather than Docker's tail of it, which counts
+            // blank lines at the end, so that the tail below holds as many
+            // lines as it can.
             $dockerRawStream = $docker->executeEndpoint(new ContainerLogs($containerId, [
                 'stdout' => true,
                 'stderr' => true,
-                'tail' => (string) self::LOG_TAIL_LINES,
             ]));
 
             if ($dockerRawStream instanceof DockerRawStream) {

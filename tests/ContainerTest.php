@@ -140,15 +140,20 @@ final class ContainerTest extends TestCase
         $exception = $this->startAndCatch($this->container);
 
         $this->assertInstanceOf(RuntimeException::class, $exception);
-        $this->assertStringStartsWith(
-            'Failed to start the container, it exited before the database became reachable: ',
-            $exception->getMessage(),
-        );
-        $this->assertStringContainsString('you must specify an API token', $exception->getMessage());
-        $logTail = substr($exception->getMessage(), strlen('Failed to start the container, it exited before the database became reachable: '));
-        $this->assertLessThanOrEqual(20, count(explode("\n", $logTail)));
         $this->assertFalse($this->container->isRunning());
         $this->assertCount(1, $recordingDocker->startLabels);
+
+        // EventSourcingDB writes its error and its usage to different
+        // streams, so where the error lands in the log varies, and the
+        // message is compared to the end of the whole log instead.
+        $this->assertCount(1, $recordingDocker->logsOfRemovedContainers);
+        $logLines = explode("\n", rtrim(array_values($recordingDocker->logsOfRemovedContainers)[0]));
+        $this->assertGreaterThan(20, count($logLines));
+        $this->assertSame(
+            'Failed to start the container, it exited before the database became reachable: ' .
+            implode("\n", array_slice($logLines, -20)),
+            $exception->getMessage(),
+        );
         $this->assertNoContainersAreLeft($recordingDocker);
     }
 
