@@ -37,9 +37,11 @@ trait ServerTestTrait
      * The seconds to wait at most for a report of the server, which is far
      * longer than any report takes, even on a machine that is busy, so that a
      * slow start of the server or of a request does not fail a test, while a
-     * report that never comes still does.
+     * report that never comes still does. It is longer than the minute that
+     * the server waits for the next connection, so that a server that gives
+     * up on it exits first, and the test fails with a message that says so.
      */
-    private static float $reportTimeout = 60.0;
+    private static float $reportTimeout = 70.0;
 
     /**
      * The outcomes of a connection that the server reports.
