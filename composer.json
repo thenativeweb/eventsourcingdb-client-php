@@ -52,6 +52,7 @@
       "@test"
     ],
     "test": [
+      "Composer\\Config::disableProcessTimeout",
       "vendor/bin/phpunit --testsuite \"HttpClient\"",
       "vendor/bin/phpunit --testsuite \"EsdbClient\""
     ]
