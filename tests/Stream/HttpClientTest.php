@@ -345,6 +345,55 @@ final class HttpClientTest extends TestCase
         $this->assertTrue($httpClient->hasLastRequestEstablishedConnection());
     }
 
+    public function testTellsTheStatusOfTheLastAnswerAlsoIfItsContentTypeIsNotSupported(): void
+    {
+        $address = $this->startServerWithResponses([
+            $this->response([], interval: 0.0, holdFor: 0.0, contentType: 'text/html', status: 404),
+        ]);
+
+        $httpClient = new HttpClient("http://{$address}");
+
+        try {
+            $httpClient->query('/api/v2/data/read-events', 'secret');
+            $this->fail('Expected the response to be refused, but it was not.');
+        } catch (InvalidArgumentException $invalidArgumentException) {
+            $this->assertStringStartsWith("Internal HttpClient: got Content-Type 'text/html'", $invalidArgumentException->getMessage());
+        }
+
+        $this->assertSame(404, $httpClient->getLastStatusCode());
+
+        // A request whose body can not be encoded fails before it is sent, so
+        // it has no status, rather than that of the request before it.
+        try {
+            $httpClient->post('/api/v2/data/write-events', 'secret', [
+                'value' => NAN,
+            ]);
+            $this->fail('Expected the request to fail, but it did not.');
+        } catch (InvalidArgumentException $invalidArgumentException) {
+            $this->assertStringStartsWith('Internal HttpClient: Failed to encode body to JSON', $invalidArgumentException->getMessage());
+        }
+
+        $this->assertNull($httpClient->getLastStatusCode());
+    }
+
+    public function testTellsThatARequestWithoutAnAnswerHasNoStatus(): void
+    {
+        $address = $this->startServerWithResponses([
+            $this->response([], interval: 0.0, holdFor: 0.0, status: 404),
+            $this->response([], interval: 0.0, holdFor: 0.0, dropConnection: true),
+        ]);
+
+        $httpClient = new HttpClient("http://{$address}");
+        $httpClient->post('/api/v2/data/write-events', 'secret')
+            ->getStream()
+            ->getContents();
+
+        $this->assertSame(404, $httpClient->getLastStatusCode());
+
+        $this->assertFailsToSend($httpClient);
+        $this->assertNull($httpClient->getLastStatusCode());
+    }
+
     private function assertFailsToSend(HttpClient $httpClient, string $uri = '/api/v2/data/write-events'): void
     {
         try {
