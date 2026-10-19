@@ -327,7 +327,7 @@ foreach ($events as $event) {
 
 *Note that EventSourcingDB sends a heartbeat every second while there are no events to send. If neither an event nor a heartbeat arrives for the [stall timeout](#configuring-the-stall-timeout), which is 30 seconds by default, e.g. because the connection stalled, the iterator closes the connection and throws a `ConnectionStalledException`.*
 
-*Note that EventSourcingDB never ends an observation on its own, other than with an error, which the iterator throws as a `DbApiException`, e.g. with the `errorCode` `ErrorCode::SERVER_SHUTTING_DOWN` once the server shuts down. If its response ends cleanly nonetheless, e.g. because a proxy ends it, the iterator throws a `RuntimeException` that says the stream broke off, and if the connection breaks, it throws a `RuntimeException` that says so. Only `abortIn` and leaving the loop end an observation without an exception.*
+*Note that EventSourcingDB never ends an observation on its own, other than with an error, which the iterator throws as a `DbApiException`, e.g. with the `errorCode` `ErrorCode::SERVER_SHUTTING_DOWN` once a server that offers the v2 API shuts down. If its response ends cleanly nonetheless, e.g. because a proxy ends it, the iterator throws a `RuntimeException` that says the stream broke off, and if the connection breaks, it throws a `RuntimeException` that says so. Only `abortIn` and leaving the loop end an observation without an exception.*
 
 *Note that if you leave the `foreach` loop early, e.g. with `break`, the connection is closed once the iterator is released. If you keep the iterator in a variable, such as `$events`, the connection therefore stays open until you release the variable, e.g. with `unset($events)`.*
 
