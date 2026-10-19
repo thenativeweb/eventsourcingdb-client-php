@@ -700,7 +700,7 @@ In case you need to set up the client yourself, use the following functions to g
 
 ## Upgrading From Version 1
 
-Version 2 of the client SDK speaks the v2 API of EventSourcingDB wherever the server offers it, and the v1 API otherwise, see [Getting Started](#getting-started). It changes the following:
+Version 2 of the client SDK speaks the v2 API of EventSourcingDB wherever the server offers it, and the v1 API otherwise, see [Talking to Servers With and Without the v2 API](#talking-to-servers-with-and-without-the-v2-api). It changes the following:
 
 - **Event types follow the v2 API.** `EventType::$eventType` is now `EventType::$type`, and `EventType::$isPhantom` is replaced by `EventType::$hasEvents`, which is its opposite. The constructor and `jsonSerialize` follow suit:
 
