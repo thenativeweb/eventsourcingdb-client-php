@@ -598,6 +598,19 @@ try {
 }
 ```
 
+#### Aborting a Request
+
+To abort a request, call `abortIn` before it, with the abort time in seconds. It applies only to the stream currently being read, or, if there is none, to the next request, so later requests of the client are not aborted:
+
+```php
+$client->abortIn(5.0);
+$writtenEvents = $client->writeEvents([
+  // events
+]);
+```
+
+*Note that if `abortIn` aborts `writeEvents` or `registerEventSchema` after the request was sent, the client throws an `OutcomeUnknownException`, since the server may have stored the write nonetheless.*
+
 ### Verifying an Event's Hash
 
 To verify the integrity of an event, call the `verifyHash` function on the event instance. This recomputes the event's hash locally and compares it to the hash stored in the event. If the hashes differ, the function throws a `HashVerificationFailedException`:
