@@ -635,6 +635,8 @@ try {
 
 *Note that if `abortIn` aborts `writeEvents` or `registerEventSchema` once the connection to the server is established, the client throws an `OutcomeUnknownException` whose previous exception is the `RequestAbortedException`, since the server may have stored the write nonetheless. If it aborts the write before, e.g. while asking the server which API it offers or while connecting, the client throws the `RequestAbortedException` itself, since the write was certainly not stored.*
 
+*Note that a request that you send while a stream is read, e.g. a write within the `foreach` loop over an observation, cannot get an abort time of its own through the same client, since `abortIn` then applies to the stream. To abort such a request, send it through a second client.*
+
 ### Verifying an Event's Hash
 
 To verify the integrity of an event, call the `verifyHash` function on the event instance. This recomputes the event's hash locally and compares it to the hash stored in the event. If the hashes differ, the function throws a `HashVerificationFailedException`:
