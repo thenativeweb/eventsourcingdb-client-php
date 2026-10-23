@@ -148,7 +148,7 @@ class HttpClient
             'POST',
             $this->buildUri($uri),
             $this->buildHeaders($apiToken, $body),
-            $this->buildBody($body),
+            $this->buildBodyOfRequest($body),
         );
 
         return $this->sendRequest($request);
@@ -167,7 +167,7 @@ class HttpClient
             'QUERY',
             $this->buildUri($uri),
             $this->buildHeaders($apiToken, $body),
-            $this->buildBody($body),
+            $this->buildBodyOfRequest($body),
         );
 
         return $this->sendRequest($request);
@@ -253,5 +253,22 @@ class HttpClient
         }
 
         return false;
+    }
+
+    /**
+     * Encodes the body of a request that is about to be sent. A body that
+     * cannot be encoded fails the request before it is sent, so it uses up an
+     * abort time that waits for the request, as every request that fails
+     * before it is sent does, rather than leave it to a later request.
+     */
+    private function buildBodyOfRequest(null|array|object $body): string
+    {
+        try {
+            return $this->buildBody($body);
+        } catch (InvalidArgumentException $invalidArgumentException) {
+            $this->useUpAbortTimeOfNextRequest();
+
+            throw $invalidArgumentException;
+        }
     }
 }

@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace Thenativeweb\Eventsourcingdb\Tests;
 
 use Closure;
+use InvalidArgumentException;
 use Iterator;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Thenativeweb\Eventsourcingdb\Client;
+use Thenativeweb\Eventsourcingdb\EventCandidate;
 use Thenativeweb\Eventsourcingdb\ObserveEventsOptions;
 use Thenativeweb\Eventsourcingdb\OutcomeUnknownException;
 use Thenativeweb\Eventsourcingdb\ReadEventsOptions;
@@ -302,6 +304,45 @@ final class AbortInTest extends TestCase
         $this->assertGreaterThanOrEqual($abortTime, $processTime);
         $this->assertLessThan($abortTime * 1.4, $processTime, "Expected the stream to end at the abort time counted from the call, but it took {$processTime} seconds.");
         $this->assertSame('closed', $this->readServerReport(), 'Expected the connection to be closed.');
+    }
+
+    public function testUsesUpTheAbortTimeOfARequestWhoseBodyCannotBeEncoded(): void
+    {
+        $address = $this->startDatabase('v2', [
+            $this->pingResponse('v2'),
+            $this->pingResponse('v2'),
+        ]);
+        $client = new Client("http://{$address}", 'secret', stallTimeout: self::STALL_TIMEOUT);
+
+        $client->ping();
+        $this->assertSame('ended', $this->readServerReport());
+
+        $client->abortIn(self::ABORT_TIME);
+
+        // JSON cannot hold a string that is not valid UTF-8, so the write
+        // fails before it is sent.
+        try {
+            $client->writeEvents([
+                new EventCandidate(
+                    source: 'https://www.eventsourcingdb.io',
+                    subject: '/test',
+                    type: 'io.eventsourcingdb.test',
+                    data: [
+                        'value' => "\xB1\x31",
+                    ],
+                ),
+            ]);
+            $this->fail('Expected the write to fail, but it did not.');
+        } catch (InvalidArgumentException) {
+        }
+
+        // The write used up the abort time, so the next request is not
+        // aborted, although the abort time is over by then.
+        usleep((int) (self::ABORT_TIME * 1.5 * 1_000_000));
+
+        $client->ping();
+
+        $this->assertSame('ended', $this->readServerReport(), 'Expected the next request not to be aborted.');
     }
 
     public function testDoesNotAbortARequestMadeWithinTheLoopWhileItWaitsForItsAnswer(): void
