@@ -92,9 +92,16 @@ final class AbortInTest extends TestCase
         $client->ping();
         $this->assertSame('ended', $this->readServerReport());
 
+        $startTime = microtime(true);
         $client->abortIn(self::ABORT_TIME);
 
         $this->assertIsAborted($call, $client, $kind);
+
+        // The client waits for an answer for a second at most at a time, so a
+        // client that does not wake up at the abort time ends the request a
+        // second later.
+        $processTime = microtime(true) - $startTime;
+        $this->assertLessThan(self::ABORT_TIME + 0.5, $processTime, "Expected the request to be aborted after the abort time, but it took {$processTime} seconds.");
         $this->assertSame('closed', $this->readServerReport(), 'Expected the connection to be closed.');
 
         // The server received the request before it began to wait, so a write
