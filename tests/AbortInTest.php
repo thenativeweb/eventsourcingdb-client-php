@@ -245,6 +245,34 @@ final class AbortInTest extends TestCase
         $this->assertCount(2, $this->readRequests(), 'Expected the request not to be sent.');
     }
 
+    public function testEndsAStreamWhoseHeadersArriveLateAtTheAbortTimeCountedFromTheCall(): void
+    {
+        // The server sends the headers of the stream shortly before the abort
+        // time is over, and then nothing. Counted from the call, the abort
+        // time is over shortly after reading begins, rather than a whole abort
+        // time later.
+        $abortTime = 1.0;
+        $address = $this->startDatabase('v2', [
+            $this->pingResponse('v2'),
+            $this->response([], interval: 0.0, holdFor: self::SERVER_DELAY, delay: $abortTime * 0.8),
+        ]);
+        $client = new Client("http://{$address}", 'secret', stallTimeout: self::STALL_TIMEOUT);
+
+        $client->ping();
+        $this->assertSame('ended', $this->readServerReport());
+
+        $startTime = microtime(true);
+        $client->abortIn($abortTime);
+
+        $eventsRead = iterator_count($client->readEvents('/', new ReadEventsOptions(recursive: true)));
+        $processTime = microtime(true) - $startTime;
+
+        $this->assertSame(0, $eventsRead);
+        $this->assertGreaterThanOrEqual($abortTime, $processTime);
+        $this->assertLessThan($abortTime * 1.4, $processTime, "Expected the stream to end at the abort time counted from the call, but it took {$processTime} seconds.");
+        $this->assertSame('closed', $this->readServerReport(), 'Expected the connection to be closed.');
+    }
+
     public function testDoesNotAbortARequestMadeWithinTheLoopWhileItWaitsForItsAnswer(): void
     {
         // The server answers one request at a time, so it answers the ping
