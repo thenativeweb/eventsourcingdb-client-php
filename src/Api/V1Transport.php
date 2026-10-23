@@ -13,6 +13,7 @@ use Thenativeweb\Eventsourcingdb\IncompatibleServerException;
 use Thenativeweb\Eventsourcingdb\ObserveEventsOptions;
 use Thenativeweb\Eventsourcingdb\ReadEventsOptions;
 use Thenativeweb\Eventsourcingdb\ReadSubjectsOptions;
+use Thenativeweb\Eventsourcingdb\RequestAbortedException;
 use Thenativeweb\Eventsourcingdb\Stream\HttpClient;
 use Thenativeweb\Eventsourcingdb\Stream\NdJson;
 use Thenativeweb\Eventsourcingdb\Stream\RawJson;
@@ -322,17 +323,18 @@ final readonly class V1Transport implements Transport
                 ->getContents();
 
             // The server answers a write with the events it wrote, so an empty
-            // answer, e.g. one whose reading was aborted, is not one.
+            // answer is not one.
             if ($contents === '') {
                 throw new RuntimeException('the response is empty');
             }
 
             $data = Stream::decodeJson($contents);
             $rawEvents = RawJson::getElements($contents);
-        } catch (ConnectionStalledException $connectionStalledException) {
-            // A stalled connection keeps its own type, so that it can be told
-            // apart from a response that cannot be read.
-            throw $connectionStalledException;
+        } catch (ConnectionStalledException|RequestAbortedException $exception) {
+            // A stalled connection and an aborted request keep their own type,
+            // so that they can be told apart from a response that cannot be
+            // read.
+            throw $exception;
         } catch (RuntimeException $runtimeException) {
             throw new RuntimeException(
                 'Failed to read events, after writing: ' . $runtimeException->getMessage(),
@@ -391,10 +393,11 @@ final readonly class V1Transport implements Transport
         try {
             return $response->getStream()
                 ->getJsonData();
-        } catch (ConnectionStalledException $connectionStalledException) {
-            // A stalled connection keeps its own type, so that it can be told
-            // apart from a response that cannot be read.
-            throw $connectionStalledException;
+        } catch (ConnectionStalledException|RequestAbortedException $exception) {
+            // A stalled connection and an aborted request keep their own type,
+            // so that they can be told apart from a response that cannot be
+            // read.
+            throw $exception;
         } catch (RuntimeException $runtimeException) {
             throw new RuntimeException(
                 "{$scope}: " . $runtimeException->getMessage(),

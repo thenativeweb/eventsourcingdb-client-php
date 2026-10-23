@@ -63,7 +63,7 @@ final class ObserveEventsTest extends TestCase
             recursive: false,
         );
 
-        $this->client->abortIn(0.1);
+        $this->client->abortIn(0.5);
         foreach ($this->client->observeEvents('/test', $observeEventsOptions) as $event) {
             $eventsObserved[] = $event;
         }
@@ -101,7 +101,7 @@ final class ObserveEventsTest extends TestCase
             recursive: true,
         );
 
-        $this->client->abortIn(0.1);
+        $this->client->abortIn(0.5);
         foreach ($this->client->observeEvents('/', $observeEventsOptions) as $event) {
             $eventsObserved[] = $event;
         }
@@ -143,7 +143,7 @@ final class ObserveEventsTest extends TestCase
             ),
         );
 
-        $this->client->abortIn(0.1);
+        $this->client->abortIn(0.5);
         foreach ($this->client->observeEvents('/test', $observeEventsOptions) as $event) {
             $eventsObserved[] = $event;
         }
@@ -189,7 +189,7 @@ final class ObserveEventsTest extends TestCase
             ),
         );
 
-        $this->client->abortIn(0.1);
+        $this->client->abortIn(0.5);
         foreach ($this->client->observeEvents('/test', $observeEventsOptions) as $event) {
             $eventsObserved[] = $event;
         }

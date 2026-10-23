@@ -6,6 +6,7 @@ namespace Thenativeweb\Eventsourcingdb\Api;
 
 use RuntimeException;
 use Thenativeweb\Eventsourcingdb\ConnectionStalledException;
+use Thenativeweb\Eventsourcingdb\RequestAbortedException;
 use Thenativeweb\Eventsourcingdb\Stream\HttpClient;
 use Throwable;
 
@@ -42,7 +43,7 @@ final class TransportSelector
 
     /**
      * @param HttpClient $httpClient the HTTP client of the requests that the caller makes
-     * @param ProbingHttpClient $probingHttpClient an HTTP client of its own to ask the server with, so that asking leaves the abort time that the caller set to the request that the caller made, and that accepts an answer of any content type
+     * @param ProbingHttpClient $probingHttpClient an HTTP client of its own to ask the server with, so that asking does not take over the abort time that the caller set for the request that the caller made, but ends at it, and that accepts an answer of any content type
      */
     public function __construct(
         private readonly HttpClient $httpClient,
@@ -68,6 +69,13 @@ final class TransportSelector
         // an answer replaces the one the client remembers, so asking that
         // fails leaves it as it was.
         try {
+            // Asking is a part of the request that the caller made, so it ends
+            // at the abort time that the caller set for that request, and
+            // leaves the rest of it to the request. An abort time of a stream
+            // being read, which a request that asks again within its loop
+            // meets, stays with the stream.
+            $this->probingHttpClient->abortAt($this->httpClient->getAbortDeadlineOfNextRequest());
+
             return $this->transport = $this->detectTransport();
         } catch (Throwable $throwable) {
             // The request that asked fails, so it uses up an abort time that
@@ -111,8 +119,8 @@ final class TransportSelector
         try {
             $item = $response->getStream()
                 ->getJsonData();
-        } catch (ConnectionStalledException $connectionStalledException) {
-            throw $connectionStalledException;
+        } catch (ConnectionStalledException|RequestAbortedException $exception) {
+            throw $exception;
         } catch (RuntimeException $runtimeException) {
             throw new RuntimeException(
                 "{$scope}: " . $runtimeException->getMessage(),
