@@ -65,9 +65,10 @@ final class HeartbeatTest extends TestCase
         // ends after three times the stall timeout.
         $client = $this->startClient($apiVersion, array_fill(0, 20, self::item($apiVersion, 'heartbeat')), interval: 0.1, holdFor: 5.0);
 
+        // The abort time counts from the call, so the time is taken before it.
+        $startTime = microtime(true);
         $client->abortIn(self::STALL_TIMEOUT * 3);
 
-        $startTime = microtime(true);
         $itemsRead = iterator_count($call($client));
         $processTime = microtime(true) - $startTime;
 

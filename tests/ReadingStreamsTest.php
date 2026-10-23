@@ -341,9 +341,10 @@ final class ReadingStreamsTest extends TestCase
         ]);
         $client = new Client("http://{$address}", 'secret');
 
+        // The abort time counts from the call, so the time is taken before it.
+        $startTime = microtime(true);
         $client->abortIn(0.2);
 
-        $startTime = microtime(true);
         $itemsRead = iterator_count($call($client));
         $processTime = microtime(true) - $startTime;
 

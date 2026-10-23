@@ -49,22 +49,26 @@ final class CurlMultiHandlerTest extends TestCase
         new CurlMultiHandler($stallTimeout);
     }
 
-    public function testAbortInWithPositiveValue(): void
+    public function testAbortInCountsFromTheCall(): void
     {
         $curlMultiHandler = new CurlMultiHandler();
-        $curlMultiHandler->abortIn(5.5);
 
-        $this->assertEqualsWithDelta(5.5, $this->getPropertyValue($curlMultiHandler, 'abortIn'), PHP_FLOAT_EPSILON);
-        $this->assertIsFloat($this->getPropertyValue($curlMultiHandler, 'iteratorTime'));
+        $timeBefore = microtime(true);
+        $curlMultiHandler->abortIn(5.5);
+        $timeAfter = microtime(true);
+
+        $abortDeadline = $this->getPropertyValue($curlMultiHandler, 'abortDeadline');
+        $this->assertIsFloat($abortDeadline);
+        $this->assertGreaterThanOrEqual($timeBefore + 5.5, $abortDeadline);
+        $this->assertLessThanOrEqual($timeAfter + 5.5, $abortDeadline);
     }
 
-    public function testAbortInWithNegativeValue(): void
+    public function testAbortInWithNegativeValueSetsNoAbortTime(): void
     {
         $curlMultiHandler = new CurlMultiHandler();
         $curlMultiHandler->abortIn(-3.3);
 
-        $this->assertEqualsWithDelta(0.0, $this->getPropertyValue($curlMultiHandler, 'abortIn'), PHP_FLOAT_EPSILON);
-        $this->assertIsFloat($this->getPropertyValue($curlMultiHandler, 'iteratorTime'));
+        $this->assertNull($this->getPropertyValue($curlMultiHandler, 'abortDeadline'));
     }
 
     public function testGetHeaderQueueThrowsWithoutQueue(): void

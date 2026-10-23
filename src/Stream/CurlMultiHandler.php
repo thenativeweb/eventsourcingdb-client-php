@@ -9,6 +9,7 @@ use CurlMultiHandle;
 use InvalidArgumentException;
 use RuntimeException;
 use Thenativeweb\Eventsourcingdb\ConnectionStalledException;
+use Thenativeweb\Eventsourcingdb\RequestAbortedException;
 
 /**
  * @see \Thenativeweb\Eventsourcingdb\Tests\Stream\CurlMultiHandlerTest
@@ -19,9 +20,8 @@ class CurlMultiHandler
 
     private ?CurlHandle $curlHandle = null;
     private ?CurlMultiHandle $curlMultiHandle = null;
-    private float $abortIn = 0.0;
+    private ?float $abortDeadline = null;
     private ?CurlHandle $abortInCurlHandle = null;
-    private float $iteratorTime;
     private ?Queue $header = null;
     private ?Queue $write = null;
     private ?StallClock $stallClock = null;
@@ -46,10 +46,16 @@ class CurlMultiHandler
         }
     }
 
+    /**
+     * Aborts the stream being read, or, if there is none, the next request,
+     * once the given seconds, counted from the call, are over. It is a point
+     * in time rather than a duration, so that it bounds the whole request,
+     * from connecting to reading the answer. An abort time of zero or less
+     * sets none.
+     */
     public function abortIn(float $seconds): void
     {
-        $this->abortIn = max($seconds, 0.0);
-        $this->iteratorTime = microtime(true);
+        $this->abortDeadline = $seconds > 0 ? microtime(true) + $seconds : null;
 
         // The abort time applies to the stream being read, or, if there is
         // none, to the next request.
@@ -65,7 +71,7 @@ class CurlMultiHandler
     public function useUpAbortTimeOfNextRequest(): void
     {
         if (!$this->abortInCurlHandle instanceof CurlHandle) {
-            $this->abortIn = 0.0;
+            $this->abortDeadline = null;
         }
     }
 
@@ -130,6 +136,10 @@ class CurlMultiHandler
         $queue = $this->getHeaderQueue();
         $stallClock = $this->getStallClock();
 
+        // No code of the caller runs while the headers are awaited, so the
+        // abort time cannot change meanwhile.
+        $abortDeadline = $this->getAbortDeadline($curlHandle);
+
         $curlMultiHandle = curl_multi_init();
         $this->curlMultiHandle = $curlMultiHandle;
 
@@ -137,20 +147,28 @@ class CurlMultiHandler
             throw new RuntimeException('Internal HttpClient: Failed to add cURL handle to multi handle: ' . curl_multi_strerror(curl_multi_errno($curlMultiHandle)));
         }
 
-        // The stall timeout counts from sending the request, so it also bounds
-        // connecting and waiting for the headers.
+        // The stall timeout counts from sending the request, and the abort
+        // time from the call to abortIn, so both also bound connecting and
+        // waiting for the headers.
         $stallClock->reset();
 
         // The headers may arrive in several packets, so this waits for all of
         // them, not only for the first line.
         do {
+            // The abort time is checked before cURL goes on with the request,
+            // so that a request whose abort time is over before it starts is
+            // not sent at all.
+            if ($this->isAbortTimeOver($abortDeadline)) {
+                throw new RequestAbortedException();
+            }
+
             $status = curl_multi_exec($curlMultiHandle, $isRunning);
             if (!$queue->isComplete() && $isRunning) {
                 if ($stallClock->hasStalled()) {
                     throw $this->createConnectionStalledException($stallClock);
                 }
 
-                curl_multi_select($curlMultiHandle, $this->selectTimeout($stallClock->getDeadline()));
+                curl_multi_select($curlMultiHandle, $this->selectTimeout($stallClock->getDeadline(), $abortDeadline));
             }
 
             $this->verifyCurlHandle($curlMultiHandle);
@@ -200,7 +218,8 @@ class CurlMultiHandler
 
     /**
      * Yields the body as it arrives. If nothing arrives for the stall timeout,
-     * it throws a ConnectionStalledException.
+     * it throws a ConnectionStalledException, and once the abort time of the
+     * request is over, it ends.
      */
     public function contentIterator(): iterable
     {
@@ -209,10 +228,6 @@ class CurlMultiHandler
         $queue = $this->getWriteQueue();
         $stallClock = $this->getStallClock();
 
-        if ($this->abortInCurlHandle === $curlHandle) {
-            $this->iteratorTime = microtime(true);
-        }
-
         $this->readingCurlHandles[spl_object_id($curlHandle)] = $curlHandle;
         $isAborted = false;
 
@@ -220,11 +235,9 @@ class CurlMultiHandler
         // the generator is destroyed, so the connection does not stay open.
         try {
             do {
-                if (
-                    $this->abortInCurlHandle === $curlHandle
-                    && $this->abortIn > 0
-                    && (microtime(true) - $this->iteratorTime) >= $this->abortIn
-                ) {
+                // The abort time is read anew on every turn, since abortIn may
+                // set it within the loop that reads the stream.
+                if ($this->isAbortTimeOver($this->getAbortDeadline($curlHandle))) {
                     $isAborted = true;
 
                     break;
@@ -238,12 +251,7 @@ class CurlMultiHandler
 
                     // Waiting for data ends at the stall deadline, or earlier at
                     // the abort time of the stream being read.
-                    $deadline = $stallClock->getDeadline();
-                    if ($this->abortInCurlHandle === $curlHandle && $this->abortIn > 0) {
-                        $deadline = min($deadline, $this->iteratorTime + $this->abortIn);
-                    }
-
-                    curl_multi_select($curlMultiHandle, $this->selectTimeout($deadline));
+                    curl_multi_select($curlMultiHandle, $this->selectTimeout($stallClock->getDeadline(), $this->getAbortDeadline($curlHandle)));
                 }
 
                 $this->verifyCurlHandle($curlMultiHandle);
@@ -263,11 +271,31 @@ class CurlMultiHandler
         }
     }
 
-    private function selectTimeout(float $deadline): float
+    private function selectTimeout(float $stallDeadline, ?float $abortDeadline): float
     {
         // Waiting for data ends after a second at the latest, or earlier at
-        // the given deadline.
+        // the stall deadline or the abort time, whichever comes first.
+        $deadline = $abortDeadline === null ? $stallDeadline : min($stallDeadline, $abortDeadline);
+
         return max(0.0, min(1.0, $deadline - microtime(true)));
+    }
+
+    /**
+     * Returns the point in time at which the request of the given handle is
+     * aborted, or null if abortIn set none for it.
+     */
+    private function getAbortDeadline(CurlHandle $curlHandle): ?float
+    {
+        if ($this->abortInCurlHandle !== $curlHandle) {
+            return null;
+        }
+
+        return $this->abortDeadline;
+    }
+
+    private function isAbortTimeOver(?float $abortDeadline): bool
+    {
+        return $abortDeadline !== null && microtime(true) >= $abortDeadline;
     }
 
     private function createConnectionStalledException(StallClock $stallClock): ConnectionStalledException
@@ -278,7 +306,7 @@ class CurlMultiHandler
     private function closeHandles(CurlHandle $curlHandle, ?CurlMultiHandle $curlMultiHandle): void
     {
         if ($this->abortInCurlHandle === $curlHandle) {
-            $this->abortIn = 0.0;
+            $this->abortDeadline = null;
             $this->abortInCurlHandle = null;
         }
 

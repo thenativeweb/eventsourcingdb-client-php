@@ -18,6 +18,7 @@ use Thenativeweb\Eventsourcingdb\DbApiException;
 use Thenativeweb\Eventsourcingdb\ErrorCode;
 use Thenativeweb\Eventsourcingdb\EventCandidate;
 use Thenativeweb\Eventsourcingdb\OutcomeUnknownException;
+use Thenativeweb\Eventsourcingdb\RequestAbortedException;
 use Thenativeweb\Eventsourcingdb\Stream\HttpClient;
 use Thenativeweb\Eventsourcingdb\Tests\Trait\ServerTestTrait;
 
@@ -190,7 +191,7 @@ final class OutcomeUnknownTest extends TestCase
     public static function unknownOutcomesOfAnAbort(): Iterator
     {
         // Registering an event schema through the v1 API does not read the
-        // answer, so there is nothing to abort.
+        // answer, so once its headers have arrived, there is nothing to abort.
         yield 'writeEvents (v1)' => ['v1', self::writeEvents(...)];
         yield 'writeEvents (v2)' => ['v2', self::writeEvents(...)];
         yield 'registerEventSchema (v2)' => ['v2', self::registerEventSchema(...)];
@@ -242,6 +243,33 @@ final class OutcomeUnknownTest extends TestCase
         } catch (RuntimeException $runtimeException) {
             $this->assertInstanceOf(ConnectionStalledException::class, $runtimeException, $runtimeException->getMessage());
         }
+    }
+
+    /**
+     * @param Closure(HttpClient): Transport $createTransport
+     */
+    #[DataProvider('transports')]
+    public function testReportsAWriteAbortedWhileConnectingAsNotStored(Closure $createTransport, Closure $write): void
+    {
+        // The server does not answer the TLS handshake, so the connection is
+        // never established, and the request is never sent. The stall timeout
+        // is far longer than the abort time, so that a write that is not
+        // aborted fails with a stalled connection instead.
+        $address = $this->startServer([], interval: 0.0, holdFor: 0.0);
+
+        $httpClient = new HttpClient("https://{$address}", self::STALL_TIMEOUT * 4);
+        $transport = $createTransport($httpClient);
+
+        $httpClient->abortIn(self::STALL_TIMEOUT / 2);
+
+        try {
+            $write($transport);
+            $this->fail('Expected the write to fail, but it did not.');
+        } catch (RuntimeException $runtimeException) {
+            $this->assertInstanceOf(RequestAbortedException::class, $runtimeException, $runtimeException->getMessage());
+        }
+
+        $this->assertSame('closed', $this->readServerReport(), 'Expected the connection to be closed.');
     }
 
     public function testNamesTheCauseOfAnUnknownOutcome(): void
