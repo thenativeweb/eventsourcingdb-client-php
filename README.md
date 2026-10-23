@@ -42,7 +42,7 @@ $client->verifyApiToken();
 
 ### Talking to Servers With and Without the v2 API
 
-Creating a client does not send a request. The client SDK works with servers that offer the v2 API of EventSourcingDB, which it offers since version 1.3, and with servers that only offer the v1 API. On its first request, the client asks the server for the ping of the v2 API, `GET /api/v2/system/ping`, and remembers the answer: if the server answers it, the client uses the v2 API, and if the server does not know the route, the client uses the v1 API. If the server answers a path of the v2 API with 404 or 405, e.g. after it was rolled back to a version without it, the client asks again on the next request. If asking fails, e.g. because the server is not reachable, the first request fails with that error, and the next request asks again.
+Creating a client does not send a request. The client SDK works with servers that offer the v2 API of EventSourcingDB, which it offers since version 1.3, and with servers that only offer the v1 API. On its first request, the client asks the server for the ping of the v2 API, `GET /api/v2/system/ping`, and remembers the answer: if the server answers it, the client uses the v2 API, and if the server does not know the route, the client uses the v1 API. If the server answers a path of the v2 API with 404 or 405, e.g. after it was rolled back to a version without it, the client asks again on the next request. A write with a recursive precondition, which only the v2 API offers, asks again as well if the client remembers that the server only offers the v1 API, since the server may have been upgraded in the meantime, see [Using Preconditions on Subjects Recursively](#using-preconditions-on-subjects-recursively). If asking fails, e.g. because the server is not reachable, the request that asked fails with that error. If the client does not remember an answer yet, the next request asks again; if it remembers that the server only offers the v1 API, it keeps that answer, and only a write with a recursive precondition asks again.
 
 *Note that the v2 API reads with the HTTP method `QUERY` ([RFC 10008](https://www.rfc-editor.org/rfc/rfc10008)), which a proxy in front of the database has to let through. There is no fallback to `POST`.*
 
@@ -147,6 +147,25 @@ $writtenEvents = $client->writeEvents([
 ```
 
 *Note that according to the CloudEvents standard, event IDs must be of type string.*
+
+#### Using Preconditions on Subjects Recursively
+
+If you want a precondition on a subject to apply not only to the subject itself, but also to all nested subjects, pass a `PreconditionOptions` object as the last argument of `IsSubjectPristine`, `IsSubjectPopulated`, or `IsSubjectOnEventId`, and set its `recursive` option to `true`:
+
+```php
+use Thenativeweb\Eventsourcingdb\IsSubjectPristine;
+use Thenativeweb\Eventsourcingdb\PreconditionOptions;
+
+$writtenEvents = $client->writeEvents([
+  // events
+], [
+  new IsSubjectPristine('/books/42', new PreconditionOptions(recursive: true)),
+]);
+```
+
+`IsSubjectPristine` then holds if neither the subject nor any nested subject has an event, `IsSubjectPopulated` holds if any of them has an event, and `IsSubjectOnEventId` holds if the last event among all of them has the given ID. By default, `recursive` is `false`, and the precondition applies to the given subject alone.
+
+*Note that only the v2 API offers recursive preconditions. If the server only offers the v1 API, the function throws an `IncompatibleServerException`, which extends `RuntimeException`, before it sends the events, and writes no event. To find out, the client asks the server again which API it offers if it remembers that the server only offers the v1 API, since the server may have been upgraded in the meantime.*
 
 #### Using the `isEventQlQueryTrue` precondition
 
@@ -583,7 +602,7 @@ If the server only offers the v1 API, the client assigns the code of the v2 API 
 
 EventSourcingDB never stores a write halfway, but a write whose answer is lost may have been stored nonetheless. So, if writing events or registering an event schema fails in a way that leaves open whether the server stored it, the client throws an `OutcomeUnknownException`, which extends `RuntimeException`, and whose previous exception, which `getPrevious()` returns, is the cause. This is the case, e.g., if the connection stalls or breaks after the request was sent, if `abortIn` aborts reading the answer, if the answer breaks off, if the server fails unexpectedly, or if the answer does not come from EventSourcingDB, e.g. from a proxy.
 
-A write certainly was not stored if the client throws any other exception, i.e. if the connection could not be established at all, or if the server refused the write, which it reports with a `DbApiException`:
+A write certainly was not stored if the client throws any other exception, i.e. if the client refused the write before sending it, which it reports with an `IncompatibleServerException`, if asking the server which API it offers failed before the write was sent, if the connection could not be established at all, or if the server refused the write, which it reports with a `DbApiException`:
 
 ```php
 use Thenativeweb\Eventsourcingdb\OutcomeUnknownException;

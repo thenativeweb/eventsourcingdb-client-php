@@ -32,6 +32,15 @@ class HttpClient
         $this->curlMultiHandler->abortIn($seconds);
     }
 
+    /**
+     * Drops an abort time that waits for the next request, for a request that
+     * fails before it is sent, and keeps one of a stream being read.
+     */
+    public function useUpAbortTimeOfNextRequest(): void
+    {
+        $this->curlMultiHandler->useUpAbortTimeOfNextRequest();
+    }
+
     public function buildUri(string $uri): string
     {
         $buildUri = $this->baseUrl !== null ? rtrim($this->baseUrl, '/') . '/' : '';

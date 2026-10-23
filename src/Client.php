@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Thenativeweb\Eventsourcingdb;
 
+use Thenativeweb\Eventsourcingdb\Api\Preconditions;
 use Thenativeweb\Eventsourcingdb\Api\ProbingHttpClient;
 use Thenativeweb\Eventsourcingdb\Api\Transport;
 use Thenativeweb\Eventsourcingdb\Api\TransportSelector;
@@ -54,7 +55,7 @@ final readonly class Client
      */
     public function writeEvents(array $events, array $preconditions = []): array
     {
-        return $this->transport()
+        return $this->transport(isV2ApiNeeded: Preconditions::includeRecursiveOne($preconditions))
             ->writeEvents($events, $preconditions);
     }
 
@@ -112,8 +113,8 @@ final readonly class Client
             ->readEventType($eventType);
     }
 
-    private function transport(): Transport
+    private function transport(bool $isV2ApiNeeded = false): Transport
     {
-        return $this->transportSelector->getTransport();
+        return $this->transportSelector->getTransport($isV2ApiNeeded);
     }
 }

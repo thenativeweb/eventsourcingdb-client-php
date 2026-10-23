@@ -12,8 +12,12 @@ use RuntimeException;
 use Thenativeweb\Eventsourcingdb\Client;
 use Thenativeweb\Eventsourcingdb\DbApiException;
 use Thenativeweb\Eventsourcingdb\ErrorCode;
+use Thenativeweb\Eventsourcingdb\EventCandidate;
+use Thenativeweb\Eventsourcingdb\IncompatibleServerException;
+use Thenativeweb\Eventsourcingdb\IsSubjectPristine;
 use Thenativeweb\Eventsourcingdb\ObserveEventsOptions;
 use Thenativeweb\Eventsourcingdb\OutcomeUnknownException;
+use Thenativeweb\Eventsourcingdb\PreconditionOptions;
 use Thenativeweb\Eventsourcingdb\ReadEventsOptions;
 use Thenativeweb\Eventsourcingdb\ReadSubjectsOptions;
 use Thenativeweb\Eventsourcingdb\Tests\Trait\ServerTestTrait;
@@ -443,6 +447,77 @@ final class ReadingStreamsTest extends TestCase
         }
     }
 
+    public function testUsesUpTheAbortTimeOfAWriteThatTheClientRefusesBeforeSendingIt(): void
+    {
+        $address = $this->startDatabase('v1', [
+            $this->response([], interval: 0.0, holdFor: 2.0),
+        ]);
+        $client = new Client("http://{$address}", 'secret');
+
+        $client->abortIn(1.0);
+
+        try {
+            $this->writeWithRecursivePrecondition($client);
+            $this->fail('Expected the write to fail, but it did not.');
+        } catch (IncompatibleServerException) {
+        }
+
+        // The write used up the abort time, so the observation is not aborted,
+        // and breaks off once the server ends it.
+        try {
+            iterator_count($client->observeEvents('/', new ObserveEventsOptions(recursive: true)));
+            $this->fail('Expected the observation to break off, but it ended quietly.');
+        } catch (RuntimeException $runtimeException) {
+            $this->assertSame('Failed to observe events, since the stream broke off.', $runtimeException->getMessage());
+        }
+    }
+
+    public static function outcomesOfAskingAgain(): Iterator
+    {
+        yield 'the server still offers the v1 API only' => [false, IncompatibleServerException::class];
+        yield 'asking fails' => [true, DbApiException::class];
+    }
+
+    /**
+     * @param class-string<RuntimeException> $expectedException
+     */
+    #[DataProvider('outcomesOfAskingAgain')]
+    public function testKeepsTheAbortTimeOfTheStreamBeingReadIfAWriteMadeWithinTheLoopFailsBeforeItIsSent(bool $isAskingFailing, string $expectedException): void
+    {
+        // The server answers one request at a time, so it answers the request
+        // that asks again which API it offers only once it has sent the second
+        // event, long after the abort time that the client sets with the first
+        // event is over. A client that keeps the abort time thus stops reading
+        // before the second event.
+        $address = $this->startDatabase('v1', [
+            $this->response([self::eventItem('v1'), self::eventItem('v1')], interval: 0.5, holdFor: 0.0),
+            $isAskingFailing ? $this->textResponse(503, 'server is shutting down') : $this->probeResponse('v1'),
+        ]);
+        $client = new Client("http://{$address}", 'secret');
+
+        $eventsRead = 0;
+        foreach ($client->readEvents('/', new ReadEventsOptions(recursive: true)) as $event) {
+            ++$eventsRead;
+
+            // The server answers no further request, so the client writes
+            // only once, with the first event.
+            if ($eventsRead > 1) {
+                continue;
+            }
+
+            $client->abortIn(0.1);
+
+            try {
+                $this->writeWithRecursivePrecondition($client);
+                $this->fail('Expected the write to fail, but it did not.');
+            } catch (RuntimeException $runtimeException) {
+                $this->assertInstanceOf($expectedException, $runtimeException, $runtimeException->getMessage());
+            }
+        }
+
+        $this->assertSame(1, $eventsRead, 'Expected the stream to be aborted at the time that abortIn set within the loop.');
+    }
+
     public function testAppliesAbortInToTheNextRequestIfNoStreamIsBeingRead(): void
     {
         $address = $this->startDatabase('v1', [
@@ -463,6 +538,22 @@ final class ReadingStreamsTest extends TestCase
 
         $this->assertSame('closed', $this->readServerReport());
         $this->assertSame('closed', $this->readServerReport(), 'Expected the next request to be aborted.');
+    }
+
+    private function writeWithRecursivePrecondition(Client $client): void
+    {
+        $client->writeEvents([
+            new EventCandidate(
+                source: 'https://www.eventsourcingdb.io',
+                subject: '/test',
+                type: 'io.eventsourcingdb.test',
+                data: [
+                    'value' => 23,
+                ],
+            ),
+        ], [
+            new IsSubjectPristine('/test', new PreconditionOptions(recursive: true)),
+        ]);
     }
 
     /**

@@ -10,16 +10,23 @@ final readonly class IsSubjectPopulated implements JsonSerializable
 {
     public function __construct(
         public string $subject,
+        public ?PreconditionOptions $options = null,
     ) {
     }
 
     public function jsonSerialize(): array
     {
+        $payload = [
+            'subject' => $this->subject,
+        ];
+
+        if ($this->options instanceof PreconditionOptions) {
+            $payload['options'] = $this->options->jsonSerialize();
+        }
+
         return [
             'type' => 'isSubjectPopulated',
-            'payload' => [
-                'subject' => $this->subject,
-            ],
+            'payload' => $payload,
         ];
     }
 }

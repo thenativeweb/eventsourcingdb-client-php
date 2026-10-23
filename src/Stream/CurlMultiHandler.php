@@ -56,6 +56,19 @@ class CurlMultiHandler
         $this->abortInCurlHandle = end($this->readingCurlHandles) ?: null;
     }
 
+    /**
+     * Drops an abort time that waits for the next request, for a request that
+     * fails before it is sent, so that the abort time does not apply to a
+     * later request instead. An abort time that applies to a stream being read
+     * stays, since a request made while reading a stream never takes it over.
+     */
+    public function useUpAbortTimeOfNextRequest(): void
+    {
+        if (!$this->abortInCurlHandle instanceof CurlHandle) {
+            $this->abortIn = 0.0;
+        }
+    }
+
     public function getHeaderQueue(): Queue
     {
         if (!$this->header instanceof Queue) {

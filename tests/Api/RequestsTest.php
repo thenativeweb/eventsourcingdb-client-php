@@ -8,13 +8,19 @@ use Closure;
 use Iterator;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use RuntimeException;
 use Thenativeweb\Eventsourcingdb\Bound;
 use Thenativeweb\Eventsourcingdb\BoundType;
 use Thenativeweb\Eventsourcingdb\Client;
 use Thenativeweb\Eventsourcingdb\EventCandidate;
 use Thenativeweb\Eventsourcingdb\EventType;
+use Thenativeweb\Eventsourcingdb\IncompatibleServerException;
+use Thenativeweb\Eventsourcingdb\IsEventQlQueryTrue;
+use Thenativeweb\Eventsourcingdb\IsSubjectOnEventId;
+use Thenativeweb\Eventsourcingdb\IsSubjectPopulated;
 use Thenativeweb\Eventsourcingdb\IsSubjectPristine;
 use Thenativeweb\Eventsourcingdb\ObserveEventsOptions;
+use Thenativeweb\Eventsourcingdb\PreconditionOptions;
 use Thenativeweb\Eventsourcingdb\ReadEventsOptions;
 use Thenativeweb\Eventsourcingdb\ReadSubjectsOptions;
 use Thenativeweb\Eventsourcingdb\Tests\Trait\ServerTestTrait;
@@ -81,6 +87,50 @@ final class RequestsTest extends TestCase
             [$end],
             'application/x-ndjson',
             ['POST', '/api/v2/data/write-events', '{"events":[{"source":"https:\/\/www.eventsourcingdb.io","subject":"\/test","type":"io.eventsourcingdb.test","data":{"value":23}}],"preconditions":[{"type":"isSubjectPristine","payload":{"subject":"\/test"}}]}'],
+        ];
+        $writeEventsWithPreconditionsOnTheSubject = static fn (?PreconditionOptions $preconditionOptions): Closure => static fn (Client $client): array => $client->writeEvents([$eventCandidate], [
+            new IsSubjectPristine('/test', $preconditionOptions),
+            new IsSubjectPopulated('/test', $preconditionOptions),
+            new IsSubjectOnEventId('/test', '0', $preconditionOptions),
+        ]);
+        $preconditionsWithoutOptions = '[{"type":"isSubjectPristine","payload":{"subject":"\/test"}},{"type":"isSubjectPopulated","payload":{"subject":"\/test"}},{"type":"isSubjectOnEventId","payload":{"subject":"\/test","eventId":"0"}}]';
+
+        yield 'writeEvents with preconditions on the subject without options (v1)' => [
+            'v1',
+            $writeEventsWithPreconditionsOnTheSubject(null),
+            ['[]'],
+            'application/json',
+            ['POST', '/api/v1/write-events', '{"events":[{"source":"https:\/\/www.eventsourcingdb.io","subject":"\/test","type":"io.eventsourcingdb.test","data":{"value":23}}],"preconditions":' . $preconditionsWithoutOptions . '}'],
+        ];
+        yield 'writeEvents with preconditions on the subject without options (v2)' => [
+            'v2',
+            $writeEventsWithPreconditionsOnTheSubject(null),
+            [$end],
+            'application/x-ndjson',
+            ['POST', '/api/v2/data/write-events', '{"events":[{"source":"https:\/\/www.eventsourcingdb.io","subject":"\/test","type":"io.eventsourcingdb.test","data":{"value":23}}],"preconditions":' . $preconditionsWithoutOptions . '}'],
+        ];
+        // The v1 API knows no options of a precondition, so a precondition
+        // that is not recursive is sent to it as one without options.
+        yield 'writeEvents with preconditions on the subject that are not recursive (v1)' => [
+            'v1',
+            $writeEventsWithPreconditionsOnTheSubject(new PreconditionOptions(recursive: false)),
+            ['[]'],
+            'application/json',
+            ['POST', '/api/v1/write-events', '{"events":[{"source":"https:\/\/www.eventsourcingdb.io","subject":"\/test","type":"io.eventsourcingdb.test","data":{"value":23}}],"preconditions":' . $preconditionsWithoutOptions . '}'],
+        ];
+        yield 'writeEvents with preconditions on the subject that are not recursive (v2)' => [
+            'v2',
+            $writeEventsWithPreconditionsOnTheSubject(new PreconditionOptions(recursive: false)),
+            [$end],
+            'application/x-ndjson',
+            ['POST', '/api/v2/data/write-events', '{"events":[{"source":"https:\/\/www.eventsourcingdb.io","subject":"\/test","type":"io.eventsourcingdb.test","data":{"value":23}}],"preconditions":[{"type":"isSubjectPristine","payload":{"subject":"\/test","options":{"recursive":false}}},{"type":"isSubjectPopulated","payload":{"subject":"\/test","options":{"recursive":false}}},{"type":"isSubjectOnEventId","payload":{"subject":"\/test","eventId":"0","options":{"recursive":false}}}]}'],
+        ];
+        yield 'writeEvents with recursive preconditions on the subject (v2)' => [
+            'v2',
+            $writeEventsWithPreconditionsOnTheSubject(new PreconditionOptions(recursive: true)),
+            [$end],
+            'application/x-ndjson',
+            ['POST', '/api/v2/data/write-events', '{"events":[{"source":"https:\/\/www.eventsourcingdb.io","subject":"\/test","type":"io.eventsourcingdb.test","data":{"value":23}}],"preconditions":[{"type":"isSubjectPristine","payload":{"subject":"\/test","options":{"recursive":true}}},{"type":"isSubjectPopulated","payload":{"subject":"\/test","options":{"recursive":true}}},{"type":"isSubjectOnEventId","payload":{"subject":"\/test","eventId":"0","options":{"recursive":true}}}]}'],
         ];
         yield 'readEvents (v1)' => [
             'v1',
@@ -200,6 +250,18 @@ final class RequestsTest extends TestCase
         ];
     }
 
+    private function createEventCandidate(): EventCandidate
+    {
+        return new EventCandidate(
+            source: 'https://www.eventsourcingdb.io',
+            subject: '/test',
+            type: 'io.eventsourcingdb.test',
+            data: [
+                'value' => 23,
+            ],
+        );
+    }
+
     public static function eventTypes(): Iterator
     {
         yield 'with events (v1)' => [
@@ -263,6 +325,163 @@ final class RequestsTest extends TestCase
         $client = new Client("http://{$address}", 'secret');
 
         $this->assertEquals($eventType, $client->readEventType('io.eventsourcingdb.test'));
+    }
+
+    public static function recursivePreconditions(): Iterator
+    {
+        $preconditionOptions = new PreconditionOptions(recursive: true);
+
+        yield 'isSubjectPristine' => [new IsSubjectPristine('/test', $preconditionOptions)];
+        yield 'isSubjectPopulated' => [new IsSubjectPopulated('/test', $preconditionOptions)];
+        yield 'isSubjectOnEventId' => [new IsSubjectOnEventId('/test', '0', $preconditionOptions)];
+    }
+
+    #[DataProvider('recursivePreconditions')]
+    public function testFailsWithoutSendingAWriteWithARecursivePreconditionIfTheServerStillOffersTheV1ApiOnly(IsSubjectPristine|IsSubjectPopulated|IsSubjectOnEventId $precondition): void
+    {
+        $address = $this->startDatabase('v1', [
+            $this->response(['{"type":"io.eventsourcingdb.api.ping-received"}'], interval: 0.0, holdFor: 0.0, contentType: 'application/json'),
+            $this->probeResponse('v1'),
+            $this->response(['[]'], interval: 0.0, holdFor: 0.0, contentType: 'application/json'),
+        ]);
+        $client = new Client("http://{$address}", 'secret');
+
+        // The client pings first, so that it remembers that the server offers
+        // the v1 API only, and so that its last request reached the server.
+        // Otherwise, an error before the write would keep its type even if the
+        // write were guarded already, since a write whose request never
+        // connected certainly was not stored.
+        $client->ping();
+
+        try {
+            $client->writeEvents([
+                $this->createEventCandidate(),
+            ], [
+                new IsEventQlQueryTrue('FROM e IN events PROJECT INTO COUNT() == 0'),
+                $precondition,
+            ]);
+            $this->fail('Expected the write to fail, but it did not.');
+        } catch (IncompatibleServerException $incompatibleServerException) {
+            $this->assertSame('The server does not offer the v2 API, which a recursive precondition needs.', $incompatibleServerException->getMessage());
+        }
+
+        $this->assertSame([
+            '/api/v2/system/ping',
+            '/api/v1/ping',
+            '/api/v2/system/ping',
+        ], array_column($this->readRequests(), 'path'), 'Expected the client to ask again which API the server offers, but not to send the write.');
+    }
+
+    public function testSendsAWriteWithARecursivePreconditionThroughTheV2ApiOnceTheServerOffersIt(): void
+    {
+        $address = $this->startDatabase('v1', [
+            $this->response(['{"type":"io.eventsourcingdb.api.ping-received"}'], interval: 0.0, holdFor: 0.0, contentType: 'application/json'),
+            $this->probeResponse('v2'),
+            $this->response([self::eventItem('v2'), self::item('v2', 'end')], interval: 0.0, holdFor: 0.0),
+            $this->response([self::item('v2', 'end')], interval: 0.0, holdFor: 0.0),
+        ]);
+        $client = new Client("http://{$address}", 'secret');
+
+        // The client remembers that the server offers the v1 API only, and the
+        // server is upgraded afterwards.
+        $client->ping();
+
+        $writtenEvents = $client->writeEvents([
+            $this->createEventCandidate(),
+        ], [
+            new IsSubjectPristine('/test', new PreconditionOptions(recursive: true)),
+        ]);
+
+        iterator_count($client->readEventTypes());
+
+        $this->assertCount(1, $writtenEvents);
+        $this->assertSame([
+            [
+                'method' => 'GET',
+                'path' => '/api/v2/system/ping',
+                'body' => '',
+            ],
+            [
+                'method' => 'GET',
+                'path' => '/api/v1/ping',
+                'body' => '',
+            ],
+            [
+                'method' => 'GET',
+                'path' => '/api/v2/system/ping',
+                'body' => '',
+            ],
+            [
+                'method' => 'POST',
+                'path' => '/api/v2/data/write-events',
+                'body' => '{"events":[{"source":"https:\/\/www.eventsourcingdb.io","subject":"\/test","type":"io.eventsourcingdb.test","data":{"value":23}}],"preconditions":[{"type":"isSubjectPristine","payload":{"subject":"\/test","options":{"recursive":true}}}]}',
+            ],
+            [
+                'method' => 'QUERY',
+                'path' => '/api/v2/data/read-event-types',
+                'body' => '',
+            ],
+        ], $this->readRequests());
+    }
+
+    public static function failuresOfAskingAgain(): Iterator
+    {
+        yield 'the server answers with 503' => [false, 'Failed to find out the API of the server, server is shutting down'];
+        yield 'another server answers' => [true, 'Server must be EventSourcingDB.'];
+    }
+
+    #[DataProvider('failuresOfAskingAgain')]
+    public function testKeepsTheV1ApiThatItRemembersIfAskingAgainFails(bool $isAnsweredByAnotherServer, string $expectedMessage): void
+    {
+        $pingOfV1 = $this->response(['{"type":"io.eventsourcingdb.api.ping-received"}'], interval: 0.0, holdFor: 0.0, contentType: 'application/json');
+        $address = $this->startDatabase('v1', [
+            $pingOfV1,
+            $isAnsweredByAnotherServer ? $this->textResponse(502, 'Bad Gateway', server: 'nginx') : $this->textResponse(503, 'server is shutting down'),
+            $pingOfV1,
+        ]);
+        $client = new Client("http://{$address}", 'secret');
+
+        $client->ping();
+
+        try {
+            $client->writeEvents([
+                $this->createEventCandidate(),
+            ], [
+                new IsSubjectPristine('/test', new PreconditionOptions(recursive: true)),
+            ]);
+            $this->fail('Expected the write to fail, but it did not.');
+        } catch (RuntimeException $runtimeException) {
+            $this->assertSame($expectedMessage, $runtimeException->getMessage());
+        }
+
+        $client->ping();
+
+        $this->assertSame([
+            '/api/v2/system/ping',
+            '/api/v1/ping',
+            '/api/v2/system/ping',
+            '/api/v1/ping',
+        ], array_column($this->readRequests(), 'path'), 'Expected the client to keep the v1 API that it remembered, rather than ask again.');
+    }
+
+    public function testAsksOnceWhichApiTheServerOffersIfAWriteWithARecursivePreconditionIsTheFirstRequest(): void
+    {
+        $address = $this->startDatabase('v1', [
+            $this->probeResponse('v1'),
+        ]);
+        $client = new Client("http://{$address}", 'secret');
+
+        try {
+            $client->writeEvents([
+                $this->createEventCandidate(),
+            ], [
+                new IsSubjectPristine('/test', new PreconditionOptions(recursive: true)),
+            ]);
+            $this->fail('Expected the write to fail, but it did not.');
+        } catch (IncompatibleServerException) {
+        }
+
+        $this->assertCount(1, $this->readRequests(), 'Expected the client to ask once which API the server offers, since it had no answer to remember before.');
     }
 
     public function testReadsTheValueOfEachRowOfAQueryThatTheV2ApiAnswers(): void

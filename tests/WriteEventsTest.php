@@ -8,10 +8,12 @@ use PHPUnit\Framework\TestCase;
 use Thenativeweb\Eventsourcingdb\CloudEvent;
 use Thenativeweb\Eventsourcingdb\ErrorCode;
 use Thenativeweb\Eventsourcingdb\EventCandidate;
+use Thenativeweb\Eventsourcingdb\IncompatibleServerException;
 use Thenativeweb\Eventsourcingdb\IsEventQlQueryTrue;
 use Thenativeweb\Eventsourcingdb\IsSubjectOnEventId;
 use Thenativeweb\Eventsourcingdb\IsSubjectPopulated;
 use Thenativeweb\Eventsourcingdb\IsSubjectPristine;
+use Thenativeweb\Eventsourcingdb\PreconditionOptions;
 use Thenativeweb\Eventsourcingdb\ReadEventsOptions;
 use Thenativeweb\Eventsourcingdb\Tests\Trait\ClientTestTrait;
 
@@ -292,5 +294,216 @@ final class WriteEventsTest extends TestCase
                 new IsEventQlQueryTrue('FROM e IN events PROJECT INTO COUNT() == 0'),
             ],
         ), 'Failed to write events, ');
+    }
+
+    public function testSupportsTheIsSubjectPristinePreconditionWithOptionsThatAreNotRecursive(): void
+    {
+        $this->client->writeEvents([
+            $this->createEventCandidate('/test/1'),
+        ]);
+
+        $preconditions = [
+            new IsSubjectPristine('/test', new PreconditionOptions(recursive: false)),
+        ];
+
+        $writtenEvents = $this->client->writeEvents([
+            $this->createEventCandidate('/test'),
+        ], $preconditions);
+
+        $this->assertCount(1, $writtenEvents);
+        $this->assertSame('/test', $writtenEvents[0]->subject);
+
+        $this->assertFailsWithErrorCode(ErrorCode::PRECONDITION_VIOLATED, fn (): mixed => $this->client->writeEvents([
+            $this->createEventCandidate('/test'),
+        ], $preconditions), 'Failed to write events, ');
+    }
+
+    public function testSupportsTheIsSubjectPristinePreconditionRecursively(): void
+    {
+        $this->client->writeEvents([
+            $this->createEventCandidate('/test/1'),
+        ]);
+
+        $preconditionOptions = new PreconditionOptions(recursive: true);
+
+        if (!$this->usesV2Api($this->client)) {
+            $this->assertFailsForLackOfTheV2Api(new IsSubjectPristine('/test/2', $preconditionOptions));
+
+            return;
+        }
+
+        $this->assertFailsWithErrorCode(ErrorCode::PRECONDITION_VIOLATED, fn (): mixed => $this->client->writeEvents([
+            $this->createEventCandidate('/test'),
+        ], [
+            new IsSubjectPristine('/test', $preconditionOptions),
+        ]), 'Failed to write events, ');
+
+        $writtenEvents = $this->client->writeEvents([
+            $this->createEventCandidate('/test/2'),
+        ], [
+            new IsSubjectPristine('/test/2', $preconditionOptions),
+        ]);
+
+        $this->assertCount(1, $writtenEvents);
+        $this->assertSame('/test/2', $writtenEvents[0]->subject);
+    }
+
+    public function testSupportsTheIsSubjectPopulatedPreconditionWithOptionsThatAreNotRecursive(): void
+    {
+        $this->client->writeEvents([
+            $this->createEventCandidate('/test/1'),
+        ]);
+
+        $preconditionOptions = new PreconditionOptions(recursive: false);
+
+        $this->assertFailsWithErrorCode(ErrorCode::PRECONDITION_VIOLATED, fn (): mixed => $this->client->writeEvents([
+            $this->createEventCandidate('/test'),
+        ], [
+            new IsSubjectPopulated('/test', $preconditionOptions),
+        ]), 'Failed to write events, ');
+
+        $writtenEvents = $this->client->writeEvents([
+            $this->createEventCandidate('/test/1'),
+        ], [
+            new IsSubjectPopulated('/test/1', $preconditionOptions),
+        ]);
+
+        $this->assertCount(1, $writtenEvents);
+        $this->assertSame('/test/1', $writtenEvents[0]->subject);
+    }
+
+    public function testSupportsTheIsSubjectPopulatedPreconditionRecursively(): void
+    {
+        $this->client->writeEvents([
+            $this->createEventCandidate('/test/1'),
+        ]);
+
+        $preconditionOptions = new PreconditionOptions(recursive: true);
+
+        if (!$this->usesV2Api($this->client)) {
+            $this->assertFailsForLackOfTheV2Api(new IsSubjectPopulated('/test/1', $preconditionOptions));
+
+            return;
+        }
+
+        $this->assertFailsWithErrorCode(ErrorCode::PRECONDITION_VIOLATED, fn (): mixed => $this->client->writeEvents([
+            $this->createEventCandidate('/test/2'),
+        ], [
+            new IsSubjectPopulated('/test/2', $preconditionOptions),
+        ]), 'Failed to write events, ');
+
+        $writtenEvents = $this->client->writeEvents([
+            $this->createEventCandidate('/test'),
+        ], [
+            new IsSubjectPopulated('/test', $preconditionOptions),
+        ]);
+
+        $this->assertCount(1, $writtenEvents);
+        $this->assertSame('/test', $writtenEvents[0]->subject);
+    }
+
+    public function testSupportsTheIsSubjectOnEventIdPreconditionWithOptionsThatAreNotRecursive(): void
+    {
+        $this->client->writeEvents([
+            $this->createEventCandidate('/test'),
+            $this->createEventCandidate('/test/1'),
+        ]);
+
+        $preconditionOptions = new PreconditionOptions(recursive: false);
+
+        $this->assertFailsWithErrorCode(ErrorCode::PRECONDITION_VIOLATED, fn (): mixed => $this->client->writeEvents([
+            $this->createEventCandidate('/test'),
+        ], [
+            new IsSubjectOnEventId('/test', '1', $preconditionOptions),
+        ]), 'Failed to write events, ');
+
+        $writtenEvents = $this->client->writeEvents([
+            $this->createEventCandidate('/test'),
+        ], [
+            new IsSubjectOnEventId('/test', '0', $preconditionOptions),
+        ]);
+
+        $this->assertCount(1, $writtenEvents);
+        $this->assertSame('2', $writtenEvents[0]->id);
+    }
+
+    public function testSupportsTheIsSubjectOnEventIdPreconditionRecursively(): void
+    {
+        $this->client->writeEvents([
+            $this->createEventCandidate('/test'),
+            $this->createEventCandidate('/test/1'),
+        ]);
+
+        $preconditionOptions = new PreconditionOptions(recursive: true);
+
+        if (!$this->usesV2Api($this->client)) {
+            $this->assertFailsForLackOfTheV2Api(new IsSubjectOnEventId('/test', '0', $preconditionOptions));
+
+            return;
+        }
+
+        $this->assertFailsWithErrorCode(ErrorCode::PRECONDITION_VIOLATED, fn (): mixed => $this->client->writeEvents([
+            $this->createEventCandidate('/test'),
+        ], [
+            new IsSubjectOnEventId('/test', '0', $preconditionOptions),
+        ]), 'Failed to write events, ');
+
+        $writtenEvents = $this->client->writeEvents([
+            $this->createEventCandidate('/test'),
+        ], [
+            new IsSubjectOnEventId('/test', '1', $preconditionOptions),
+        ]);
+
+        $this->assertCount(1, $writtenEvents);
+        $this->assertSame('2', $writtenEvents[0]->id);
+    }
+
+    /**
+     * Asserts that a write with the given recursive precondition fails, since
+     * the server does not offer the v2 API, and that it writes nothing. Each
+     * caller passes a precondition that holds when checked without its
+     * options, so that a write that ignored them would succeed.
+     */
+    private function assertFailsForLackOfTheV2Api(IsSubjectPristine|IsSubjectPopulated|IsSubjectOnEventId $precondition): void
+    {
+        $eventsBefore = $this->readAllEventIds();
+
+        try {
+            $this->client->writeEvents([
+                $this->createEventCandidate('/test/2'),
+            ], [
+                $precondition,
+            ]);
+            $this->fail('Expected the write to fail, but it did not.');
+        } catch (IncompatibleServerException $incompatibleServerException) {
+            $this->assertSame('The server does not offer the v2 API, which a recursive precondition needs.', $incompatibleServerException->getMessage());
+        }
+
+        $this->assertSame($eventsBefore, $this->readAllEventIds(), 'Expected the write to write nothing.');
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function readAllEventIds(): array
+    {
+        $eventIds = [];
+        foreach ($this->client->readEvents('/', new ReadEventsOptions(recursive: true)) as $event) {
+            $eventIds[] = $event->id;
+        }
+
+        return $eventIds;
+    }
+
+    private function createEventCandidate(string $subject): EventCandidate
+    {
+        return new EventCandidate(
+            source: 'https://www.eventsourcingdb.io',
+            subject: $subject,
+            type: 'io.eventsourcingdb.test',
+            data: [
+                'value' => 42,
+            ],
+        );
     }
 }
