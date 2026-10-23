@@ -327,9 +327,16 @@ final class RequestsTest extends TestCase
     public function testFailsWithoutSendingAWriteWithARecursivePreconditionThroughTheV1Api(IsSubjectPristine|IsSubjectPopulated|IsSubjectOnEventId $precondition): void
     {
         $address = $this->startDatabase('v1', [
+            $this->response(['{"type":"io.eventsourcingdb.api.ping-received"}'], interval: 0.0, holdFor: 0.0, contentType: 'application/json'),
             $this->response(['[]'], interval: 0.0, holdFor: 0.0, contentType: 'application/json'),
         ]);
         $client = new Client("http://{$address}", 'secret');
+
+        // The client pings first, so that its last request reached the server.
+        // Otherwise, an error before the write would keep its type even if the
+        // write were guarded already, since a write whose request never
+        // connected certainly was not stored.
+        $client->ping();
 
         try {
             $client->writeEvents([
@@ -350,7 +357,7 @@ final class RequestsTest extends TestCase
             $this->assertSame('The server does not offer the v2 API, which a recursive precondition needs.', $incompatibleServerException->getMessage());
         }
 
-        $this->assertCount(1, $this->readRequests(), 'Expected the client to ask for the API, but not to send the write.');
+        $this->assertCount(2, $this->readRequests(), 'Expected the client to ask for the API and to ping, but not to send the write.');
     }
 
     public function testReadsTheValueOfEachRowOfAQueryThatTheV2ApiAnswers(): void
