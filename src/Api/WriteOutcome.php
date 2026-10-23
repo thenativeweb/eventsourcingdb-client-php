@@ -14,13 +14,14 @@ use Throwable;
  * Tells a write that failed, of events or of an event schema, and was
  * certainly not stored, from one that may have been stored nonetheless,
  * which it reports as an OutcomeUnknownException. A write was certainly not
- * stored only if the client refused it before sending it, such as a write
- * with a recursive precondition to a server without the v2 API, which happens
- * before this guard, if the connection to the server could not be established
- * at all, or if the server refused it explicitly. Everything else, such as a
- * stall, a broken connection, or an answer that does not come from
- * EventSourcingDB, leaves the outcome open, since EventSourcingDB may have
- * stored the write before its answer was lost.
+ * stored only if it failed before this guard, since the client refused it
+ * before sending it, such as a write with a recursive precondition to a
+ * server without the v2 API, or since asking the server which API it offers
+ * failed, or if, within this guard, the connection to the server could not be
+ * established at all, or the server refused the write explicitly. Everything
+ * else within this guard, such as a stall, a broken connection, or an answer
+ * that does not come from EventSourcingDB, leaves the outcome open, since
+ * EventSourcingDB may have stored the write before its answer was lost.
  *
  * @internal
  */
