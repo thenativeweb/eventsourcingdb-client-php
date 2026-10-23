@@ -427,7 +427,7 @@ foreach ($events as $event) {
 
 #### Aborting Observing
 
-If you need to abort observing use `abortIn` before or within the `foreach` loop. The `abortIn` method expects the abort time in seconds. It applies only to the iteration currently going on, or, if there is none, to the next one, so later requests of the client are not aborted:
+If you need to abort observing use `abortIn` before or within the `foreach` loop. The `abortIn` method expects the abort time in seconds, counted from the call. It applies only to the iteration currently going on, or, if there is none, to the next one, so later requests of the client are not aborted. It covers the whole iteration, including connecting and waiting for the server to answer, and once it is over, the iteration ends without an exception:
 
 ```php
 use Thenativeweb\Eventsourcingdb\ObserveEventsOptions;
@@ -512,7 +512,7 @@ If you set `recursive` to `false`, the listing only includes the given subject, 
 
 #### Aborting Listing
 
-If you need to abort listing use `abortIn` before or within the `foreach` loop. The `abortIn` method expects the abort time in seconds. It applies only to the iteration currently going on, or, if there is none, to the next one, so later requests of the client are not aborted:
+If you need to abort listing use `abortIn` before or within the `foreach` loop. The `abortIn` method expects the abort time in seconds, counted from the call. It applies only to the iteration currently going on, or, if there is none, to the next one, so later requests of the client are not aborted. It covers the whole iteration, including connecting and waiting for the server to answer, and once it is over, the iteration ends without an exception:
 
 ```php
 use Thenativeweb\Eventsourcingdb\ReadSubjectsOptions;
@@ -547,7 +547,7 @@ Each event type is an `EventType` instance, whose `type` property holds the name
 
 #### Aborting Listing
 
-If you need to abort listing use `abortIn` before or within the `foreach` loop. The `abortIn` method expects the abort time in seconds. It applies only to the iteration currently going on, or, if there is none, to the next one, so later requests of the client are not aborted:
+If you need to abort listing use `abortIn` before or within the `foreach` loop. The `abortIn` method expects the abort time in seconds, counted from the call. It applies only to the iteration currently going on, or, if there is none, to the next one, so later requests of the client are not aborted. It covers the whole iteration, including connecting and waiting for the server to answer, and once it is over, the iteration ends without an exception:
 
 ```php
 $eventTypes = $client->readEventTypes();
@@ -600,9 +600,9 @@ If the server only offers the v1 API, the client assigns the code of the v2 API 
 
 #### Knowing Whether a Write Was Stored
 
-EventSourcingDB never stores a write halfway, but a write whose answer is lost may have been stored nonetheless. So, if writing events or registering an event schema fails in a way that leaves open whether the server stored it, the client throws an `OutcomeUnknownException`, which extends `RuntimeException`, and whose previous exception, which `getPrevious()` returns, is the cause. This is the case, e.g., if the connection stalls or breaks after the request was sent, if `abortIn` aborts reading the answer, if the answer breaks off, if the server fails unexpectedly, or if the answer does not come from EventSourcingDB, e.g. from a proxy.
+EventSourcingDB never stores a write halfway, but a write whose answer is lost may have been stored nonetheless. So, if writing events or registering an event schema fails in a way that leaves open whether the server stored it, the client throws an `OutcomeUnknownException`, which extends `RuntimeException`, and whose previous exception, which `getPrevious()` returns, is the cause. This is the case, e.g., if the connection stalls or breaks after the request was sent, if `abortIn` aborts the write once the connection is established, while it waits for the answer or reads it, if the answer breaks off, if the server fails unexpectedly, or if the answer does not come from EventSourcingDB, e.g. from a proxy.
 
-A write certainly was not stored if the client throws any other exception, i.e. if the client refused the write before sending it, which it reports with an `IncompatibleServerException`, if asking the server which API it offers failed before the write was sent, if the connection could not be established at all, or if the server refused the write, which it reports with a `DbApiException`:
+A write certainly was not stored if the client throws any other exception, i.e. if the client refused the write before sending it, which it reports with an `IncompatibleServerException`, if asking the server which API it offers failed before the write was sent, e.g. because `abortIn` aborted it, if the connection could not be established at all, e.g. because `abortIn` aborted the write while connecting, or if the server refused the write, which it reports with a `DbApiException`:
 
 ```php
 use Thenativeweb\Eventsourcingdb\OutcomeUnknownException;
@@ -619,16 +619,21 @@ try {
 
 #### Aborting a Request
 
-To abort a request, call `abortIn` before it, with the abort time in seconds. It applies only to the stream currently being read, or, if there is none, to the next request, so later requests of the client are not aborted:
+To abort a request, call `abortIn` before it, with the abort time in seconds, counted from the call. It applies only to the stream currently being read, or, if there is none, to the next request, so later requests of the client are not aborted. It covers the whole request, from asking the server which API it offers, if the client does not know it yet, and connecting, to waiting for the answer and reading it, and if the time is over before the request starts, the client does not send it. An aborted stream ends without an exception; any other aborted request throws a `RequestAbortedException`, which extends `RuntimeException`:
 
 ```php
+use Thenativeweb\Eventsourcingdb\RequestAbortedException;
+
 $client->abortIn(5.0);
-$writtenEvents = $client->writeEvents([
-  // events
-]);
+
+try {
+  $client->ping();
+} catch (RequestAbortedException $exception) {
+  // ...
+}
 ```
 
-*Note that if `abortIn` aborts `writeEvents` or `registerEventSchema` after the request was sent, the client throws an `OutcomeUnknownException`, since the server may have stored the write nonetheless.*
+*Note that if `abortIn` aborts `writeEvents` or `registerEventSchema` once the connection to the server is established, the client throws an `OutcomeUnknownException` whose previous exception is the `RequestAbortedException`, since the server may have stored the write nonetheless. If it aborts the write before, e.g. while asking the server which API it offers or while connecting, the client throws the `RequestAbortedException` itself, since the write was certainly not stored.*
 
 ### Verifying an Event's Hash
 

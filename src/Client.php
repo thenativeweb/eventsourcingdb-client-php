@@ -34,6 +34,11 @@ final readonly class Client
         $this->transportSelector = new TransportSelector($this->httpClient, $apiToken, new ProbingHttpClient($url, $stallTimeout));
     }
 
+    /**
+     * Aborts the stream being read, or, if there is none, the next request,
+     * once the given seconds, counted from now, are over. An abort time of
+     * zero or less sets none.
+     */
     public function abortIn(float $seconds): void
     {
         $this->httpClient->abortIn($seconds);
