@@ -159,6 +159,10 @@ final class AbortInTest extends TestCase
             $client->ping();
         }, $client, 'answer');
 
+        // Asking that the client did not abort would have had its answer by
+        // now, so the server would have logged it already.
+        $this->assertSame([], $this->readRequests(), 'Expected the client not to ask the server which API it offers.');
+
         // The next request asks which API the server offers, and then pings.
         $client->ping();
 
