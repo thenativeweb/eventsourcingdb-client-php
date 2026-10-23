@@ -15,17 +15,20 @@ use Throwable;
  * API: a server that answers it offers the v2 API, and one that does not know
  * the route, which it answers with 404 or 405, offers the v1 API only. Any
  * other outcome, such as a failed connection or a 503, fails the request that
- * asked, and leaves the choice open, so that the next request asks again.
- * Once the server answers a route of the v2 API with 404 or 405, e.g. since
- * it was rolled back to a version without it, the client forgets the choice,
- * and the next request asks again, too. A request that needs the v2 API, such
- * as a write with a recursive precondition, asks again as well, if the client
- * remembers that the server offers the v1 API only, since the server may
- * offer the v2 API by now, e.g. after an upgrade.
+ * asked, and leaves the choice as it was: without one, the next request asks
+ * again. Once the server answers a route of the v2 API with 404 or 405, e.g.
+ * since it was rolled back to a version without it, the client forgets the
+ * choice, and the next request asks again, too. A request that needs the v2
+ * API, such as a write with a recursive precondition, asks again as well, if
+ * the client remembers that the server offers the v1 API only, since the
+ * server may offer the v2 API by now, e.g. after an upgrade. If that asking
+ * fails, the client keeps the v1 API, and every other request goes on using
+ * it without asking.
  *
  * This is the one place that chooses between the APIs, so that removing the
- * v1 API means removing V1Transport, V1ErrorCodes, Preconditions, and its
- * choice here, including asking again for a request that needs the v2 API.
+ * v1 API means removing V1Transport, V1ErrorCodes, Preconditions, its choice
+ * here, including asking again for a request that needs the v2 API, and the
+ * argument isV2ApiNeeded that Client::writeEvents passes for that.
  *
  * @internal
  *
@@ -53,16 +56,19 @@ final class TransportSelector
      */
     public function getTransport(bool $isV2ApiNeeded = false): Transport
     {
-        if ($isV2ApiNeeded && $this->transport instanceof V1Transport) {
-            $this->transport = null;
+        $isAskingAgain = $isV2ApiNeeded && $this->transport instanceof V1Transport;
+        if ($this->transport instanceof Transport && !$isAskingAgain) {
+            return $this->transport;
         }
 
         // PHP runs one request at a time, so the first request of a client
         // finishes asking before any other one starts, and the others use
         // the answer it remembered. A stream that is being read while a
-        // request asks again keeps the transport that it started with.
+        // request asks again keeps the transport that it started with. Only
+        // an answer replaces the one the client remembers, so asking that
+        // fails leaves it as it was.
         try {
-            return $this->transport ??= $this->detectTransport();
+            return $this->transport = $this->detectTransport();
         } catch (Throwable $throwable) {
             // The request that asked fails, so it uses up an abort time that
             // the caller set for it, as a request that fails does, rather than

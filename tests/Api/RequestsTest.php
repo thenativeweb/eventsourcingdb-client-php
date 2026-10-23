@@ -8,6 +8,7 @@ use Closure;
 use Iterator;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use RuntimeException;
 use Thenativeweb\Eventsourcingdb\Bound;
 use Thenativeweb\Eventsourcingdb\BoundType;
 use Thenativeweb\Eventsourcingdb\Client;
@@ -421,6 +422,46 @@ final class RequestsTest extends TestCase
                 'body' => '',
             ],
         ], $this->readRequests());
+    }
+
+    public static function failuresOfAskingAgain(): Iterator
+    {
+        yield 'the server answers with 503' => [false, 'Failed to find out the API of the server, server is shutting down'];
+        yield 'another server answers' => [true, 'Server must be EventSourcingDB.'];
+    }
+
+    #[DataProvider('failuresOfAskingAgain')]
+    public function testKeepsTheV1ApiThatItRemembersIfAskingAgainFails(bool $isAnsweredByAnotherServer, string $expectedMessage): void
+    {
+        $pingOfV1 = $this->response(['{"type":"io.eventsourcingdb.api.ping-received"}'], interval: 0.0, holdFor: 0.0, contentType: 'application/json');
+        $address = $this->startDatabase('v1', [
+            $pingOfV1,
+            $isAnsweredByAnotherServer ? $this->textResponse(502, 'Bad Gateway', server: 'nginx') : $this->textResponse(503, 'server is shutting down'),
+            $pingOfV1,
+        ]);
+        $client = new Client("http://{$address}", 'secret');
+
+        $client->ping();
+
+        try {
+            $client->writeEvents([
+                $this->createEventCandidate(),
+            ], [
+                new IsSubjectPristine('/test', new PreconditionOptions(recursive: true)),
+            ]);
+            $this->fail('Expected the write to fail, but it did not.');
+        } catch (RuntimeException $runtimeException) {
+            $this->assertSame($expectedMessage, $runtimeException->getMessage());
+        }
+
+        $client->ping();
+
+        $this->assertSame([
+            '/api/v2/system/ping',
+            '/api/v1/ping',
+            '/api/v2/system/ping',
+            '/api/v1/ping',
+        ], array_column($this->readRequests(), 'path'), 'Expected the client to keep the v1 API that it remembered, rather than ask again.');
     }
 
     public function testAsksOnceWhichApiTheServerOffersIfAWriteWithARecursivePreconditionIsTheFirstRequest(): void
