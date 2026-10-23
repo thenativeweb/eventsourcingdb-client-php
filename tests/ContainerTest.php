@@ -15,6 +15,8 @@ use Docker\API\Model\ContainersIdJsonGetResponse200;
 use Docker\API\Model\ContainerState;
 use Docker\API\Model\ContainerSummary;
 use Docker\API\Model\ErrorResponse;
+use Docker\API\Model\NetworkSettings;
+use Docker\API\Model\PortBinding;
 use Docker\API\Runtime\Client\Endpoint;
 use Docker\Docker;
 use Docker\Stream\DockerRawStream;
@@ -25,16 +27,26 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
+use ReflectionClassConstant;
+use ReflectionProperty;
 use RuntimeException;
 use Testcontainers\ContainerClient\DockerContainerClient;
 use Thenativeweb\Eventsourcingdb\Container;
 use Thenativeweb\Eventsourcingdb\Tests\Docker\RecordingDocker;
 use Thenativeweb\Eventsourcingdb\Tests\Trait\ReflectionTestTrait;
+use Thenativeweb\Eventsourcingdb\Tests\Trait\ServerTestTrait;
 use function Thenativeweb\Eventsourcingdb\Tests\Fn\getImageTag;
 
 final class ContainerTest extends TestCase
 {
     use ReflectionTestTrait;
+    use ServerTestTrait {
+        tearDown as tearDownServer;
+    }
+
+    private const PING_OF_V1 = 'GET /api/v1/ping';
+
+    private const PING_OF_V2 = 'GET /api/v2/system/ping';
 
     private ?Container $container = null;
 
@@ -61,6 +73,13 @@ final class ContainerTest extends TestCase
      */
     private array $deletedContainerIds = [];
 
+    /**
+     * The host that Testcontainers was told to connect to before a test told
+     * it to connect to the fake server, false if it was told none, or null if
+     * the test did not change it.
+     */
+    private string|false|null $originalHostOverride = null;
+
     protected function tearDown(): void
     {
         $this->container?->stop();
@@ -69,7 +88,110 @@ final class ContainerTest extends TestCase
             DockerContainerClient::setDockerClient($this->realDockerClient);
         }
 
-        parent::tearDown();
+        if ($this->originalHostOverride !== null) {
+            putenv($this->originalHostOverride === false
+                ? 'TESTCONTAINERS_HOST_OVERRIDE'
+                : 'TESTCONTAINERS_HOST_OVERRIDE=' . $this->originalHostOverride);
+        }
+
+        $this->tearDownServer();
+    }
+
+    #[DataProvider('provideAnswersOfAServerWithoutTheV2Api')]
+    public function testIsReadyOnceTheV1PingAnswersIfTheServerDoesNotKnowTheV2Ping(int $status, string $text): void
+    {
+        $this->container = $this->createContainerOnFakeServer([
+            '/api/v2/system/ping' => [$this->textResponse($status, $text)],
+            '/api/v1/ping' => [$this->pingResponse('v1')],
+        ]);
+
+        $this->assertStartsAfterPings($this->container, [self::PING_OF_V2, self::PING_OF_V1]);
+    }
+
+    /**
+     * @return iterable<string, array{int, string}>
+     */
+    public static function provideAnswersOfAServerWithoutTheV2Api(): iterable
+    {
+        yield 'not found' => [404, '404 page not found'];
+        yield 'method not allowed' => [405, '405 method not allowed'];
+    }
+
+    public function testIsReadyOnceTheV2PingAnswersWithoutAskingTheV1Ping(): void
+    {
+        $this->container = $this->createContainerOnFakeServer([
+            '/api/v2/system/ping' => [$this->pingResponse('v2')],
+            '/api/v1/ping' => [$this->pingResponse('v1')],
+        ]);
+
+        $this->assertStartsAfterPings($this->container, [self::PING_OF_V2]);
+    }
+
+    public function testIsReadyOnceTheV2PingAnswersOnAServerWithoutTheV1Api(): void
+    {
+        // The server knows no route of the v1 API, so it answers its ping
+        // with 404.
+        $this->container = $this->createContainerOnFakeServer([
+            '/api/v2/system/ping' => [$this->pingResponse('v2')],
+        ]);
+
+        $this->assertStartsAfterPings($this->container, [self::PING_OF_V2]);
+    }
+
+    public function testTriesAgainWithoutAskingTheV1PingIfTheV2PingAnswersWith503(): void
+    {
+        $this->container = $this->createContainerOnFakeServer([
+            '/api/v2/system/ping' => [$this->textResponse(503, 'Service Unavailable'), $this->pingResponse('v2')],
+            '/api/v1/ping' => [$this->pingResponse('v1')],
+        ]);
+
+        $this->assertStartsAfterPings($this->container, [self::PING_OF_V2, self::PING_OF_V2]);
+    }
+
+    public function testTriesAgainWithoutAskingTheV1PingIfTheV2PingAnswersWithASuccessOtherThan200(): void
+    {
+        $this->container = $this->createContainerOnFakeServer([
+            '/api/v2/system/ping' => [$this->response([], interval: 0.0, holdFor: 0.0, status: 204), $this->pingResponse('v2')],
+            '/api/v1/ping' => [$this->pingResponse('v1')],
+        ]);
+
+        $this->assertStartsAfterPings($this->container, [self::PING_OF_V2, self::PING_OF_V2]);
+    }
+
+    public function testTriesAgainWithoutAskingTheV1PingIfTheV2PingTakesLongerThanTheBoundPerRequest(): void
+    {
+        // The answer comes later than the bound per request allows, but well
+        // within the startup timeout, so that a wait without the bound would
+        // take it.
+        $this->container = $this->createContainerOnFakeServer([
+            '/api/v2/system/ping' => [
+                $this->response([self::$pingOfV2], interval: 0.0, holdFor: 0.0, delay: 3 * $this->getPingTimeout(), contentType: 'application/json'),
+                $this->pingResponse('v2'),
+            ],
+            '/api/v1/ping' => [$this->pingResponse('v1')],
+        ]);
+
+        $this->assertStartsAfterPings($this->container, [self::PING_OF_V2, self::PING_OF_V2]);
+    }
+
+    public function testAsksTheV2PingFirstOnEveryAttempt(): void
+    {
+        $this->container = $this->createContainerOnFakeServer([
+            '/api/v2/system/ping' => [$this->textResponse(404, '404 page not found'), $this->pingResponse('v2')],
+            '/api/v1/ping' => [$this->textResponse(503, 'Service Unavailable')],
+        ]);
+
+        $this->assertStartsAfterPings($this->container, [self::PING_OF_V2, self::PING_OF_V1, self::PING_OF_V2]);
+    }
+
+    public function testTriesAgainIfTheV1PingAnswersWithASuccessOtherThan200(): void
+    {
+        $this->container = $this->createContainerOnFakeServer([
+            '/api/v2/system/ping' => [$this->textResponse(404, '404 page not found'), $this->pingResponse('v2')],
+            '/api/v1/ping' => [$this->response([], interval: 0.0, holdFor: 0.0, status: 204)],
+        ]);
+
+        $this->assertStartsAfterPings($this->container, [self::PING_OF_V2, self::PING_OF_V1, self::PING_OF_V2]);
     }
 
     public function testStartsWithACustomPort(): void
@@ -459,6 +581,112 @@ final class ContainerTest extends TestCase
         DockerContainerClient::setDockerClient($docker);
 
         return $docker;
+    }
+
+    /**
+     * Creates a container whose containers run on a fake server, see
+     * useFakeDockerWithServer. Its startup timeout is a few times the bound
+     * per request, which leaves room for the attempts of a container that
+     * becomes ready, also one that waits for a request to hit the bound,
+     * while a container that never becomes ready fails within seconds.
+     *
+     * @param array<string, non-empty-list<array>> $routes
+     */
+    private function createContainerOnFakeServer(array $routes): Container
+    {
+        $container = (new Container())->withStartupTimeout(5 * $this->getPingTimeout());
+        $this->useFakeDockerWithServer($container, $routes);
+
+        return $container;
+    }
+
+    /**
+     * Starts the given container, and asserts that it started once the fake
+     * server had received exactly the given pings, in order. The pings are
+     * asserted first, also if starting failed, so that a failure says which
+     * pings the container asked.
+     *
+     * @param list<string> $expectedPings
+     */
+    private function assertStartsAfterPings(Container $container, array $expectedPings): void
+    {
+        $exception = $this->startAndCatch($container);
+
+        $this->assertSame(
+            $expectedPings,
+            $this->readPings(),
+            $exception instanceof Exception ? "Starting failed: {$exception->getMessage()}" : '',
+        );
+        $this->assertNull($exception);
+        $this->assertTrue($container->isRunning());
+    }
+
+    /**
+     * Returns the bound per request of a ping, which the container defines.
+     */
+    private function getPingTimeout(): float
+    {
+        $pingTimeout = (new ReflectionClassConstant(Container::class, 'PING_TIMEOUT'))->getValue();
+        $this->assertIsFloat($pingTimeout);
+
+        return $pingTimeout;
+    }
+
+    /**
+     * Replaces the Docker client of Testcontainers with a fake one, whose
+     * containers start, keep running, and publish the port of the given
+     * container on a fake server that answers requests by their path, with
+     * the given responses.
+     *
+     * @param array<string, non-empty-list<array>> $routes
+     */
+    private function useFakeDockerWithServer(Container $container, array $routes): void
+    {
+        [$host, $port] = explode(':', $this->startServerWithRoutes($routes));
+        $internalPort = (new ReflectionProperty($container, 'internalPort'))->getValue($container);
+        $this->assertIsInt($internalPort);
+
+        // The container is reached on the host that Testcontainers resolves,
+        // which depends on how Docker is set up, so it is told to connect to
+        // the host of the fake server instead.
+        $this->originalHostOverride = getenv('TESTCONTAINERS_HOST_OVERRIDE');
+        putenv("TESTCONTAINERS_HOST_OVERRIDE={$host}");
+
+        $this->realDockerClient = DockerContainerClient::getDockerClient();
+
+        // Every other call, such as starting, stopping, or removing a
+        // container, succeeds without an answer, as Docker does. Listing
+        // the containers to remove finds none, so that a start that fails
+        // fails with the message that says why.
+        $docker = $this->createStub(Docker::class);
+        $docker->method('containerCreate')
+            ->willReturn((new ContainerCreateResponse())->setId('container-1'));
+        $docker->method('containerInspect')
+            ->willReturn(
+                (new ContainersIdJsonGetResponse200())
+                    ->setState((new ContainerState())->setStatus('running'))
+                    ->setNetworkSettings((new NetworkSettings())->setPorts([
+                        "{$internalPort}/tcp" => [(new PortBinding())->setHostIp($host)->setHostPort($port)],
+                    ])),
+            );
+        $docker->method('containerList')
+            ->willReturn([]);
+
+        DockerContainerClient::setDockerClient($docker);
+    }
+
+    /**
+     * Returns the requests that the fake server received, in order, each as
+     * its method and its path.
+     *
+     * @return list<string>
+     */
+    private function readPings(): array
+    {
+        return array_map(
+            static fn (array $request): string => "{$request['method']} {$request['path']}",
+            $this->readRequests(),
+        );
     }
 
     private function startAndCatch(Container $container): ?Exception

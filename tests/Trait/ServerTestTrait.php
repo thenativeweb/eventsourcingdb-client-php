@@ -181,6 +181,35 @@ trait ServerTestTrait
      */
     private function startServerWithResponses(array $responses, ?array $tls = null, float $startDelay = 0.0, bool $failBeforeReporting = false): string
     {
+        return $this->launchServer([
+            'responses' => $responses,
+            'tls' => $tls,
+            'startDelay' => $startDelay,
+            'failBeforeReporting' => $failBeforeReporting,
+        ]);
+    }
+
+    /**
+     * Starts a server that answers every request by its path, with the
+     * responses given for that path, one after another, and with the last of
+     * them again for every further request, and a path without responses
+     * with 404, as EventSourcingDB answers a route that it does not know.
+     *
+     * @param array<string, non-empty-list<array>> $routes the responses by path
+     */
+    private function startServerWithRoutes(array $routes): string
+    {
+        return $this->launchServer([
+            'routes' => $routes,
+        ]);
+    }
+
+    /**
+     * Starts the server with the given options, see heartbeatServer.php, and
+     * returns its address.
+     */
+    private function launchServer(array $options): string
+    {
         $this->requestLog = tempnam(sys_get_temp_dir(), 'eventsourcingdb-requests-') ?: null;
         $this->reportsToSkip = 0;
 
@@ -198,11 +227,8 @@ trait ServerTestTrait
                 'display_errors=stderr',
                 __DIR__ . '/../Server/heartbeatServer.php',
                 json_encode([
-                    'responses' => $responses,
-                    'tls' => $tls,
+                    ...$options,
                     'requestLog' => $this->requestLog,
-                    'startDelay' => $startDelay,
-                    'failBeforeReporting' => $failBeforeReporting,
                 ], JSON_THROW_ON_ERROR),
             ],
             [

@@ -46,6 +46,27 @@ trait ClientTestTrait
     }
 
     /**
+     * Asks the database for the ping of the v2 API on its own, without the
+     * client, which a database that offers the v2 API answers with 200.
+     */
+    protected function askWhetherTheDatabaseOffersTheV2Api(): bool
+    {
+        $curlHandle = curl_init($this->container->getBaseUrl() . '/api/v2/system/ping');
+        curl_setopt_array($curlHandle, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT => 10,
+        ]);
+
+        $body = curl_exec($curlHandle);
+        $this->assertIsString($body, curl_error($curlHandle));
+
+        $status = curl_getinfo($curlHandle, CURLINFO_RESPONSE_CODE);
+        $this->assertContains($status, [200, 404, 405], "Expected the database to answer the ping of the v2 API with 200, 404, or 405, but it answered with {$status}.");
+
+        return $status === 200;
+    }
+
+    /**
      * Asserts that the call fails with a DbApiException whose errorCode is
      * the given one, and, if a message is given, whose message contains it,
      * as expectExceptionMessage checks it.

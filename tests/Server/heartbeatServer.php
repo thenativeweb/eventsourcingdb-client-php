@@ -18,6 +18,12 @@ declare(strict_types=1);
  * instead, and if it ends after only a part of a request arrived, e.g. the
  * start of a TLS handshake that it does not answer, it reports "closed".
  *
+ * If routes are given rather than responses, it answers every request by its
+ * path instead, with the responses given for that path, one after another,
+ * and with the last of them again for every further request, and a path
+ * without responses with 404, as EventSourcingDB answers a route that it does
+ * not know, until the test ends it.
+ *
  * If a request log is given, it appends every request to it, as a line of
  * JSON with its method, its path, and its body, before answering it.
  *
@@ -34,8 +40,9 @@ declare(strict_types=1);
 
 /**
  * @param resource $connection
+ * @param Closure(string): array $chooseResponse returns the response to the request with the given path
  */
-function answer($connection, array $response, ?string $requestLog): string
+function answer($connection, Closure $chooseResponse, ?string $requestLog): string
 {
     $request = '';
     while (!str_contains($request, "\r\n\r\n")) {
@@ -62,14 +69,16 @@ function answer($connection, array $response, ?string $requestLog): string
         $body .= $chunk;
     }
 
+    [$method, $path] = explode(' ', strtok($head, "\r\n") ?: '', 3) + ['', ''];
     if ($requestLog !== null) {
-        [$method, $path] = explode(' ', strtok($head, "\r\n") ?: '', 3) + ['', ''];
         file_put_contents($requestLog, json_encode([
             'method' => $method,
             'path' => $path,
             'body' => $body,
         ], JSON_THROW_ON_ERROR) . "\n", FILE_APPEND | LOCK_EX);
     }
+
+    $response = $chooseResponse($path);
 
     if ($response['dropConnection'] ?? false) {
         return 'dropped';
@@ -146,6 +155,38 @@ function waitFor($connection, float $seconds): bool
     return true;
 }
 
+/**
+ * Accepts the next connection, answers the request on it with the response
+ * that the given function chooses, and reports the outcome.
+ *
+ * @param resource $server
+ * @param Closure(string): array $chooseResponse
+ */
+function serveConnection($server, ?array $tls, Closure $chooseResponse, ?string $requestLog): void
+{
+    // The test waits a minute at most for a report, so the server waits as
+    // long for the next request, which a busy machine may send late. The
+    // test ends the server in any case once it is done.
+    $connection = stream_socket_accept($server, 60);
+    if ($connection === false) {
+        exit(1);
+    }
+
+    // A handshake the client breaks off is an expected outcome, so its warning
+    // is suppressed, and the outcome is reported instead.
+    if ($tls !== null && @stream_socket_enable_crypto($connection, true, STREAM_CRYPTO_METHOD_TLS_SERVER) !== true) {
+        echo "no request\n";
+
+        fclose($connection);
+
+        return;
+    }
+
+    echo answer($connection, $chooseResponse, $requestLog) . "\n";
+
+    fclose($connection);
+}
+
 $options = json_decode($argv[1], true, flags: JSON_THROW_ON_ERROR);
 
 $tls = $options['tls'] ?? null;
@@ -172,26 +213,33 @@ if ($options['failBeforeReporting'] ?? false) {
 
 echo stream_socket_get_name($server, false) . "\n";
 
-foreach ($options['responses'] as $response) {
-    // The test waits a minute at most for a report, so the server waits as
-    // long for the next request, which a busy machine may send late. The
-    // test ends the server in any case once it is done.
-    $connection = stream_socket_accept($server, 60);
-    if ($connection === false) {
-        exit(1);
+$routes = $options['routes'] ?? null;
+if ($routes === null) {
+    foreach ($options['responses'] as $response) {
+        serveConnection($server, $tls, static fn (): array => $response, $requestLog);
     }
 
-    // A handshake the client breaks off is an expected outcome, so its warning
-    // is suppressed, and the outcome is reported instead.
-    if ($tls !== null && @stream_socket_enable_crypto($connection, true, STREAM_CRYPTO_METHOD_TLS_SERVER) !== true) {
-        echo "no request\n";
+    exit(0);
+}
 
-        fclose($connection);
-
-        continue;
+$notFound = [
+    'lines' => ['404 page not found'],
+    'interval' => 0.0,
+    'holdFor' => 0.0,
+    'delay' => 0.0,
+    'server' => 'EventSourcingDB/test',
+    'contentType' => 'text/plain; charset=utf-8',
+    'headerDelay' => 0.0,
+    'status' => 404,
+];
+$chooseResponse = static function (string $path) use (&$routes, $notFound): array {
+    if (!isset($routes[$path])) {
+        return $notFound;
     }
 
-    echo answer($connection, $response, $requestLog) . "\n";
+    return count($routes[$path]) > 1 ? array_shift($routes[$path]) : $routes[$path][0];
+};
 
-    fclose($connection);
+while (true) {
+    serveConnection($server, $tls, $chooseResponse, $requestLog);
 }
