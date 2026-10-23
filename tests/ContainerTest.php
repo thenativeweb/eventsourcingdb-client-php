@@ -100,16 +100,12 @@ final class ContainerTest extends TestCase
     #[DataProvider('provideAnswersOfAServerWithoutTheV2Api')]
     public function testIsReadyOnceTheV1PingAnswersIfTheServerDoesNotKnowTheV2Ping(int $status, string $text): void
     {
-        $this->container = new Container();
-        $this->useFakeDockerWithServer($this->container, [
+        $this->container = $this->createContainerOnFakeServer([
             '/api/v2/system/ping' => [$this->textResponse($status, $text)],
             '/api/v1/ping' => [$this->pingResponse('v1')],
         ]);
 
-        $this->container->start();
-
-        $this->assertTrue($this->container->isRunning());
-        $this->assertSame([self::PING_OF_V2, self::PING_OF_V1], $this->readPings());
+        $this->assertStartsAfterPings($this->container, [self::PING_OF_V2, self::PING_OF_V1]);
     }
 
     /**
@@ -123,79 +119,79 @@ final class ContainerTest extends TestCase
 
     public function testIsReadyOnceTheV2PingAnswersWithoutAskingTheV1Ping(): void
     {
-        $this->container = new Container();
-        $this->useFakeDockerWithServer($this->container, [
+        $this->container = $this->createContainerOnFakeServer([
             '/api/v2/system/ping' => [$this->pingResponse('v2')],
             '/api/v1/ping' => [$this->pingResponse('v1')],
         ]);
 
-        $this->container->start();
-
-        $this->assertTrue($this->container->isRunning());
-        $this->assertSame([self::PING_OF_V2], $this->readPings());
+        $this->assertStartsAfterPings($this->container, [self::PING_OF_V2]);
     }
 
     public function testIsReadyOnceTheV2PingAnswersOnAServerWithoutTheV1Api(): void
     {
         // The server knows no route of the v1 API, so it answers its ping
         // with 404.
-        $this->container = new Container();
-        $this->useFakeDockerWithServer($this->container, [
+        $this->container = $this->createContainerOnFakeServer([
             '/api/v2/system/ping' => [$this->pingResponse('v2')],
         ]);
 
-        $this->container->start();
-
-        $this->assertTrue($this->container->isRunning());
-        $this->assertSame([self::PING_OF_V2], $this->readPings());
+        $this->assertStartsAfterPings($this->container, [self::PING_OF_V2]);
     }
 
     public function testTriesAgainWithoutAskingTheV1PingIfTheV2PingAnswersWith503(): void
     {
-        $this->container = new Container();
-        $this->useFakeDockerWithServer($this->container, [
+        $this->container = $this->createContainerOnFakeServer([
             '/api/v2/system/ping' => [$this->textResponse(503, 'Service Unavailable'), $this->pingResponse('v2')],
             '/api/v1/ping' => [$this->pingResponse('v1')],
         ]);
 
-        $this->container->start();
+        $this->assertStartsAfterPings($this->container, [self::PING_OF_V2, self::PING_OF_V2]);
+    }
 
-        $this->assertTrue($this->container->isRunning());
-        $this->assertSame([self::PING_OF_V2, self::PING_OF_V2], $this->readPings());
+    public function testTriesAgainWithoutAskingTheV1PingIfTheV2PingAnswersWithASuccessOtherThan200(): void
+    {
+        $this->container = $this->createContainerOnFakeServer([
+            '/api/v2/system/ping' => [$this->response([], interval: 0.0, holdFor: 0.0, status: 204), $this->pingResponse('v2')],
+            '/api/v1/ping' => [$this->pingResponse('v1')],
+        ]);
+
+        $this->assertStartsAfterPings($this->container, [self::PING_OF_V2, self::PING_OF_V2]);
     }
 
     public function testTriesAgainWithoutAskingTheV1PingIfTheV2PingTakesLongerThanTheBoundPerRequest(): void
     {
-        $pingTimeout = (new ReflectionClassConstant(Container::class, 'PING_TIMEOUT'))->getValue();
-        $this->assertIsFloat($pingTimeout);
-
-        $this->container = new Container();
-        $this->useFakeDockerWithServer($this->container, [
+        // The answer comes later than the bound per request allows, but well
+        // within the startup timeout, so that a wait without the bound would
+        // take it.
+        $this->container = $this->createContainerOnFakeServer([
             '/api/v2/system/ping' => [
-                $this->response([self::$pingOfV2], interval: 0.0, holdFor: 0.0, delay: 5 * $pingTimeout, contentType: 'application/json'),
+                $this->response([self::$pingOfV2], interval: 0.0, holdFor: 0.0, delay: 3 * $this->getPingTimeout(), contentType: 'application/json'),
                 $this->pingResponse('v2'),
             ],
             '/api/v1/ping' => [$this->pingResponse('v1')],
         ]);
 
-        $this->container->start();
-
-        $this->assertTrue($this->container->isRunning());
-        $this->assertSame([self::PING_OF_V2, self::PING_OF_V2], $this->readPings());
+        $this->assertStartsAfterPings($this->container, [self::PING_OF_V2, self::PING_OF_V2]);
     }
 
     public function testAsksTheV2PingFirstOnEveryAttempt(): void
     {
-        $this->container = new Container();
-        $this->useFakeDockerWithServer($this->container, [
+        $this->container = $this->createContainerOnFakeServer([
             '/api/v2/system/ping' => [$this->textResponse(404, '404 page not found'), $this->pingResponse('v2')],
             '/api/v1/ping' => [$this->textResponse(503, 'Service Unavailable')],
         ]);
 
-        $this->container->start();
+        $this->assertStartsAfterPings($this->container, [self::PING_OF_V2, self::PING_OF_V1, self::PING_OF_V2]);
+    }
 
-        $this->assertTrue($this->container->isRunning());
-        $this->assertSame([self::PING_OF_V2, self::PING_OF_V1, self::PING_OF_V2], $this->readPings());
+    public function testTriesAgainIfTheV1PingAnswersWithASuccessOtherThan200(): void
+    {
+        $this->container = $this->createContainerOnFakeServer([
+            '/api/v2/system/ping' => [$this->textResponse(404, '404 page not found'), $this->pingResponse('v2')],
+            '/api/v1/ping' => [$this->response([], interval: 0.0, holdFor: 0.0, status: 204)],
+        ]);
+
+        $this->assertStartsAfterPings($this->container, [self::PING_OF_V2, self::PING_OF_V1, self::PING_OF_V2]);
     }
 
     public function testStartsWithACustomPort(): void
@@ -585,6 +581,55 @@ final class ContainerTest extends TestCase
         DockerContainerClient::setDockerClient($docker);
 
         return $docker;
+    }
+
+    /**
+     * Creates a container whose containers run on a fake server, see
+     * useFakeDockerWithServer. Its startup timeout is a few times the bound
+     * per request, which leaves room for the attempts of a container that
+     * becomes ready, also one that waits for a request to hit the bound,
+     * while a container that never becomes ready fails within seconds.
+     *
+     * @param array<string, non-empty-list<array>> $routes
+     */
+    private function createContainerOnFakeServer(array $routes): Container
+    {
+        $container = (new Container())->withStartupTimeout(5 * $this->getPingTimeout());
+        $this->useFakeDockerWithServer($container, $routes);
+
+        return $container;
+    }
+
+    /**
+     * Starts the given container, and asserts that it started once the fake
+     * server had received exactly the given pings, in order. The pings are
+     * asserted first, also if starting failed, so that a failure says which
+     * pings the container asked.
+     *
+     * @param list<string> $expectedPings
+     */
+    private function assertStartsAfterPings(Container $container, array $expectedPings): void
+    {
+        $exception = $this->startAndCatch($container);
+
+        $this->assertSame(
+            $expectedPings,
+            $this->readPings(),
+            $exception instanceof Exception ? "Starting failed: {$exception->getMessage()}" : '',
+        );
+        $this->assertNull($exception);
+        $this->assertTrue($container->isRunning());
+    }
+
+    /**
+     * Returns the bound per request of a ping, which the container defines.
+     */
+    private function getPingTimeout(): float
+    {
+        $pingTimeout = (new ReflectionClassConstant(Container::class, 'PING_TIMEOUT'))->getValue();
+        $this->assertIsFloat($pingTimeout);
+
+        return $pingTimeout;
     }
 
     /**
