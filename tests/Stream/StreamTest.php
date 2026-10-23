@@ -7,6 +7,7 @@ namespace Thenativeweb\Eventsourcingdb\Tests\Stream;
 use ArrayIterator;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
+use Thenativeweb\Eventsourcingdb\RequestAbortedException;
 use Thenativeweb\Eventsourcingdb\Stream\CurlMultiHandler;
 use Thenativeweb\Eventsourcingdb\Stream\Stream;
 
@@ -33,6 +34,22 @@ final class StreamTest extends TestCase
         $stream = new Stream($mockHandler);
 
         $this->assertSame('foobar', $stream->getContents());
+    }
+
+    public function testGetContentsThrowsIfReadingWasAborted(): void
+    {
+        $mockHandler = $this->createMock(CurlMultiHandler::class);
+        $mockHandler->method('contentIterator')
+            ->willReturn(new ArrayIterator(['{"type":']));
+        $mockHandler->method('hasLastStreamBeenAborted')
+            ->willReturn(true);
+
+        $stream = new Stream($mockHandler);
+
+        $this->expectException(RequestAbortedException::class);
+        $this->expectExceptionMessage('The request was aborted, since the time that abortIn set was over.');
+
+        $stream->getContents();
     }
 
     public function testToStringReturnsContents(): void

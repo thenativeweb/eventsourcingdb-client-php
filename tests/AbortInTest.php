@@ -148,6 +148,44 @@ final class AbortInTest extends TestCase
         $this->assertSame([], $this->readRequests(), 'Expected no request to be sent.');
     }
 
+    /**
+     * @param 'v1'|'v2' $apiVersion
+     */
+    #[DataProvider('singleAnswerCallsOfEveryApiVersion')]
+    public function testAbortsASingleAnswerWhileItIsRead(string $apiVersion, Closure $call): void
+    {
+        // The server sends the headers of the answer, but not its body.
+        $address = $this->startDatabase($apiVersion, [
+            $this->pingResponse($apiVersion),
+            $this->response([], interval: 0.0, holdFor: self::SERVER_DELAY, contentType: 'application/json'),
+        ]);
+        $client = new Client("http://{$address}", 'secret', stallTimeout: self::STALL_TIMEOUT);
+
+        $client->ping();
+        $this->assertSame('ended', $this->readServerReport());
+
+        $client->abortIn(self::ABORT_TIME);
+
+        $this->assertIsAborted($call, $client, 'answer');
+        $this->assertSame('closed', $this->readServerReport(), 'Expected the connection to be closed.');
+    }
+
+    public function testAbortsAskingTheServerWhichApiItOffersWhileItsAnswerIsRead(): void
+    {
+        // The server sends the headers of its answer, but not its body.
+        $address = $this->startServerWithResponses([
+            $this->response([], interval: 0.0, holdFor: self::SERVER_DELAY, contentType: 'application/json'),
+        ]);
+        $client = new Client("http://{$address}", 'secret', stallTimeout: self::STALL_TIMEOUT);
+
+        $client->abortIn(self::ABORT_TIME);
+
+        $this->assertIsAborted(static function (Client $client): void {
+            $client->ping();
+        }, $client, 'answer');
+        $this->assertSame('closed', $this->readServerReport(), 'Expected the connection to be closed.');
+    }
+
     public function testLeavesTheAbortTimeToTheRequestOnceTheServerHasToldItsApi(): void
     {
         $address = $this->startDatabase('v2', [

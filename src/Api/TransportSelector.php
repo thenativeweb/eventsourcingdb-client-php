@@ -6,6 +6,7 @@ namespace Thenativeweb\Eventsourcingdb\Api;
 
 use RuntimeException;
 use Thenativeweb\Eventsourcingdb\ConnectionStalledException;
+use Thenativeweb\Eventsourcingdb\RequestAbortedException;
 use Thenativeweb\Eventsourcingdb\Stream\HttpClient;
 use Throwable;
 
@@ -118,8 +119,8 @@ final class TransportSelector
         try {
             $item = $response->getStream()
                 ->getJsonData();
-        } catch (ConnectionStalledException $connectionStalledException) {
-            throw $connectionStalledException;
+        } catch (ConnectionStalledException|RequestAbortedException $exception) {
+            throw $exception;
         } catch (RuntimeException $runtimeException) {
             throw new RuntimeException(
                 "{$scope}: " . $runtimeException->getMessage(),

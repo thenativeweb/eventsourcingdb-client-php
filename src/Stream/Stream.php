@@ -7,6 +7,7 @@ namespace Thenativeweb\Eventsourcingdb\Stream;
 use IteratorAggregate;
 use RuntimeException;
 use Stringable;
+use Thenativeweb\Eventsourcingdb\RequestAbortedException;
 use Traversable;
 
 /**
@@ -36,9 +37,20 @@ readonly class Stream implements IteratorAggregate, Stringable
         $this->curlMultiHandler->close();
     }
 
+    /**
+     * Reads the whole answer. If abortIn ends reading it, it throws a
+     * RequestAbortedException, rather than hand over a part of the answer as
+     * though it were all of it.
+     */
     public function getContents(): string
     {
-        return implode('', iterator_to_array($this));
+        $contents = implode('', iterator_to_array($this));
+
+        if ($this->curlMultiHandler->hasLastStreamBeenAborted()) {
+            throw new RequestAbortedException();
+        }
+
+        return $contents;
     }
 
     public function getJsonData(): array

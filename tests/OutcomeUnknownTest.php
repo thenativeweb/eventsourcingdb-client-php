@@ -184,7 +184,7 @@ final class OutcomeUnknownTest extends TestCase
 
         $client->abortIn(0.2);
 
-        $this->assertOutcomeIsUnknown($write, $client, RuntimeException::class);
+        $this->assertOutcomeIsUnknown($write, $client, RequestAbortedException::class);
         $this->assertSame('closed', $this->readServerReport(), 'Expected the connection to be closed.');
     }
 

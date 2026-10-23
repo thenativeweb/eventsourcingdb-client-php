@@ -14,6 +14,7 @@ use Thenativeweb\Eventsourcingdb\EventType;
 use Thenativeweb\Eventsourcingdb\ObserveEventsOptions;
 use Thenativeweb\Eventsourcingdb\ReadEventsOptions;
 use Thenativeweb\Eventsourcingdb\ReadSubjectsOptions;
+use Thenativeweb\Eventsourcingdb\RequestAbortedException;
 use Thenativeweb\Eventsourcingdb\Stream\HttpClient;
 use Thenativeweb\Eventsourcingdb\Stream\NdJson;
 use Thenativeweb\Eventsourcingdb\Stream\RawJson;
@@ -308,7 +309,8 @@ final readonly class V2Transport implements Transport
      * the stream breaks off: a stream that ends with an item of type end
      * before that item, and an observation, which the server never ends, at
      * all. A stream that abortIn ends simply ends, unless it is the answer to
-     * a write, whose outcome it leaves open.
+     * a write, whose outcome it leaves open, which it reports with a
+     * RequestAbortedException, as any other request that is aborted.
      *
      * @return iterable<ReadEventLine>
      */
@@ -333,7 +335,7 @@ final readonly class V2Transport implements Transport
 
         if ($this->httpClient->hasLastStreamBeenAborted()) {
             if ($isAnswerToWrite) {
-                throw new RuntimeException("{$scope}, since reading the answer was aborted.");
+                throw new RequestAbortedException();
             }
 
             return;
@@ -351,10 +353,11 @@ final readonly class V2Transport implements Transport
         try {
             $item = $response->getStream()
                 ->getJsonData();
-        } catch (ConnectionStalledException $connectionStalledException) {
-            // A stalled connection keeps its own type, so that it can be told
-            // apart from a response that cannot be read.
-            throw $connectionStalledException;
+        } catch (ConnectionStalledException|RequestAbortedException $exception) {
+            // A stalled connection and an aborted request keep their own type,
+            // so that they can be told apart from a response that cannot be
+            // read.
+            throw $exception;
         } catch (RuntimeException $runtimeException) {
             throw new RuntimeException(
                 "{$scope}: " . $runtimeException->getMessage(),
