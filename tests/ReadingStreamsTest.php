@@ -337,9 +337,15 @@ final class ReadingStreamsTest extends TestCase
     public function testStopsAStreamAtTheTimeAbortInSets(string $apiVersion, Closure $call): void
     {
         $address = $this->startDatabase($apiVersion, [
+            $this->pingResponse($apiVersion),
             $this->response([], interval: 0.0, holdFor: 5.0),
         ]);
         $client = new Client("http://{$address}", 'secret');
+
+        // The client finds out which API the server offers first, so that the
+        // abort time meets the request itself, rather than asking.
+        $client->ping();
+        $this->assertSame('ended', $this->readServerReport());
 
         // The abort time counts from the call, so the time is taken before it.
         $startTime = microtime(true);
@@ -357,10 +363,16 @@ final class ReadingStreamsTest extends TestCase
     public function testDoesNotApplyAbortInToALaterRequest(): void
     {
         $address = $this->startDatabase('v1', [
+            $this->pingResponse('v1'),
             $this->response([], interval: 0.0, holdFor: 2.0),
             $this->response([], interval: 0.0, holdFor: 2.0),
         ]);
         $client = new Client("http://{$address}", 'secret');
+
+        // The client finds out which API the server offers first, so that the
+        // abort time meets the request itself, rather than asking.
+        $client->ping();
+        $this->assertSame('ended', $this->readServerReport());
 
         $client->abortIn(0.2);
         iterator_count($client->readEvents('/', new ReadEventsOptions(recursive: true)));

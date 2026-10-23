@@ -178,9 +178,15 @@ final class OutcomeUnknownTest extends TestCase
     public function testReportsAWriteWhoseAnswerWasAbortedAsUnknown(string $apiVersion, Closure $write): void
     {
         $address = $this->startDatabase($apiVersion, [
+            $this->pingResponse($apiVersion),
             $this->response([], interval: 0.0, holdFor: 5.0),
         ]);
         $client = new Client("http://{$address}", 'secret');
+
+        // The client finds out which API the server offers first, so that the
+        // abort time meets the request itself, rather than asking.
+        $client->ping();
+        $this->assertSame('ended', $this->readServerReport());
 
         $client->abortIn(0.2);
 
