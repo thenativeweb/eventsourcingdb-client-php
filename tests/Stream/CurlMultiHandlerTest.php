@@ -129,9 +129,13 @@ final class CurlMultiHandlerTest extends TestCase
 
     public function testExecuteSendsRequestAndParsesHttpHeadersCorrectly(): void
     {
+        // The request asks the ping of the API that the database offers,
+        // since a release without the v1 API no longer answers its ping. Both
+        // pings answer with the same leading headers.
+        $pingPath = $this->askWhetherTheDatabaseOffersTheV2Api() ? '/api/v2/system/ping' : '/api/v1/ping';
         $request = new Request(
             'GET',
-            $this->container->getBaseUrl() . '/api/v1/ping',
+            $this->container->getBaseUrl() . $pingPath,
         );
         $curlMultiHandler = new CurlMultiHandler();
         $curlMultiHandler->addHandle($request);
