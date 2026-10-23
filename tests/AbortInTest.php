@@ -140,8 +140,12 @@ final class AbortInTest extends TestCase
 
     public function testDoesNotAskTheServerWhichApiItOffersOnceTheAbortTimeIsOver(): void
     {
+        // The server has one answer more than the requests that the client is
+        // to send, so that the request after the aborted one gets its answer
+        // even if the aborted one reached the server.
         $address = $this->startServerWithResponses([
             $this->probeResponse('v2'),
+            $this->pingResponse('v2'),
             $this->pingResponse('v2'),
         ]);
         $client = new Client("http://{$address}", 'secret', stallTimeout: self::STALL_TIMEOUT);
@@ -152,7 +156,11 @@ final class AbortInTest extends TestCase
         $this->assertIsAborted(static function (Client $client): void {
             $client->ping();
         }, $client, 'answer');
-        $this->assertSame([], $this->readRequests(), 'Expected no request to be sent.');
+
+        // The next request asks which API the server offers, and then pings.
+        $client->ping();
+
+        $this->assertReachedTheServerOnly(['/api/v2/system/ping', '/api/v2/system/ping']);
     }
 
     /**
@@ -212,13 +220,18 @@ final class AbortInTest extends TestCase
 
     public function testDoesNotSendARequestWhoseAbortTimeIsOver(): void
     {
+        // The server has one answer more than the requests that the client is
+        // to send, so that the request after the aborted one gets its answer
+        // even if the aborted one reached the server.
         $address = $this->startDatabase('v2', [
+            $this->pingResponse('v2'),
             $this->pingResponse('v2'),
             $this->pingResponse('v2'),
         ]);
         $client = new Client("http://{$address}", 'secret', stallTimeout: self::STALL_TIMEOUT);
 
         $client->ping();
+        $this->assertSame('ended', $this->readServerReport());
 
         // The abort time counts from the call, so it is over before the
         // request starts.
@@ -228,18 +241,26 @@ final class AbortInTest extends TestCase
         $this->assertIsAborted(static function (Client $client): void {
             $client->ping();
         }, $client, 'answer');
-        $this->assertCount(2, $this->readRequests(), 'Expected the request not to be sent.');
+
+        $client->ping();
+
+        $this->assertReachedTheServerOnly(['/api/v2/system/ping', '/api/v2/system/ping', '/api/v2/system/ping']);
     }
 
     public function testEndsAStreamWhoseAbortTimeIsOverWithoutSendingIt(): void
     {
+        // The server has one answer more than the requests that the client is
+        // to send, so that the request after the aborted one gets its answer
+        // even if the aborted one reached the server.
         $address = $this->startDatabase('v2', [
             $this->pingResponse('v2'),
-            $this->response([self::eventItem('v2'), self::item('v2', 'end')], interval: 0.0, holdFor: 0.0),
+            $this->pingResponse('v2'),
+            $this->pingResponse('v2'),
         ]);
         $client = new Client("http://{$address}", 'secret', stallTimeout: self::STALL_TIMEOUT);
 
         $client->ping();
+        $this->assertSame('ended', $this->readServerReport());
 
         $client->abortIn(self::ABORT_TIME);
 
@@ -249,7 +270,10 @@ final class AbortInTest extends TestCase
         $eventsRead = iterator_count($events);
 
         $this->assertSame(0, $eventsRead);
-        $this->assertCount(2, $this->readRequests(), 'Expected the request not to be sent.');
+
+        $client->ping();
+
+        $this->assertReachedTheServerOnly(['/api/v2/system/ping', '/api/v2/system/ping', '/api/v2/system/ping']);
     }
 
     public function testEndsAStreamWhoseHeadersArriveLateAtTheAbortTimeCountedFromTheCall(): void
@@ -366,17 +390,20 @@ final class AbortInTest extends TestCase
     }
 
     /**
-     * The answer to a ping, in the shape of the given API.
+     * Asserts that the server received the requests with the given paths, and
+     * no others, and that the next connection that it handled after those
+     * already reported was the one of the request that the client made after
+     * the aborted one. The server handles one connection at a time, so once
+     * that request has its answer, the server has handled every connection
+     * opened before it, including one of the aborted request that it did not
+     * get as far as sending, which it would report first.
      *
-     * @param 'v1'|'v2' $apiVersion
+     * @param list<string> $paths
      */
-    private function pingResponse(string $apiVersion): array
+    private function assertReachedTheServerOnly(array $paths): void
     {
-        if ($apiVersion === 'v2') {
-            return $this->response([self::$pingOfV2], interval: 0.0, holdFor: 0.0, contentType: 'application/json');
-        }
-
-        return $this->response(['{"type":"io.eventsourcingdb.api.ping-received"}'], interval: 0.0, holdFor: 0.0, contentType: 'application/json');
+        $this->assertSame('ended', $this->readServerReport(), 'Expected the aborted request not to reach the server.');
+        $this->assertSame($paths, array_column($this->readRequests(), 'path'), 'Expected the aborted request not to reach the server.');
     }
 
     /**

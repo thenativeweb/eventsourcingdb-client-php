@@ -111,6 +111,20 @@ trait ServerTestTrait
     }
 
     /**
+     * The answer to a ping, in the shape of the given API.
+     *
+     * @param 'v1'|'v2' $apiVersion
+     */
+    private function pingResponse(string $apiVersion): array
+    {
+        if ($apiVersion === 'v2') {
+            return $this->response([self::$pingOfV2], interval: 0.0, holdFor: 0.0, contentType: 'application/json');
+        }
+
+        return $this->response(['{"type":"io.eventsourcingdb.api.ping-received"}'], interval: 0.0, holdFor: 0.0, contentType: 'application/json');
+    }
+
+    /**
      * An item of a stream, in the shape of the given API.
      *
      * @param 'v1'|'v2' $apiVersion
