@@ -12,7 +12,6 @@ trait ReflectionTestTrait
     {
         $reflectionClass = new ReflectionClass($object);
         $reflectionProperty = $reflectionClass->getProperty($propertyName);
-        $reflectionProperty->setAccessible(true);
         $reflectionProperty->setValue($object, $propertyValue);
     }
 
@@ -20,7 +19,6 @@ trait ReflectionTestTrait
     {
         $reflectionClass = new ReflectionClass($object);
         $reflectionProperty = $reflectionClass->getProperty($propertyName);
-        $reflectionProperty->setAccessible(true);
         return $reflectionProperty->getValue($object);
     }
 }
