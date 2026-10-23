@@ -602,7 +602,7 @@ If the server only offers the v1 API, the client assigns the code of the v2 API 
 
 EventSourcingDB never stores a write halfway, but a write whose answer is lost may have been stored nonetheless. So, if writing events or registering an event schema fails in a way that leaves open whether the server stored it, the client throws an `OutcomeUnknownException`, which extends `RuntimeException`, and whose previous exception, which `getPrevious()` returns, is the cause. This is the case, e.g., if the connection stalls or breaks after the request was sent, if `abortIn` aborts reading the answer, if the answer breaks off, if the server fails unexpectedly, or if the answer does not come from EventSourcingDB, e.g. from a proxy.
 
-A write certainly was not stored if the client throws any other exception, i.e. if the connection could not be established at all, or if the server refused the write, which it reports with a `DbApiException`:
+A write certainly was not stored if the client throws any other exception, i.e. if the client refused the write before sending it, which it reports with an `IncompatibleServerException`, if the connection could not be established at all, or if the server refused the write, which it reports with a `DbApiException`:
 
 ```php
 use Thenativeweb\Eventsourcingdb\OutcomeUnknownException;
