@@ -55,11 +55,36 @@ class CurlMultiHandler
      */
     public function abortIn(float $seconds): void
     {
-        $this->abortDeadline = $seconds > 0 ? microtime(true) + $seconds : null;
+        $this->abortAt($seconds > 0 ? microtime(true) + $seconds : null);
+    }
+
+    /**
+     * Aborts the stream being read, or, if there is none, the next request,
+     * at the given point in time, or never, if it is null. It lets asking the
+     * server which API it offers end at the abort time that the caller set
+     * for its request, see TransportSelector.
+     */
+    public function abortAt(?float $abortDeadline): void
+    {
+        $this->abortDeadline = $abortDeadline;
 
         // The abort time applies to the stream being read, or, if there is
         // none, to the next request.
         $this->abortInCurlHandle = end($this->readingCurlHandles) ?: null;
+    }
+
+    /**
+     * Returns the point in time at which the next request is aborted, or null
+     * if there is none, which is also the case if the abort time applies to a
+     * stream being read.
+     */
+    public function getAbortDeadlineOfNextRequest(): ?float
+    {
+        if ($this->abortInCurlHandle instanceof CurlHandle) {
+            return null;
+        }
+
+        return $this->abortDeadline;
     }
 
     /**

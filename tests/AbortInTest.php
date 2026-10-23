@@ -43,10 +43,19 @@ final class AbortInTest extends TestCase
     public static function callsOfEveryApiVersion(): Iterator
     {
         foreach (['v1', 'v2'] as $apiVersion) {
-            foreach (self::calls() as $name => [$call, $kind]) {
+            foreach (self::callsWithKind() as $name => [$call, $kind]) {
                 yield "{$name} ({$apiVersion})" => [$apiVersion, $call, $kind];
             }
         }
+    }
+
+    /**
+     * Every call of the client, with what it is, for a client that does not
+     * know yet which API the server offers.
+     */
+    public static function calls(): Iterator
+    {
+        yield from self::callsWithKind();
     }
 
     /**
@@ -55,7 +64,7 @@ final class AbortInTest extends TestCase
     public static function singleAnswerCallsOfEveryApiVersion(): Iterator
     {
         foreach (['v1', 'v2'] as $apiVersion) {
-            foreach (self::calls() as $name => [$call, $kind]) {
+            foreach (self::callsWithKind() as $name => [$call, $kind]) {
                 if ($kind !== 'answer') {
                     continue;
                 }
@@ -91,6 +100,52 @@ final class AbortInTest extends TestCase
         // The server received the request before it began to wait, so a write
         // that is aborted while it waits has been sent.
         $this->assertCount(3, $this->readRequests(), 'Expected the request to have been sent.');
+    }
+
+    /**
+     * @param 'stream'|'write'|'answer' $kind
+     */
+    #[DataProvider('calls')]
+    public function testAbortsAskingTheServerWhichApiItOffers(Closure $call, string $kind): void
+    {
+        $address = $this->startServerWithResponses([
+            $this->response([], interval: 0.0, holdFor: 0.0, delay: self::SERVER_DELAY),
+            $this->probeResponse('v2'),
+            $this->pingResponse('v2'),
+        ]);
+        $client = new Client("http://{$address}", 'secret', stallTimeout: self::STALL_TIMEOUT);
+
+        $client->abortIn(self::ABORT_TIME);
+
+        // Asking failed before the request was sent, so a write that is
+        // aborted while the client asks was certainly not stored.
+        $this->assertIsAborted($call, $client, $kind, hasBeenSent: false);
+        $this->assertSame('closed', $this->readServerReport(), 'Expected the connection to be closed.');
+        $this->assertCount(1, $this->readRequests(), 'Expected only the request that asks to be sent.');
+
+        // Asking used up the abort time, so the next request is not aborted,
+        // and asks again.
+        $client->ping();
+
+        $this->assertSame('ended', $this->readServerReport());
+        $this->assertSame('ended', $this->readServerReport());
+    }
+
+    public function testDoesNotAskTheServerWhichApiItOffersOnceTheAbortTimeIsOver(): void
+    {
+        $address = $this->startServerWithResponses([
+            $this->probeResponse('v2'),
+            $this->pingResponse('v2'),
+        ]);
+        $client = new Client("http://{$address}", 'secret', stallTimeout: self::STALL_TIMEOUT);
+
+        $client->abortIn(self::ABORT_TIME);
+        usleep((int) (self::ABORT_TIME * 1.5 * 1_000_000));
+
+        $this->assertIsAborted(static function (Client $client): void {
+            $client->ping();
+        }, $client, 'answer');
+        $this->assertSame([], $this->readRequests(), 'Expected no request to be sent.');
     }
 
     public function testLeavesTheAbortTimeToTheRequestOnceTheServerHasToldItsApi(): void
@@ -185,7 +240,7 @@ final class AbortInTest extends TestCase
     /**
      * @return iterable<string, array{Closure(Client): mixed, 'stream'|'write'|'answer'}>
      */
-    private static function calls(): iterable
+    private static function callsWithKind(): iterable
     {
         yield 'ping' => [
             static function (Client $client): void {
@@ -253,13 +308,14 @@ final class AbortInTest extends TestCase
 
     /**
      * Asserts that the call ends the way an aborted request of its kind ends:
-     * a stream without an exception and without items, a write with an
-     * OutcomeUnknownException whose previous exception is the abort, and any
-     * other request with the abort itself.
+     * a stream without an exception and without items, a write that has been
+     * sent with an OutcomeUnknownException whose previous exception is the
+     * abort, and any other request with the abort itself.
      *
      * @param 'stream'|'write'|'answer' $kind
+     * @param bool $hasBeenSent whether the request has been sent before it is aborted, which leaves the outcome of a write open
      */
-    private function assertIsAborted(Closure $call, Client $client, string $kind): void
+    private function assertIsAborted(Closure $call, Client $client, string $kind, bool $hasBeenSent = true): void
     {
         try {
             $itemsRead = $call($client);
@@ -268,7 +324,7 @@ final class AbortInTest extends TestCase
 
             $this->assertNotSame('stream', $kind, $description);
 
-            if ($kind === 'write') {
+            if ($kind === 'write' && $hasBeenSent) {
                 $this->assertInstanceOf(OutcomeUnknownException::class, $throwable, $description);
                 $throwable = $throwable->getPrevious();
             }

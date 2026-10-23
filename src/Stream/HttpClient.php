@@ -33,6 +33,24 @@ class HttpClient
     }
 
     /**
+     * Aborts the stream being read, or, if there is none, the next request,
+     * at the given point in time, or never, if it is null.
+     */
+    public function abortAt(?float $abortDeadline): void
+    {
+        $this->curlMultiHandler->abortAt($abortDeadline);
+    }
+
+    /**
+     * Returns the point in time at which the next request is aborted, or null
+     * if there is none, also if the abort time applies to a stream being read.
+     */
+    public function getAbortDeadlineOfNextRequest(): ?float
+    {
+        return $this->curlMultiHandler->getAbortDeadlineOfNextRequest();
+    }
+
+    /**
      * Drops an abort time that waits for the next request, for a request that
      * fails before it is sent, and keeps one of a stream being read.
      */
