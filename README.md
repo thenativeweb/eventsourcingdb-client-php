@@ -148,6 +148,25 @@ $writtenEvents = $client->writeEvents([
 
 *Note that according to the CloudEvents standard, event IDs must be of type string.*
 
+#### Using Preconditions on Subjects Recursively
+
+If you want a precondition on a subject to apply not only to the subject itself, but also to all nested subjects, pass a `PreconditionOptions` object as the last argument of `IsSubjectPristine`, `IsSubjectPopulated`, or `IsSubjectOnEventId`, and set its `recursive` option to `true`:
+
+```php
+use Thenativeweb\Eventsourcingdb\IsSubjectPristine;
+use Thenativeweb\Eventsourcingdb\PreconditionOptions;
+
+$writtenEvents = $client->writeEvents([
+  // events
+], [
+  new IsSubjectPristine('/books/42', new PreconditionOptions(recursive: true)),
+]);
+```
+
+`IsSubjectPristine` then holds if neither the subject nor any nested subject has an event, `IsSubjectPopulated` holds if any of them has an event, and `IsSubjectOnEventId` holds if the last event among all of them has the given ID. By default, `recursive` is `false`, and the precondition applies to the given subject alone.
+
+*Note that only the v2 API offers recursive preconditions. If the server only offers the v1 API, the function throws an `IncompatibleServerException`, which extends `RuntimeException`, before it sends the events, and writes no event.*
+
 #### Using the `isEventQlQueryTrue` precondition
 
 If you want to write events depending on an EventQL query, use the `IsEventQlQueryTrue` function to create a precondition:

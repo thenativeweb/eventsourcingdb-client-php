@@ -9,6 +9,10 @@ use Thenativeweb\Eventsourcingdb\CloudEvent;
 use Thenativeweb\Eventsourcingdb\ConnectionStalledException;
 use Thenativeweb\Eventsourcingdb\DbApiException;
 use Thenativeweb\Eventsourcingdb\EventType;
+use Thenativeweb\Eventsourcingdb\IncompatibleServerException;
+use Thenativeweb\Eventsourcingdb\IsSubjectOnEventId;
+use Thenativeweb\Eventsourcingdb\IsSubjectPopulated;
+use Thenativeweb\Eventsourcingdb\IsSubjectPristine;
 use Thenativeweb\Eventsourcingdb\ObserveEventsOptions;
 use Thenativeweb\Eventsourcingdb\ReadEventsOptions;
 use Thenativeweb\Eventsourcingdb\ReadSubjectsOptions;
@@ -62,9 +66,15 @@ final readonly class V1Transport implements Transport
 
     public function writeEvents(array $events, array $preconditions): array
     {
+        // A recursive precondition fails the write before anything is sent,
+        // so the preconditions are converted outside of the guard, which would
+        // judge that failure by an earlier request, and report it as an
+        // unknown outcome.
+        $v1Preconditions = $this->convertPreconditions($preconditions);
+
         return WriteOutcome::guard(
             $this->httpClient,
-            fn (): array => $this->sendEvents($events, $preconditions),
+            fn (): array => $this->sendEvents($events, $v1Preconditions),
             $this->isRefusal(...),
             'It is unknown whether the events were written',
         );
@@ -328,6 +338,34 @@ final readonly class V1Transport implements Transport
             Responses::createCloudEvent(...),
             $data,
             $rawEvents,
+        );
+    }
+
+    /**
+     * The v1 API knows no options of a precondition, and checks a precondition
+     * on a subject for the given subject alone, which is what one that is not
+     * recursive means, so it is sent without its options. A recursive one
+     * cannot be checked at all, so the write fails before anything is sent,
+     * rather than check less than was asked.
+     */
+    private function convertPreconditions(array $preconditions): array
+    {
+        return array_map(
+            static function (mixed $precondition): mixed {
+                if (!$precondition instanceof IsSubjectPristine && !$precondition instanceof IsSubjectPopulated && !$precondition instanceof IsSubjectOnEventId) {
+                    return $precondition;
+                }
+
+                if ($precondition->options?->recursive === true) {
+                    throw new IncompatibleServerException('The server does not offer the v2 API, which a recursive precondition needs.');
+                }
+
+                $v1Precondition = $precondition->jsonSerialize();
+                unset($v1Precondition['payload']['options']);
+
+                return $v1Precondition;
+            },
+            $preconditions,
         );
     }
 

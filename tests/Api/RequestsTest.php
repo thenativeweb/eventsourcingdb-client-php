@@ -13,8 +13,13 @@ use Thenativeweb\Eventsourcingdb\BoundType;
 use Thenativeweb\Eventsourcingdb\Client;
 use Thenativeweb\Eventsourcingdb\EventCandidate;
 use Thenativeweb\Eventsourcingdb\EventType;
+use Thenativeweb\Eventsourcingdb\IncompatibleServerException;
+use Thenativeweb\Eventsourcingdb\IsEventQlQueryTrue;
+use Thenativeweb\Eventsourcingdb\IsSubjectOnEventId;
+use Thenativeweb\Eventsourcingdb\IsSubjectPopulated;
 use Thenativeweb\Eventsourcingdb\IsSubjectPristine;
 use Thenativeweb\Eventsourcingdb\ObserveEventsOptions;
+use Thenativeweb\Eventsourcingdb\PreconditionOptions;
 use Thenativeweb\Eventsourcingdb\ReadEventsOptions;
 use Thenativeweb\Eventsourcingdb\ReadSubjectsOptions;
 use Thenativeweb\Eventsourcingdb\Tests\Trait\ServerTestTrait;
@@ -81,6 +86,50 @@ final class RequestsTest extends TestCase
             [$end],
             'application/x-ndjson',
             ['POST', '/api/v2/data/write-events', '{"events":[{"source":"https:\/\/www.eventsourcingdb.io","subject":"\/test","type":"io.eventsourcingdb.test","data":{"value":23}}],"preconditions":[{"type":"isSubjectPristine","payload":{"subject":"\/test"}}]}'],
+        ];
+        $writeEventsWithPreconditionsOnTheSubject = static fn (?PreconditionOptions $preconditionOptions): Closure => static fn (Client $client): array => $client->writeEvents([$eventCandidate], [
+            new IsSubjectPristine('/test', $preconditionOptions),
+            new IsSubjectPopulated('/test', $preconditionOptions),
+            new IsSubjectOnEventId('/test', '0', $preconditionOptions),
+        ]);
+        $preconditionsWithoutOptions = '[{"type":"isSubjectPristine","payload":{"subject":"\/test"}},{"type":"isSubjectPopulated","payload":{"subject":"\/test"}},{"type":"isSubjectOnEventId","payload":{"subject":"\/test","eventId":"0"}}]';
+
+        yield 'writeEvents with preconditions on the subject without options (v1)' => [
+            'v1',
+            $writeEventsWithPreconditionsOnTheSubject(null),
+            ['[]'],
+            'application/json',
+            ['POST', '/api/v1/write-events', '{"events":[{"source":"https:\/\/www.eventsourcingdb.io","subject":"\/test","type":"io.eventsourcingdb.test","data":{"value":23}}],"preconditions":' . $preconditionsWithoutOptions . '}'],
+        ];
+        yield 'writeEvents with preconditions on the subject without options (v2)' => [
+            'v2',
+            $writeEventsWithPreconditionsOnTheSubject(null),
+            [$end],
+            'application/x-ndjson',
+            ['POST', '/api/v2/data/write-events', '{"events":[{"source":"https:\/\/www.eventsourcingdb.io","subject":"\/test","type":"io.eventsourcingdb.test","data":{"value":23}}],"preconditions":' . $preconditionsWithoutOptions . '}'],
+        ];
+        // The v1 API knows no options of a precondition, so a precondition
+        // that is not recursive is sent to it as one without options.
+        yield 'writeEvents with preconditions on the subject that are not recursive (v1)' => [
+            'v1',
+            $writeEventsWithPreconditionsOnTheSubject(new PreconditionOptions(recursive: false)),
+            ['[]'],
+            'application/json',
+            ['POST', '/api/v1/write-events', '{"events":[{"source":"https:\/\/www.eventsourcingdb.io","subject":"\/test","type":"io.eventsourcingdb.test","data":{"value":23}}],"preconditions":' . $preconditionsWithoutOptions . '}'],
+        ];
+        yield 'writeEvents with preconditions on the subject that are not recursive (v2)' => [
+            'v2',
+            $writeEventsWithPreconditionsOnTheSubject(new PreconditionOptions(recursive: false)),
+            [$end],
+            'application/x-ndjson',
+            ['POST', '/api/v2/data/write-events', '{"events":[{"source":"https:\/\/www.eventsourcingdb.io","subject":"\/test","type":"io.eventsourcingdb.test","data":{"value":23}}],"preconditions":[{"type":"isSubjectPristine","payload":{"subject":"\/test","options":{"recursive":false}}},{"type":"isSubjectPopulated","payload":{"subject":"\/test","options":{"recursive":false}}},{"type":"isSubjectOnEventId","payload":{"subject":"\/test","eventId":"0","options":{"recursive":false}}}]}'],
+        ];
+        yield 'writeEvents with recursive preconditions on the subject (v2)' => [
+            'v2',
+            $writeEventsWithPreconditionsOnTheSubject(new PreconditionOptions(recursive: true)),
+            [$end],
+            'application/x-ndjson',
+            ['POST', '/api/v2/data/write-events', '{"events":[{"source":"https:\/\/www.eventsourcingdb.io","subject":"\/test","type":"io.eventsourcingdb.test","data":{"value":23}}],"preconditions":[{"type":"isSubjectPristine","payload":{"subject":"\/test","options":{"recursive":true}}},{"type":"isSubjectPopulated","payload":{"subject":"\/test","options":{"recursive":true}}},{"type":"isSubjectOnEventId","payload":{"subject":"\/test","eventId":"0","options":{"recursive":true}}}]}'],
         ];
         yield 'readEvents (v1)' => [
             'v1',
@@ -263,6 +312,45 @@ final class RequestsTest extends TestCase
         $client = new Client("http://{$address}", 'secret');
 
         $this->assertEquals($eventType, $client->readEventType('io.eventsourcingdb.test'));
+    }
+
+    public static function recursivePreconditions(): Iterator
+    {
+        $preconditionOptions = new PreconditionOptions(recursive: true);
+
+        yield 'isSubjectPristine' => [new IsSubjectPristine('/test', $preconditionOptions)];
+        yield 'isSubjectPopulated' => [new IsSubjectPopulated('/test', $preconditionOptions)];
+        yield 'isSubjectOnEventId' => [new IsSubjectOnEventId('/test', '0', $preconditionOptions)];
+    }
+
+    #[DataProvider('recursivePreconditions')]
+    public function testFailsWithoutSendingAWriteWithARecursivePreconditionThroughTheV1Api(IsSubjectPristine|IsSubjectPopulated|IsSubjectOnEventId $precondition): void
+    {
+        $address = $this->startDatabase('v1', [
+            $this->response(['[]'], interval: 0.0, holdFor: 0.0, contentType: 'application/json'),
+        ]);
+        $client = new Client("http://{$address}", 'secret');
+
+        try {
+            $client->writeEvents([
+                new EventCandidate(
+                    source: 'https://www.eventsourcingdb.io',
+                    subject: '/test',
+                    type: 'io.eventsourcingdb.test',
+                    data: [
+                        'value' => 23,
+                    ],
+                ),
+            ], [
+                new IsEventQlQueryTrue('FROM e IN events PROJECT INTO COUNT() == 0'),
+                $precondition,
+            ]);
+            $this->fail('Expected the write to fail, but it did not.');
+        } catch (IncompatibleServerException $incompatibleServerException) {
+            $this->assertSame('The server does not offer the v2 API, which a recursive precondition needs.', $incompatibleServerException->getMessage());
+        }
+
+        $this->assertCount(1, $this->readRequests(), 'Expected the client to ask for the API, but not to send the write.');
     }
 
     public function testReadsTheValueOfEachRowOfAQueryThatTheV2ApiAnswers(): void
