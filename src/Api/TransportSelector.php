@@ -24,7 +24,8 @@ use Throwable;
  * offer the v2 API by now, e.g. after an upgrade.
  *
  * This is the one place that chooses between the APIs, so that removing the
- * v1 API means removing V1Transport, V1ErrorCodes, and its choice here.
+ * v1 API means removing V1Transport, V1ErrorCodes, Preconditions, and its
+ * choice here, including asking again for a request that needs the v2 API.
  *
  * @internal
  *

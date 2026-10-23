@@ -484,9 +484,11 @@ final class ReadingStreamsTest extends TestCase
     #[DataProvider('outcomesOfAskingAgain')]
     public function testKeepsTheAbortTimeOfTheStreamBeingReadIfAWriteMadeWithinTheLoopFailsBeforeItIsSent(bool $isAskingFailing, string $expectedException): void
     {
-        // The server sends the second event only after the client has asked
-        // again which API it offers, since it answers one request at a time,
-        // so the abort time is over once the client reads on.
+        // The server answers one request at a time, so it answers the request
+        // that asks again which API it offers only once it has sent the second
+        // event, long after the abort time that the client sets with the first
+        // event is over. A client that keeps the abort time thus stops reading
+        // before the second event.
         $address = $this->startDatabase('v1', [
             $this->response([self::eventItem('v1'), self::eventItem('v1')], interval: 0.5, holdFor: 0.0),
             $isAskingFailing ? $this->textResponse(503, 'server is shutting down') : $this->probeResponse('v1'),
