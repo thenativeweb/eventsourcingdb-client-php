@@ -637,6 +637,8 @@ try {
 
 *Note that a request that you send while a stream is read, e.g. a write within the `foreach` loop over an observation, cannot get an abort time of its own through the same client, since `abortIn` then applies to the stream. To abort such a request, send it through a second client.*
 
+*Note that a stream counts as being read as long as you keep its iterator, also once you have left its loop, e.g. with `break`. To have `abortIn` apply to the next request instead, release the iterator first, e.g. with `unset($events)`.*
+
 ### Verifying an Event's Hash
 
 To verify the integrity of an event, call the `verifyHash` function on the event instance. This recomputes the event's hash locally and compares it to the hash stored in the event. If the hashes differ, the function throws a `HashVerificationFailedException`:
