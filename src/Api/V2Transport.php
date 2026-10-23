@@ -423,8 +423,7 @@ final readonly class V2Transport implements Transport
         try {
             $response = $request();
         } finally {
-            $status = $this->httpClient->getLastStatusCode();
-            if ($status === 404 || $status === 405) {
+            if (TransportSelector::meansNoV2Api($this->httpClient->getLastStatusCode())) {
                 ($this->forgetApi)($this);
             }
         }

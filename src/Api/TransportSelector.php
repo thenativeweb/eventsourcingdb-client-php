@@ -28,8 +28,9 @@ use Throwable;
  *
  * This is the one place that chooses between the APIs, so that removing the
  * v1 API means removing V1Transport, V1ErrorCodes, Preconditions, its choice
- * here, including asking again for a request that needs the v2 API, and the
- * argument isV2ApiNeeded that Client::writeEvents passes for that.
+ * here, including asking again for a request that needs the v2 API, the
+ * argument isV2ApiNeeded that Client::writeEvents passes for that, and the
+ * ping of the v1 API that Container asks where meansNoV2Api says so.
  *
  * @internal
  *
@@ -40,6 +41,18 @@ final class TransportSelector
     public const PROBE_PATH = '/api/v2/system/ping';
 
     private ?Transport $transport = null;
+
+    /**
+     * Tells whether the given status, with which a server answered a route of
+     * the v2 API, means that the server does not offer the v2 API, as a
+     * server without it answers a route that it does not know with 404 or
+     * 405. A missing status, of a request that got no answer, says nothing
+     * about the API.
+     */
+    public static function meansNoV2Api(?int $status): bool
+    {
+        return $status === 404 || $status === 405;
+    }
 
     /**
      * @param HttpClient $httpClient the HTTP client of the requests that the caller makes
@@ -99,7 +112,7 @@ final class TransportSelector
         // the content type or the body of its answer. Every request through the
         // v1 API checks that EventSourcingDB answers it.
         $status = $response->getStatusCode();
-        if ($status === 404 || $status === 405) {
+        if (self::meansNoV2Api($status)) {
             // The answer is not needed, so its connection is closed rather than
             // kept open until the next request.
             $response->getStream()

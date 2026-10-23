@@ -28,6 +28,7 @@ use Testcontainers\Utils\DockerAuthConfig;
 use Testcontainers\Utils\HostResolver;
 use Testcontainers\Utils\PortGenerator\PortGenerator;
 use Testcontainers\Wait\WaitStrategy;
+use Thenativeweb\Eventsourcingdb\Api\TransportSelector;
 use Throwable;
 
 /**
@@ -337,16 +338,20 @@ final class Container
 
     /**
      * Tells whether the database answers its ping with 200. It asks the ping
-     * of the v2 API, and only if the server answers that with 404 or 405, as
-     * a server without the v2 API does, the ping of the v1 API, which later
-     * releases no longer offer. Any other outcome, such as a refused
-     * connection, a request that takes too long, or another status, means
-     * that the database does not answer yet.
+     * of the v2 API, and only if the server answers that in a way that means
+     * that it does not offer the v2 API, with 404 or 405, the ping of the v1
+     * API, which later releases no longer offer. Any other outcome, such as a
+     * refused connection, a request that takes too long, or another status,
+     * means that the database does not answer yet.
+     *
+     * The container shares only what such an answer means with the client,
+     * not the client's choice of the API, so that a defect in that choice
+     * fails the tests that pin it instead of the start of every container.
      */
     private function answersPing(string $host, int $port, float $deadline): bool
     {
         $status = $this->requestPing("http://{$host}:{$port}/api/v2/system/ping", $deadline);
-        if ($status === 404 || $status === 405) {
+        if (TransportSelector::meansNoV2Api($status)) {
             $status = $this->requestPing("http://{$host}:{$port}/api/v1/ping", $deadline);
         }
 
