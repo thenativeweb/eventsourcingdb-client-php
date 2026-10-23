@@ -249,6 +249,18 @@ final class RequestsTest extends TestCase
         ];
     }
 
+    private function createEventCandidate(): EventCandidate
+    {
+        return new EventCandidate(
+            source: 'https://www.eventsourcingdb.io',
+            subject: '/test',
+            type: 'io.eventsourcingdb.test',
+            data: [
+                'value' => 23,
+            ],
+        );
+    }
+
     public static function eventTypes(): Iterator
     {
         yield 'with events (v1)' => [
@@ -324,15 +336,17 @@ final class RequestsTest extends TestCase
     }
 
     #[DataProvider('recursivePreconditions')]
-    public function testFailsWithoutSendingAWriteWithARecursivePreconditionThroughTheV1Api(IsSubjectPristine|IsSubjectPopulated|IsSubjectOnEventId $precondition): void
+    public function testFailsWithoutSendingAWriteWithARecursivePreconditionIfTheServerStillOffersTheV1ApiOnly(IsSubjectPristine|IsSubjectPopulated|IsSubjectOnEventId $precondition): void
     {
         $address = $this->startDatabase('v1', [
             $this->response(['{"type":"io.eventsourcingdb.api.ping-received"}'], interval: 0.0, holdFor: 0.0, contentType: 'application/json'),
+            $this->probeResponse('v1'),
             $this->response(['[]'], interval: 0.0, holdFor: 0.0, contentType: 'application/json'),
         ]);
         $client = new Client("http://{$address}", 'secret');
 
-        // The client pings first, so that its last request reached the server.
+        // The client pings first, so that it remembers that the server offers
+        // the v1 API only, and so that its last request reached the server.
         // Otherwise, an error before the write would keep its type even if the
         // write were guarded already, since a write whose request never
         // connected certainly was not stored.
@@ -340,14 +354,7 @@ final class RequestsTest extends TestCase
 
         try {
             $client->writeEvents([
-                new EventCandidate(
-                    source: 'https://www.eventsourcingdb.io',
-                    subject: '/test',
-                    type: 'io.eventsourcingdb.test',
-                    data: [
-                        'value' => 23,
-                    ],
-                ),
+                $this->createEventCandidate(),
             ], [
                 new IsEventQlQueryTrue('FROM e IN events PROJECT INTO COUNT() == 0'),
                 $precondition,
@@ -357,7 +364,83 @@ final class RequestsTest extends TestCase
             $this->assertSame('The server does not offer the v2 API, which a recursive precondition needs.', $incompatibleServerException->getMessage());
         }
 
-        $this->assertCount(2, $this->readRequests(), 'Expected the client to ask for the API and to ping, but not to send the write.');
+        $this->assertSame([
+            '/api/v2/system/ping',
+            '/api/v1/ping',
+            '/api/v2/system/ping',
+        ], array_column($this->readRequests(), 'path'), 'Expected the client to ask again which API the server offers, but not to send the write.');
+    }
+
+    public function testSendsAWriteWithARecursivePreconditionThroughTheV2ApiOnceTheServerOffersIt(): void
+    {
+        $address = $this->startDatabase('v1', [
+            $this->response(['{"type":"io.eventsourcingdb.api.ping-received"}'], interval: 0.0, holdFor: 0.0, contentType: 'application/json'),
+            $this->probeResponse('v2'),
+            $this->response([self::eventItem('v2'), self::item('v2', 'end')], interval: 0.0, holdFor: 0.0),
+            $this->response([self::item('v2', 'end')], interval: 0.0, holdFor: 0.0),
+        ]);
+        $client = new Client("http://{$address}", 'secret');
+
+        // The client remembers that the server offers the v1 API only, and the
+        // server is upgraded afterwards.
+        $client->ping();
+
+        $writtenEvents = $client->writeEvents([
+            $this->createEventCandidate(),
+        ], [
+            new IsSubjectPristine('/test', new PreconditionOptions(recursive: true)),
+        ]);
+
+        iterator_count($client->readEventTypes());
+
+        $this->assertCount(1, $writtenEvents);
+        $this->assertSame([
+            [
+                'method' => 'GET',
+                'path' => '/api/v2/system/ping',
+                'body' => '',
+            ],
+            [
+                'method' => 'GET',
+                'path' => '/api/v1/ping',
+                'body' => '',
+            ],
+            [
+                'method' => 'GET',
+                'path' => '/api/v2/system/ping',
+                'body' => '',
+            ],
+            [
+                'method' => 'POST',
+                'path' => '/api/v2/data/write-events',
+                'body' => '{"events":[{"source":"https:\/\/www.eventsourcingdb.io","subject":"\/test","type":"io.eventsourcingdb.test","data":{"value":23}}],"preconditions":[{"type":"isSubjectPristine","payload":{"subject":"\/test","options":{"recursive":true}}}]}',
+            ],
+            [
+                'method' => 'QUERY',
+                'path' => '/api/v2/data/read-event-types',
+                'body' => '',
+            ],
+        ], $this->readRequests());
+    }
+
+    public function testAsksOnceWhichApiTheServerOffersIfAWriteWithARecursivePreconditionIsTheFirstRequest(): void
+    {
+        $address = $this->startDatabase('v1', [
+            $this->probeResponse('v1'),
+        ]);
+        $client = new Client("http://{$address}", 'secret');
+
+        try {
+            $client->writeEvents([
+                $this->createEventCandidate(),
+            ], [
+                new IsSubjectPristine('/test', new PreconditionOptions(recursive: true)),
+            ]);
+            $this->fail('Expected the write to fail, but it did not.');
+        } catch (IncompatibleServerException) {
+        }
+
+        $this->assertCount(1, $this->readRequests(), 'Expected the client to ask once which API the server offers, since it had no answer to remember before.');
     }
 
     public function testReadsTheValueOfEachRowOfAQueryThatTheV2ApiAnswers(): void

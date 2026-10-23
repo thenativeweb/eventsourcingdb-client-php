@@ -18,7 +18,10 @@ use Throwable;
  * asked, and leaves the choice open, so that the next request asks again.
  * Once the server answers a route of the v2 API with 404 or 405, e.g. since
  * it was rolled back to a version without it, the client forgets the choice,
- * and the next request asks again, too.
+ * and the next request asks again, too. A request that needs the v2 API, such
+ * as a write with a recursive precondition, asks again as well, if the client
+ * remembers that the server offers the v1 API only, since the server may
+ * offer the v2 API by now, e.g. after an upgrade.
  *
  * This is the one place that chooses between the APIs, so that removing the
  * v1 API means removing V1Transport, V1ErrorCodes, and its choice here.
@@ -44,19 +47,28 @@ final class TransportSelector
     ) {
     }
 
-    public function getTransport(): Transport
+    /**
+     * @param bool $isV2ApiNeeded whether the request needs the v2 API, such as a write with a recursive precondition
+     */
+    public function getTransport(bool $isV2ApiNeeded = false): Transport
     {
+        if ($isV2ApiNeeded && $this->transport instanceof V1Transport) {
+            $this->transport = null;
+        }
+
         // PHP runs one request at a time, so the first request of a client
         // finishes asking before any other one starts, and the others use
-        // the answer it remembered.
+        // the answer it remembered. A stream that is being read while a
+        // request asks again keeps the transport that it started with.
         try {
             return $this->transport ??= $this->detectTransport();
         } catch (Throwable $throwable) {
             // The request that asked fails, so it uses up an abort time that
             // the caller set for it, as a request that fails does, rather than
-            // leave it to a later request. No stream is being read before the
-            // client knows the API, so the abort time was set for this one.
-            $this->httpClient->abortIn(0.0);
+            // leave it to a later request. An abort time of a stream being
+            // read, which a request that asks again within its loop meets,
+            // stays with the stream.
+            $this->httpClient->useUpAbortTimeOfNextRequest();
 
             throw $throwable;
         }

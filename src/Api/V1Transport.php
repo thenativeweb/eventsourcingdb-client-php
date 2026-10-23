@@ -64,12 +64,18 @@ final readonly class V1Transport implements Transport
     /**
      * The v1 API cannot check a recursive precondition, so a write with one
      * fails before anything is sent, rather than check less than was asked.
-     * This happens outside of the guard, which would judge that failure by an
-     * earlier request, and report it as an unknown outcome.
+     * TransportSelector asks which API the server offers right before such a
+     * write, also if the client remembered it, so the write gets here only if
+     * the server offers the v1 API only by then. It fails outside of the
+     * guard, which would judge that failure by an earlier request, and report
+     * it as an unknown outcome. As a request that fails, it uses up an abort
+     * time that waits for it, rather than leave it to a later request.
      */
     public function writeEvents(array $events, array $preconditions): array
     {
         if (Preconditions::includeRecursiveOne($preconditions)) {
+            $this->httpClient->useUpAbortTimeOfNextRequest();
+
             throw new IncompatibleServerException('The server does not offer the v2 API, which a recursive precondition needs.');
         }
 

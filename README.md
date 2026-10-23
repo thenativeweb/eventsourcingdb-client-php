@@ -42,7 +42,7 @@ $client->verifyApiToken();
 
 ### Talking to Servers With and Without the v2 API
 
-Creating a client does not send a request. The client SDK works with servers that offer the v2 API of EventSourcingDB, which it offers since version 1.3, and with servers that only offer the v1 API. On its first request, the client asks the server for the ping of the v2 API, `GET /api/v2/system/ping`, and remembers the answer: if the server answers it, the client uses the v2 API, and if the server does not know the route, the client uses the v1 API. If the server answers a path of the v2 API with 404 or 405, e.g. after it was rolled back to a version without it, the client asks again on the next request. If asking fails, e.g. because the server is not reachable, the first request fails with that error, and the next request asks again.
+Creating a client does not send a request. The client SDK works with servers that offer the v2 API of EventSourcingDB, which it offers since version 1.3, and with servers that only offer the v1 API. On its first request, the client asks the server for the ping of the v2 API, `GET /api/v2/system/ping`, and remembers the answer: if the server answers it, the client uses the v2 API, and if the server does not know the route, the client uses the v1 API. If the server answers a path of the v2 API with 404 or 405, e.g. after it was rolled back to a version without it, the client asks again on the next request. A write with a recursive precondition, which only the v2 API offers, asks again as well if the client remembers that the server only offers the v1 API, since the server may have been upgraded in the meantime, see [Using Preconditions on Subjects Recursively](#using-preconditions-on-subjects-recursively). If asking fails, e.g. because the server is not reachable, the request that asked fails with that error, and the next request asks again.
 
 *Note that the v2 API reads with the HTTP method `QUERY` ([RFC 10008](https://www.rfc-editor.org/rfc/rfc10008)), which a proxy in front of the database has to let through. There is no fallback to `POST`.*
 
@@ -165,7 +165,7 @@ $writtenEvents = $client->writeEvents([
 
 `IsSubjectPristine` then holds if neither the subject nor any nested subject has an event, `IsSubjectPopulated` holds if any of them has an event, and `IsSubjectOnEventId` holds if the last event among all of them has the given ID. By default, `recursive` is `false`, and the precondition applies to the given subject alone.
 
-*Note that only the v2 API offers recursive preconditions. If the server only offers the v1 API, the function throws an `IncompatibleServerException`, which extends `RuntimeException`, before it sends the events, and writes no event.*
+*Note that only the v2 API offers recursive preconditions. If the server only offers the v1 API, the function throws an `IncompatibleServerException`, which extends `RuntimeException`, before it sends the events, and writes no event. To find out, the client asks the server again which API it offers if it remembers that the server only offers the v1 API, since the server may have been upgraded in the meantime.*
 
 #### Using the `isEventQlQueryTrue` precondition
 
