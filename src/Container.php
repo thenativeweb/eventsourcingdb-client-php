@@ -284,9 +284,10 @@ final class Container
 
     /**
      * Polls the container until the database in it answers a ping with 200,
-     * and tells whether it did so before the deadline. The mapped port is
-     * read anew on every poll, since Docker sometimes publishes it late. If
-     * the container exits, waiting fails at once with the end of its log.
+     * see answersPing, and tells whether it did so before the deadline. The
+     * mapped port is read anew on every poll, since Docker sometimes
+     * publishes it late. If the container exits, waiting fails at once with
+     * the end of its log.
      */
     private function waitUntilReachable(Docker $docker, string $containerId, string $host, float $deadline): bool
     {
@@ -310,7 +311,7 @@ final class Container
             }
 
             $port = $this->findMappedPort($containerInspect?->getNetworkSettings()?->getPorts());
-            if ($port !== null && $this->answersPing($host, $port, min($remaining, self::PING_TIMEOUT))) {
+            if ($port !== null && $this->answersPing($host, $port, $deadline)) {
                 return true;
             }
 
@@ -334,20 +335,50 @@ final class Container
         return $hostPort > 0 ? $hostPort : null;
     }
 
-    private function answersPing(string $host, int $port, float $timeout): bool
+    /**
+     * Tells whether the database answers its ping with 200. It asks the ping
+     * of the v2 API, and only if the server answers that with 404 or 405, as
+     * a server without the v2 API does, the ping of the v1 API, which later
+     * releases no longer offer. Any other outcome, such as a refused
+     * connection, a request that takes too long, or another status, means
+     * that the database does not answer yet.
+     */
+    private function answersPing(string $host, int $port, float $deadline): bool
     {
-        $curlHandle = curl_init("http://{$host}:{$port}/api/v1/ping");
-        if ($curlHandle === false) {
-            return false;
+        $status = $this->requestPing("http://{$host}:{$port}/api/v2/system/ping", $deadline);
+        if ($status === 404 || $status === 405) {
+            $status = $this->requestPing("http://{$host}:{$port}/api/v1/ping", $deadline);
         }
 
+        return $status === 200;
+    }
+
+    /**
+     * Asks the given URL without a token, for the ping timeout at most, and
+     * for no longer than is left until the deadline, and returns the status
+     * of the answer, or null if none arrived.
+     */
+    private function requestPing(string $url, float $deadline): ?int
+    {
+        $curlHandle = curl_init($url);
+        if ($curlHandle === false) {
+            return null;
+        }
+
+        // cURL takes a timeout of 0 for no timeout at all, so a request gets a
+        // millisecond at least, also once the deadline has passed.
+        $timeout = min($deadline - microtime(true), self::PING_TIMEOUT);
         curl_setopt_array($curlHandle, [
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_NOSIGNAL => true,
             CURLOPT_TIMEOUT_MS => max(1, (int) ceil($timeout * 1000)),
         ]);
 
-        return curl_exec($curlHandle) !== false && curl_getinfo($curlHandle, CURLINFO_RESPONSE_CODE) === 200;
+        if (curl_exec($curlHandle) === false) {
+            return null;
+        }
+
+        return curl_getinfo($curlHandle, CURLINFO_RESPONSE_CODE);
     }
 
     private function readLogTail(Docker $docker, string $containerId): string
