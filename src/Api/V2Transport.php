@@ -9,7 +9,6 @@ use RuntimeException;
 use Thenativeweb\Eventsourcingdb\CloudEvent;
 use Thenativeweb\Eventsourcingdb\ConnectionStalledException;
 use Thenativeweb\Eventsourcingdb\DbApiException;
-use Thenativeweb\Eventsourcingdb\ErrorCode;
 use Thenativeweb\Eventsourcingdb\EventType;
 use Thenativeweb\Eventsourcingdb\ObserveEventsOptions;
 use Thenativeweb\Eventsourcingdb\ReadEventsOptions;
@@ -290,17 +289,17 @@ final readonly class V2Transport implements Transport
 
     /**
      * Tells whether the server refused a write explicitly, which it does with
-     * an error in the body of its answer, unless the error is that storing the
-     * write failed, or with one of the statuses that it answers before storing
-     * anything.
+     * an error in the body of its answer, or with one of the statuses that it
+     * answers before storing anything. Every error in the body counts, also
+     * the error that the store has failed, which the server reports once its
+     * store has failed before, since it then refuses every write until it is
+     * restarted. The write during which storing fails gets no such error, but
+     * a 500, or a stream that ends without its item of type end, both of
+     * which leave its outcome open.
      */
     private function isRefusal(DbApiException $dbApiException): bool
     {
-        if ($dbApiException->status === 200) {
-            return $dbApiException->errorCode !== ErrorCode::STORE_FAILED;
-        }
-
-        return in_array($dbApiException->status, self::REFUSING_STATUSES, true);
+        return $dbApiException->status === 200 || in_array($dbApiException->status, self::REFUSING_STATUSES, true);
     }
 
     /**
