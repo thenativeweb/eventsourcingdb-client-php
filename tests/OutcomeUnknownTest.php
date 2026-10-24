@@ -67,7 +67,7 @@ final class OutcomeUnknownTest extends TestCase
                 yield "{$name}, v2, {$status}" => ['v2', $write, self::textAnswer($status), $status];
             }
 
-            foreach ([ErrorCode::PRECONDITION_VIOLATED, ErrorCode::EVENT_SCHEMA_ALREADY_REGISTERED, ErrorCode::STORE_READ_ONLY, ErrorCode::LICENSE_INVALID] as $code) {
+            foreach ([ErrorCode::PRECONDITION_VIOLATED, ErrorCode::EVENT_SCHEMA_ALREADY_REGISTERED, ErrorCode::STORE_READ_ONLY, ErrorCode::STORE_FAILED, ErrorCode::LICENSE_INVALID] as $code) {
                 yield "{$name}, v2, {$code}" => ['v2', $write, self::errorItemAnswer($code), 200];
             }
         }
@@ -114,7 +114,6 @@ final class OutcomeUnknownTest extends TestCase
                 ];
             }
 
-            yield "{$name}, v2, an error in storing the write" => ['v2', $write, self::errorItemAnswer(ErrorCode::STORE_FAILED), DbApiException::class];
             yield "{$name}, v2, a stream that ends without its end item" => [
                 'v2',
                 $write,
