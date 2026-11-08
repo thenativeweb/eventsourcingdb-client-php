@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Thenativeweb\Eventsourcingdb\Tests;
 
 use Closure;
-use Docker\API\Exception\ContainerCreateBadRequestException;
 use Docker\API\Exception\ContainerDeleteConflictException;
 use Docker\API\Exception\ContainerDeleteNotFoundException;
 use Docker\API\Exception\ImageCreateNotFoundException;
@@ -19,6 +18,7 @@ use Docker\API\Model\NetworkSettings;
 use Docker\API\Model\PortBinding;
 use Docker\API\Runtime\Client\Endpoint;
 use Docker\Docker;
+use Docker\Exception\UnexpectedClientErrorException;
 use Docker\Stream\DockerRawStream;
 use Exception;
 use InvalidArgumentException;
@@ -298,13 +298,13 @@ final class ContainerTest extends TestCase
 
         $this->assertInstanceOf(RuntimeException::class, $exception);
         $previous = $exception->getPrevious();
-        $this->assertInstanceOf(ContainerCreateBadRequestException::class, $previous);
+        $this->assertInstanceOf(UnexpectedClientErrorException::class, $previous);
         $this->assertSame(
-            'Failed to start the container: ' . $previous->getErrorResponse()->getMessage(),
+            'Failed to start the container: ' . $previous->getErrorMessage(),
             $exception->getMessage(),
         );
         $this->assertFalse($this->container->isRunning());
-        $this->assertCount(1, $recordingDocker->startLabels);
+        $this->assertCount(0, $recordingDocker->startLabels);
         $this->assertNoContainersAreLeft($recordingDocker);
     }
 
