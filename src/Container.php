@@ -15,6 +15,7 @@ use Docker\API\Model\PortBinding;
 use Docker\Docker;
 use Docker\Endpoint\ContainerLogs;
 use Docker\Endpoint\ImageCreate;
+use Docker\Exception\UnexpectedStatusCodeException;
 use Docker\Stream\CreateImageStream;
 use Docker\Stream\DockerRawStream;
 use Exception;
@@ -474,7 +475,9 @@ final class Container
         try {
             return $call();
         } catch (Exception $exception) {
-            $message = $exception->getMessage();
+            $message = $exception instanceof UnexpectedStatusCodeException
+                ? $exception->getErrorMessage()
+                : $exception->getMessage();
             if (method_exists($exception, 'getErrorResponse')) {
                 $errorResponse = $exception->getErrorResponse();
                 if ($errorResponse instanceof ErrorResponse && (string) $errorResponse->getMessage() !== '') {
