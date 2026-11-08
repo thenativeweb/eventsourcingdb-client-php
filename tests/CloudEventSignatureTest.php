@@ -36,6 +36,7 @@ final class CloudEventSignatureTest extends TestCase
             ->withImageTag($imageTag)
             ->withSigningKey();
         $container->start();
+
         $this->container = $container;
 
         $client = $container->getClient();
@@ -67,6 +68,7 @@ final class CloudEventSignatureTest extends TestCase
             ->withImageTag($imageTag)
             ->withSigningKey();
         $container->start();
+
         $this->container = $container;
 
         $client = $container->getClient();
@@ -117,6 +119,7 @@ final class CloudEventSignatureTest extends TestCase
         $container = (new Container())
             ->withImageTag($imageTag);
         $container->start();
+
         $this->container = $container;
 
         $client = $container->getClient();
@@ -155,6 +158,7 @@ final class CloudEventSignatureTest extends TestCase
             ->withImageTag($imageTag)
             ->withSigningKey();
         $container->start();
+
         $this->container = $container;
 
         $client = $container->getClient();
@@ -210,6 +214,7 @@ final class CloudEventSignatureTest extends TestCase
             ->withImageTag($imageTag)
             ->withSigningKey();
         $container->start();
+
         $this->container = $container;
 
         $client = $container->getClient();
@@ -265,6 +270,7 @@ final class CloudEventSignatureTest extends TestCase
             ->withImageTag($imageTag)
             ->withSigningKey();
         $container->start();
+
         $this->container = $container;
 
         $client = $container->getClient();
@@ -304,6 +310,7 @@ final class CloudEventSignatureTest extends TestCase
             ->withImageTag($imageTag)
             ->withSigningKey();
         $container->start();
+
         $this->container = $container;
 
         $client = $container->getClient();
