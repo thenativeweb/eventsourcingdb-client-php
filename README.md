@@ -700,7 +700,7 @@ By default, `Container` uses the `latest` tag of the official EventSourcingDB Do
 ```php
 use Thenativeweb\Eventsourcingdb\Container;
 
-$container = new Container()
+$container = (new Container())
   ->withImageTag('1.0.0');
 ```
 
@@ -709,7 +709,7 @@ Similarly, you can configure the port to use and the API token. Call the `withPo
 ```php
 use Thenativeweb\Eventsourcingdb\Container;
 
-$container = new Container()
+$container = (new Container())
   ->withPort(4000)
   ->withApiToken('secret');
 ```
@@ -717,7 +717,7 @@ $container = new Container()
 If you want to sign events, call the `withSigningKey` function. This generates a new signing and verification key pair inside the container:
 
 ```php
-$container = new Container()
+$container = (new Container())
   ->withSigningKey();
 ```
 
@@ -733,7 +733,7 @@ The `signingKey` is the private key EventSourcingDB signs events with. The `veri
 The `start` function pulls the image if it is missing, and then waits until the database in the container answers a ping, for 30 seconds at most, not counting the pull. To change this time, call the `withStartupTimeout` function with the seconds:
 
 ```php
-$container = new Container()
+$container = (new Container())
   ->withStartupTimeout(60);
 ```
 
