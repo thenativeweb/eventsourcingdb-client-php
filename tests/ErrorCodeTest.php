@@ -18,6 +18,8 @@ final class ErrorCodeTest extends TestCase
     private const SLUGS_OF_THE_SERVER = [
         'subject-missing',
         'subject-malformed',
+        'subject-too-long',
+        'subject-too-deep',
         'order-unknown',
         'event-id-missing',
         'event-id-malformed',
@@ -47,6 +49,7 @@ final class ErrorCodeTest extends TestCase
         'event-schema-missing',
         'event-schema-malformed',
         'event-schema-not-object',
+        'event-schema-too-complex',
         'event-schema-already-registered',
         'last-audited-event-missing',
         'last-audited-event-mismatched',
@@ -66,10 +69,16 @@ final class ErrorCodeTest extends TestCase
         'backup-increment-disconnected',
         'backup-failed',
         'backup-unreadable',
+        'backup-ahead-of-clock',
+        'import-ahead-of-clock',
+        'import-malformed',
+        'import-unreadable',
         'event-too-large',
         'data-malformed',
         'query-missing',
         'query-malformed',
+        'query-too-deep',
+        'query-too-long',
         'query-unevaluable',
         'query-not-boolean',
         'precondition-violated',
@@ -80,6 +89,7 @@ final class ErrorCodeTest extends TestCase
         'store-failed',
         'indexes-rebuilding',
         'server-shutting-down',
+        'file-unreadable',
     ];
 
     public function testHasAConstantForEveryCodeOfTheServer(): void
