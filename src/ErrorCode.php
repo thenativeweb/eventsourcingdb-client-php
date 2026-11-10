@@ -16,6 +16,8 @@ final class ErrorCode
 {
     public const SUBJECT_MISSING = 'https://docs.eventsourcingdb.io/errors/subject-missing';
     public const SUBJECT_MALFORMED = 'https://docs.eventsourcingdb.io/errors/subject-malformed';
+    public const SUBJECT_TOO_LONG = 'https://docs.eventsourcingdb.io/errors/subject-too-long';
+    public const SUBJECT_TOO_DEEP = 'https://docs.eventsourcingdb.io/errors/subject-too-deep';
     public const ORDER_UNKNOWN = 'https://docs.eventsourcingdb.io/errors/order-unknown';
     public const EVENT_ID_MISSING = 'https://docs.eventsourcingdb.io/errors/event-id-missing';
     public const EVENT_ID_MALFORMED = 'https://docs.eventsourcingdb.io/errors/event-id-malformed';
@@ -45,6 +47,7 @@ final class ErrorCode
     public const EVENT_SCHEMA_MISSING = 'https://docs.eventsourcingdb.io/errors/event-schema-missing';
     public const EVENT_SCHEMA_MALFORMED = 'https://docs.eventsourcingdb.io/errors/event-schema-malformed';
     public const EVENT_SCHEMA_NOT_OBJECT = 'https://docs.eventsourcingdb.io/errors/event-schema-not-object';
+    public const EVENT_SCHEMA_TOO_COMPLEX = 'https://docs.eventsourcingdb.io/errors/event-schema-too-complex';
     public const EVENT_SCHEMA_ALREADY_REGISTERED = 'https://docs.eventsourcingdb.io/errors/event-schema-already-registered';
     public const LAST_AUDITED_EVENT_MISSING = 'https://docs.eventsourcingdb.io/errors/last-audited-event-missing';
     public const LAST_AUDITED_EVENT_MISMATCHED = 'https://docs.eventsourcingdb.io/errors/last-audited-event-mismatched';
@@ -64,10 +67,16 @@ final class ErrorCode
     public const BACKUP_INCREMENT_DISCONNECTED = 'https://docs.eventsourcingdb.io/errors/backup-increment-disconnected';
     public const BACKUP_FAILED = 'https://docs.eventsourcingdb.io/errors/backup-failed';
     public const BACKUP_UNREADABLE = 'https://docs.eventsourcingdb.io/errors/backup-unreadable';
+    public const BACKUP_AHEAD_OF_CLOCK = 'https://docs.eventsourcingdb.io/errors/backup-ahead-of-clock';
+    public const IMPORT_AHEAD_OF_CLOCK = 'https://docs.eventsourcingdb.io/errors/import-ahead-of-clock';
+    public const IMPORT_MALFORMED = 'https://docs.eventsourcingdb.io/errors/import-malformed';
+    public const IMPORT_UNREADABLE = 'https://docs.eventsourcingdb.io/errors/import-unreadable';
     public const EVENT_TOO_LARGE = 'https://docs.eventsourcingdb.io/errors/event-too-large';
     public const DATA_MALFORMED = 'https://docs.eventsourcingdb.io/errors/data-malformed';
     public const QUERY_MISSING = 'https://docs.eventsourcingdb.io/errors/query-missing';
     public const QUERY_MALFORMED = 'https://docs.eventsourcingdb.io/errors/query-malformed';
+    public const QUERY_TOO_DEEP = 'https://docs.eventsourcingdb.io/errors/query-too-deep';
+    public const QUERY_TOO_LONG = 'https://docs.eventsourcingdb.io/errors/query-too-long';
     public const QUERY_UNEVALUABLE = 'https://docs.eventsourcingdb.io/errors/query-unevaluable';
     public const QUERY_NOT_BOOLEAN = 'https://docs.eventsourcingdb.io/errors/query-not-boolean';
     public const PRECONDITION_VIOLATED = 'https://docs.eventsourcingdb.io/errors/precondition-violated';
@@ -78,6 +87,7 @@ final class ErrorCode
     public const STORE_FAILED = 'https://docs.eventsourcingdb.io/errors/store-failed';
     public const INDEXES_REBUILDING = 'https://docs.eventsourcingdb.io/errors/indexes-rebuilding';
     public const SERVER_SHUTTING_DOWN = 'https://docs.eventsourcingdb.io/errors/server-shutting-down';
+    public const FILE_UNREADABLE = 'https://docs.eventsourcingdb.io/errors/file-unreadable';
 
     private function __construct()
     {
