@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "8f8560163cb6f17c07039b45fe0a01b0",
+    "content-hash": "5dab968c02197d8eb33fdee60b9645f1",
     "packages": [
         {
             "name": "clue/stream-filter",
@@ -74,22 +74,22 @@
         },
         {
             "name": "docker-php/docker-php",
-            "version": "v4.0.2",
+            "version": "v4.1.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/docker-php/docker-php.git",
-                "reference": "69d5fc578a17ab26b6fb5e6cbbf20d8c4c98c5fd"
+                "reference": "ed542424eb94bf4bd1c6655fe7e6c4b925c54d6f"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/docker-php/docker-php/zipball/69d5fc578a17ab26b6fb5e6cbbf20d8c4c98c5fd",
-                "reference": "69d5fc578a17ab26b6fb5e6cbbf20d8c4c98c5fd",
+                "url": "https://api.github.com/repos/docker-php/docker-php/zipball/ed542424eb94bf4bd1c6655fe7e6c4b925c54d6f",
+                "reference": "ed542424eb94bf4bd1c6655fe7e6c4b925c54d6f",
                 "shasum": ""
             },
             "require": {
-                "docker-php/docker-php-api": ">=7.1.45.0 <7.1.57.0",
+                "docker-php/docker-php-api": ">=7.1.45.0 <7.1.58.0",
                 "nyholm/psr7": "^1.8",
-                "php": ">=8.1",
+                "php": ">=8.2",
                 "php-http/client-common": "^2.7",
                 "php-http/discovery": "^1.19",
                 "php-http/socket-client": "^2.3",
@@ -119,7 +119,7 @@
             "type": "library",
             "extra": {
                 "branch-alias": {
-                    "dev-main": "4.0.x-dev"
+                    "dev-main": "4.1.x-dev"
                 }
             },
             "autoload": {
@@ -134,9 +134,9 @@
             "description": "A Docker PHP client",
             "support": {
                 "issues": "https://github.com/docker-php/docker-php/issues",
-                "source": "https://github.com/docker-php/docker-php/tree/v4.0.2"
+                "source": "https://github.com/docker-php/docker-php/tree/v4.1.0"
             },
-            "time": "2026-10-12T11:15:10+00:00"
+            "time": "2026-11-16T14:53:55+00:00"
         },
         {
             "name": "docker-php/docker-php-api",
@@ -2301,16 +2301,16 @@
         },
         {
             "name": "testcontainers/testcontainers",
-            "version": "1.2.0",
+            "version": "1.2.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/testcontainers/testcontainers-php.git",
-                "reference": "c13fd1b606791718cbdfb3dbc6470cf461cfe52d"
+                "reference": "ad8627c935aaf9270a3d7f38ff9eac5d891699b8"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/testcontainers/testcontainers-php/zipball/c13fd1b606791718cbdfb3dbc6470cf461cfe52d",
-                "reference": "c13fd1b606791718cbdfb3dbc6470cf461cfe52d",
+                "url": "https://api.github.com/repos/testcontainers/testcontainers-php/zipball/ad8627c935aaf9270a3d7f38ff9eac5d891699b8",
+                "reference": "ad8627c935aaf9270a3d7f38ff9eac5d891699b8",
                 "shasum": ""
             },
             "require": {
@@ -2358,9 +2358,9 @@
             ],
             "support": {
                 "issues": "https://github.com/testcontainers/testcontainers-php/issues",
-                "source": "https://github.com/testcontainers/testcontainers-php/tree/1.2.0"
+                "source": "https://github.com/testcontainers/testcontainers-php/tree/1.2.1"
             },
-            "time": "2026-10-22T18:10:08+00:00"
+            "time": "2026-11-08T11:49:12+00:00"
         }
     ],
     "packages-dev": [
