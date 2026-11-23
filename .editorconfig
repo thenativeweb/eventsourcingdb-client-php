@@ -1,11 +1,10 @@
-# top-most EditorConfig file
 root = true
 
 [*]
 charset = utf-8
 end_of_line = lf
-indent_size = 4
-indent_style = space
+indent_size = 2
+indent_style = tab
 insert_final_newline = true
 trim_trailing_whitespace = true
 
@@ -17,10 +16,18 @@ indent_style = space
 indent_size = 2
 indent_style = space
 
-[*.xml]
+[*.{yml,yaml}]
 indent_size = 2
 indent_style = space
 
-[*.yml]
+[*.php]
+indent_size = 4
+indent_style = space
+
+[*.neon]
+indent_size = 4
+indent_style = space
+
+[*.xml]
 indent_size = 2
 indent_style = space
