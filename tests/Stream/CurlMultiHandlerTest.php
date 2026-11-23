@@ -131,7 +131,7 @@ final class CurlMultiHandlerTest extends TestCase
     {
         // The request asks the ping of the API that the database offers,
         // since a release without the v1 API no longer answers its ping. Both
-        // pings answer with the same leading headers.
+        // pings answer with the headers checked below.
         $pingPath = $this->askWhetherTheDatabaseOffersTheV2Api() ? '/api/v2/system/ping' : '/api/v1/ping';
         $request = new Request(
             'GET',
@@ -145,8 +145,17 @@ final class CurlMultiHandlerTest extends TestCase
 
         $this->assertGreaterThanOrEqual(8, $headerQueue->getIterator()->count());
         $this->assertSame('HTTP/1.1 200 OK', $this->removeLineBrakes($headerQueue->read()));
-        $this->assertSame('Cache-Control: no-store, no-cache, must-revalidate, proxy-revalidate', $this->removeLineBrakes($headerQueue->read()));
-        $this->assertSame('Content-Type: application/json', $this->removeLineBrakes($headerQueue->read()));
+
+        // The headers after the status line come in the order of their names,
+        // and the database adds headers over time, such as security headers,
+        // which move the others. So they are looked up, not read by position.
+        $headers = [];
+        while (($line = $headerQueue->read()) !== '') {
+            $headers[] = $this->removeLineBrakes($line);
+        }
+
+        $this->assertContains('Cache-Control: no-store, no-cache, must-revalidate, proxy-revalidate', $headers);
+        $this->assertContains('Content-Type: application/json', $headers);
     }
 
     public function testContentIteratorThrowsIfHandleMissing(): void
